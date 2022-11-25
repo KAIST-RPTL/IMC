@@ -1472,13 +1472,13 @@ module depletion_module
                             mat%fratio(i,1) = 1.d0
                             mat%fratio(i,2:4) = 0.d0
                         endif
-!                        do k = 1,nE
-!                            yield_data(1:nfp,i) = yield_data(1:nfp,i) + &
-!                                tmp_yield(1:nfp,k,i) * mat%fratio(i,k)
-!                        enddo
-                        k = maxloc(mat%fratio(i,1:nE),1)
-                        yield_data(1:nfp,i) = tmp_yield(1:nfp,k,i)
-                        if(icore==score) print *, 'NFY', fssn_zai(i), Ep(k)
+                        do k = 1,nE
+                            yield_data(1:nfp,i) = yield_data(1:nfp,i) + &
+                                tmp_yield(1:nfp,k,i) * mat%fratio(i,k)
+                        enddo
+                        !k = maxloc(mat%fratio(i,1:nE),1)
+                        !yield_data(1:nfp,i) = tmp_yield(1:nfp,k,i)
+                        if(icore==score) print *, 'NFY', fssn_zai(i), mat%fratio(i,1:nE)
                         !yield_data(1:nfp,i) = 1.95d0 * yield_data(1:nfp,i) / sum(yield_data(1:nfp,i))
                         !yield_data(1:nfp, i) = yield_data(1:nfp,i) / totfiss
 
@@ -1538,11 +1538,10 @@ module depletion_module
                         enddo
                         cycle
                         220 continue
-                        !if(imat == 1 .and. icore==score) print *, 'F2', ace(iso)%zaid, rx, mt
                         
                         toteflux = sum(mat%eflux(1:nueg))
                         ogxs = buildogxs(iso,mt,mat%eflux(1:nueg),toteflux) * real_flux * barn
-                        !print *, ace(iso)%zaid, mt, ogxs, real_flux
+                        if(icore==score) print *, 'RX', ace(iso)%zaid, mt, ogxs, real_flux
                         !ogxs = tmpogxs((iso-1)*num_iso+idx)
                         ! FIND DESTINATION
                         if(mt==18) then ! In case of Fission
@@ -1569,6 +1568,7 @@ module depletion_module
                                     nnum1 = mnum1 - anum1
                                     inum1 = fp_zai(i)-anum1*10000-mnum1*10
                                     knuc = nuclide(inum1,nnum1,anum1)%idx
+                                    if(knuc==1599) print *, 'WTF', fp_zai(i)
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) &
                                         + ogxs * yield_data(i,fy_midx) * bstep_size
                                     !if(anum == 94 .and. nnum == 239-anum .and. icore==score) &
@@ -1595,10 +1595,12 @@ module depletion_module
                                     knuc = nuclide(1,nnum+1,anum)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) &
                                         = bMat(knuc,jnuc) + ogxs * bstep_size * (1.d0-gnd_frac(ism))
+                                    if(knuc==1599) print *, 'WTF', mt, ism
                                 else
                                     knuc = nuclide(0,nnum+1,anum)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) &
                                         = bMat(knuc,jnuc) + ogxs * bstep_size
+                                    if(knuc==1599) print *, 'WTF', mt, ism
                                 endif
                                 bMat(jnuc,jnuc) = bMat(jnuc,jnuc) - ogxs * bstep_size
                             else
@@ -1607,6 +1609,7 @@ module depletion_module
                                 nnum1 = nnum + 1 - nn - dn - 2*tn - 2*an - a3n
                                 knuc = 0
                                 if(anum1>0 .and. nnum1>0) knuc = nuclide(0,nnum1,anum1)%idx
+                                if(knuc==1599) print *, 'WTF', anum1, nnum1
                                 if(knuc/=0 .and. (nn+pn+dn+tn+an+a3n)>0) then
                                     bMat(knuc,jnuc) = bMat(knuc,jnuc) + ogxs * bstep_size
                                     if(nn>0) then
