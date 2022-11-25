@@ -1472,13 +1472,13 @@ module depletion_module
                             mat%fratio(i,1) = 1.d0
                             mat%fratio(i,2:4) = 0.d0
                         endif
-                        do k = 1,nE
-!                             if(maxval(mat%fratio(i,1:nE))==mat%fratio(i,k)) then
-                                yield_data(1:nfp,i) = yield_data(1:nfp,i) + &
-                                    tmp_yield(1:nfp,k,i) * mat%fratio(i,k)
-!                                yield_data(1:nfp,i)  = tmp_yield(1:nfp,k,i)
-!                            endif
-                        enddo
+!                        do k = 1,nE
+!                            yield_data(1:nfp,i) = yield_data(1:nfp,i) + &
+!                                tmp_yield(1:nfp,k,i) * mat%fratio(i,k)
+!                        enddo
+                        k = maxloc(mat%fratio(i,1:nE),1)
+                        yield_data(1:nfp,i) = tmp_yield(1:nfp,k,i)
+                        if(icore==score) print *, 'NFY', fssn_zai(i), Ep(k)
                         !yield_data(1:nfp,i) = 1.95d0 * yield_data(1:nfp,i) / sum(yield_data(1:nfp,i))
                         !yield_data(1:nfp, i) = yield_data(1:nfp,i) / totfiss
 
