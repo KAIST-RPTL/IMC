@@ -772,7 +772,7 @@ module depletion_module
                                         idx = idx + 1
                                         decay(idx) = tgt*10+11
                                         call ADDACE(decay(idx),tail)
-                                        if(icore==score) write(*,*) 'ADDED from ', ace(i)%xslib, decay(idx)
+                                        !if(icore==score) write(*,*) 'ADDED from ', ace(i)%xslib, decay(idx)
                                     endif
                                     if(nuclide(0,nnum+1,anum)%data_exist .and. nuclide(0,nnum+1,anum)%conn<0) then
                                         nuclide(0,nnum+1,anum)%conn = 1
@@ -993,6 +993,7 @@ module depletion_module
                     idx = idx1
                 enddo
                 
+                nnuc = 0
                 do anum = 1,111
                 do nnum = 0,170
                 do inum = 0,2
@@ -1000,7 +1001,7 @@ module depletion_module
                         nnuc = nnuc + 1
                         nuclide(inum,nnum,anum)%idx=nnuc
                         zai_idx(nnuc) = anum*10010+nnum*10+inum
-                        !if(icore==score) print *, nnuc, zai_idx(nnuc), nuclide(inum,nnum,anum)%conn
+                        !if(icore==score) print *, nnuc, zai_idx(nnuc)
                     endif
                 enddo
                 enddo
@@ -1108,6 +1109,23 @@ module depletion_module
                 !deallocate(rcvbuf)
                 if(icore==score) print *, 'XS pre-calculation completed'
             end subroutine
+
+            subroutine buildflux(iso, eflux, flux)
+            implicit none
+            integer, intent(in)  :: iso
+            real(8), intent(in)  :: eflux(:)
+            real(8), intent(out), allocatable :: flux(:)
+            integer :: i, n
+
+            n = ace(iso) % NXS(3)
+            allocate(flux(1:n)); flux = 0d0
+            do i = 1, nueg
+                flux(ace(iso) % UEG % Egrid(i)) = &
+                    flux(ace(iso) % UEG % Egrid(i)) + eflux(i)
+            enddo
+            end subroutine
+
+
 
             function buildogxs(iso, mt, eflux, toteflux)
             implicit none
@@ -1254,7 +1272,7 @@ module depletion_module
             real(8) :: tmpnumden
             integer :: tmpaceidx
 
-            real(8) :: totfiss
+            real(8) :: totfiss, numer, denom
 
             if(do_burn==.false.) return
             avg_power = avg_power / dble(n_act)
@@ -1287,7 +1305,7 @@ module depletion_module
             if(istep_burnup==0) then
             allocate(bMat(1:nnuc,1:nnuc))   !2-D burnup matrix : row to column transition
             allocate(bMat0(1:nnuc,1:nnuc)) !2-D burnup matrix : row to column transition (material independent)
-            bMat0 = 0.d0
+            bMat0 = 0.d0; bMat = 0d0
             
             !Build material independent burnup matrix
             do jnuc = 1, nnuc
@@ -1310,6 +1328,7 @@ module depletion_module
                 if (prod(k,1)>0 .or. prod(k,2)>0 .or. prod(k,3)>0) then
                     knuc = nuclide(prod(k,1),prod(k,2),prod(k,3))%idx
                     if (knuc>0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) + nuclide(inum,nnum,anum)%lambda*f_decay(k)
+                    !nif(knuc==1599) print *, 'WTF 1313', inum, nnum, anum, prod(k,1:3)
                 elseif(nuclide(inum,nnum,anum)%sfiss==k) then !Spontaneous fission
                     if(nuclide(inum,nnum,anum)%sfy_idx>0) then
                         ! If SFY exists
@@ -1322,6 +1341,7 @@ module depletion_module
                             if(knuc/=0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) &
                                 + nuclide(inum,nnum,anum)%lambda*f_decay(k) &
                                 *sfy_yield(j,nuclide(inum,nnum,anum)%sfy_idx)
+                            !if(knuc==1599) print *, 'WTF 1326'
                         end do
                     else
                         if(anum>=89) then !For actinides
@@ -1355,6 +1375,7 @@ module depletion_module
                             if(knuc/=0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) + &
                                 nuclide(inum,nnum,anum)%lambda*f_decay(k) &
                                 *sfy_yield(j,fy_midx)
+                            !if(knuc==1599) print *, 'WTF 1360'
                         end do
                         end if
                         end if
@@ -1365,27 +1386,30 @@ module depletion_module
                 deallocate(prod)
                 ! == 211111 update: Ignore emit from decay? ===
                 ! Count for emissions; alpha, neutron and proton
-                if (nuclide(inum,nnum,anum)%a_emit>0.d0) then
-                    knuc = nuclide(0,2,2)%idx
-                    !if (knuc>0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) + &
-                    !    nuclide(inum,nnum,anum)%lambda*nuclide(inum,nnum,anum)%a_emit
-                endif
-                if (nuclide(inum,nnum,anum)%n_emit>0.d0) then
-                    knuc = nuclide(0,1,0)%idx
-                    !if (knuc>0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) + &
-                    !    nuclide(inum,nnum,anum)%lambda*nuclide(inum,nnum,anum)%n_emit
-                endif
-                if (nuclide(inum,nnum,anum)%p_emit>0.d0) then
-                    knuc = nuclide(0,0,1)%idx
-                    !if (knuc>0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) + &
-                    !    nuclide(inum,nnum,anum)%lambda*nuclide(inum,nnum,anum)%p_emit
-                endif
+!                if (nuclide(inum,nnum,anum)%a_emit>0.d0) then
+!                    knuc = nuclide(0,2,2)%idx
+!                    if (knuc>0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) + &
+!                        nuclide(inum,nnum,anum)%lambda*nuclide(inum,nnum,anum)%a_emit
+!                    if(knuc==1599) print *, 'WTF alpha'
+!                endif
+!                if (nuclide(inum,nnum,anum)%n_emit>0.d0) then
+!                    knuc = nuclide(0,1,0)%idx
+!                    if (knuc>0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) + &
+!                        nuclide(inum,nnum,anum)%lambda*nuclide(inum,nnum,anum)%n_emit
+!                    if(knuc==1599) print *, 'WTF neutron'
+!                endif
+!                if (nuclide(inum,nnum,anum)%p_emit>0.d0) then
+!                    knuc = nuclide(0,0,1)%idx
+!                    if (knuc>0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) + &
+!                        nuclide(inum,nnum,anum)%lambda*nuclide(inum,nnum,anum)%p_emit
+!                    if(knuc==1599) print *, 'WTF proton'
+!                endif
                 
                 ! Count for removal per circulation
-                if (nuclide(inum,nnum,anum)%removal > 0.d0) then
-                    bMat0(jnuc,jnuc) = bMat0(jnuc,jnuc) + &
-                    log(1.d0-nuclide(inum,nnum,anum)%removal)/t_circulation
-                end if
+!                if (nuclide(inum,nnum,anum)%removal > 0.d0) then
+!                    bMat0(jnuc,jnuc) = bMat0(jnuc,jnuc) + &
+!                    log(1.d0-nuclide(inum,nnum,anum)%removal)/t_circulation
+!                end if
             end do
             end if
             
@@ -1412,58 +1436,77 @@ module depletion_module
 !                    write(prt_bumat, *) mat%mat_name 
 !                    write(prt_bumat, *) ''
                 !Call the material independent burnup matrix 
-                bMat = bMat0*bstep_size
                 
                 allocate(yield_data(nfp,nfssn))
                 yield_data = 0.d0
+                !TODO NFY interpolation Option
+!                do i = 1,nfssn
+!                    numer = 0d0; denom = 0d0;
+!                    totfiss = 0d0
+!                    zai = fssn_zai(i)
+!                    anum = zai/10000; mnum = (zai-10000*anum)/10; nnum = mnum-anum
+!                    inum = zai-anum*10000-mnum*10
+!                    aceval = find_ACE_iso_idx_zaid(zai)
+!                    mt_iso = 0
+!                    do j = 1, mat % n_iso
+!                        if(mat % ace_idx(j) == aceval) then
+!                            mt_iso = j; exit
+!                        endif
+!                    enddo
+!                    if(mt_iso==0) cycle
+!                    Ep = yieldE(i,1:4); nE = yieldnE(i)
+!                    if(.not. allocated(ace(aceval) % UEG % sigf)) cycle
+!                    do j = 1, nueg
+!                        numer = numer + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * ueggrid(j) * mat % numden(mt_iso)
+!                        denom = denom + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * mat % numden(mt_iso)
+!                    enddo
+!                    erg = numer/denom
+!                    if(nE<=1) then
+!                        yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
+!                    else
+!                        if(erg < Ep(1)) then
+!                            yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
+!                        elseif(erg > Ep(nE)) then
+!                            yield_data(1:nfp,i) = tmp_yield(1:nfp,nE,i)
+!                        else
+!                            do eg = 1, nE-1
+!                                if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
+!                                    g = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
+!                                    yield_data(1:nfp,i) = &
+!                                        tmp_yield(1:nfp,eg,i) * (1d0-g) + &
+!                                        tmp_yield(1:nfp,eg+1,i) * g
+!                                endif
+!                            enddo
+!                        endif
+!                    endif
+!                enddo
+
                 do i = 1,nfssn
-                    totfiss = 0d0
-                    zai = fssn_zai(i)
-                    anum = zai/10000; mnum = (zai-10000*anum)/10; nnum = mnum-anum
-                    inum = zai-anum*10000-mnum*10
-                    Ep = yieldE(i,1:4); nE = yieldnE(i)
                     if(nE==0) then
                         yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
                     else
                         if(nE==1) then
                             aceval = find_ACE_iso_idx_zaid(zai)
                             mat%fratio(i,1) = 1.d0
-                            !yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
-                            !totfiss = 1d0
                         else
                             aceval = find_ACE_iso_idx_zaid(zai)
                             if(aceval==0) cycle
                             if(.not. allocated(ace(aceval) % UEG % sigf)) cycle
                             do j = 1,nueg
-                                !erg = Emin*10.d0**((dble(j)-0.5d0)*gdelta)
                                 erg = ueggrid(j)
                                 if(erg<Ep(1)) then
                                     mat%fratio(i,1) = mat%fratio(i,1) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)
-                                    !yield_data(1:nfp,i) = yield_data(1:nfp,i) + & 
-                                    !    (tmp_yield(1:nfp,1,i)* mat % eflux(j) * ace(aceval) % UEG % sigf(j))
                                 elseif(erg>=Ep(nE)) then
                                     mat%fratio(i,nE) = mat%fratio(i,nE) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)
-                                    !yield_data(1:nfp,i) = yield_data(1:nfp,i) + & 
-                                    !    (tmp_yield(1:nfp,nE,i)* mat % eflux(j) * ace(aceval) % UEG % sigf(j))
                                 else
                                     do eg = 1,nE-1
                                         if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
                                             g = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
                                             mat%fratio(i,eg) = mat%fratio(i,eg) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)*(1D0-g)
                                             mat%fratio(i,eg+1) = mat%fratio(i,eg+1) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)*g
-                                            !if(erg>=(Ep(eg)+Ep(eg+1))*5d-1) then
-                                            !    mat%fratio(i,eg+1) = mat%fratio(i,eg+1) + mat % eflux(j) * ace(aceval) % UEG % sigf(j)
-                                            !else
-                                            !    mat%fratio(i,eg)   = mat%fratio(i,eg)   + mat % eflux(j) * ace(aceval) % UEG % sigf(j)
-                                            !endif
-                                            
-                                            !yield_data(1:nfp,i) = yield_data(1:nfp,i) + &
-                                            !    (tmp_yield(1:nfp,eg,i) * (1d0-g) + tmp_yield(1:nfp,eg+1,i) * g) &
-                                            !    * mat%eflux(j) * ace(aceval) % UEG % sigf(j)
                                         endif
                                     enddo
                                 endif
-                                !totfiss = totfiss + mat%eflux(j) * ace(aceval) % UEG % sigf(j)
                             enddo
                         endif
                         if(sum(mat%fratio(i,1:nE))>0) then
@@ -1476,22 +1519,35 @@ module depletion_module
                             yield_data(1:nfp,i) = yield_data(1:nfp,i) + &
                                 tmp_yield(1:nfp,k,i) * mat%fratio(i,k)
                         enddo
-                        !k = maxloc(mat%fratio(i,1:nE),1)
-                        !yield_data(1:nfp,i) = tmp_yield(1:nfp,k,i)
-                        if(icore==score) print *, 'NFY', fssn_zai(i), mat%fratio(i,1:nE)
-                        !yield_data(1:nfp,i) = 1.95d0 * yield_data(1:nfp,i) / sum(yield_data(1:nfp,i))
-                        !yield_data(1:nfp, i) = yield_data(1:nfp,i) / totfiss
-
-                        !yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
-                        !if(icore==score) print *, 'TST', i, zai, fssn_zai(i), ace(aceval) % zaid, nE, Ep(1:nE), mat % fratio(i,1:nE)
-                        !if(icore==score .and. zai == 942390) then
-                        !    do k = 1, nfp
-                        !        print *, fp_zai(k), yield_data(k,i)
-                        !    enddo
-                        !endif
-
                     endif
                 enddo
+                ! USING UNIFIED ENERGY for NFY Interpolation
+!                print *, 'NFY', numer/denom
+!                erg = numer/denom
+!                !erg = 0.85355
+!                do i = 1, nfssn
+!                    Ep = yieldE(i,1:4); nE = yieldnE(i)
+!                    if(nE<=1) then
+!                        yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
+!                    else
+!                        if(erg < Ep(1)) then
+!                            yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
+!                        elseif(erg > Ep(nE)) then
+!                            yield_data(1:nfp,i) = tmp_yield(1:nfp,nE,i)
+!                        else
+!                            do eg = 1, nE-1
+!                                if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
+!                                    g = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
+!                                    yield_data(1:nfp,i) = &
+!                                        tmp_yield(1:nfp,eg,i) * (1d0-g) + &
+!                                        tmp_yield(1:nfp,eg+1,i) * g
+!                                    print *, 'POS', erg, Ep(eg), Ep(eg+1), g
+!                                endif
+!                            enddo
+!                        endif
+!                    endif
+!                enddo
+
                 allocate(nucexist(nfp)); nucexist = 0.d0
                 do i = 1,nfp
                     ! PRIOR to normalization; exclude non-existing nuclides in FPY/SFY
@@ -1501,18 +1557,20 @@ module depletion_module
                     if(nuclide(inum,nnum,anum)%idx>0) nucexist(i) = 1.d0
                 enddo
 
-                do i = 1,nfssn
-                    ! NORMALIZE NFY: sum(NFY) = 200
-                    ratio = sum(yield_data(:,i)*nucexist)/2.d0
-                    !if(ratio>0.d0) yield_data(:,i) = yield_data(:,i)/ratio
-                    !if(icore==score) print *, 'NFY', fssn_zai(i), ratio
-                enddo
+!                do i = 1,nfssn
+!                    ! NORMALIZE NFY: sum(NFY) = 200
+!                    ratio = sum(yield_data(:,i)*nucexist)/2.d0
+!                    if(ratio>0.d0) yield_data(:,i) = yield_data(:,i)/ratio
+!                    !if(icore==score) print *, 'NFY', fssn_zai(i), ratio
+!                enddo
                 deallocate(nucexist)
                 !Calculate real flux (volume-averaged)
                 real_flux = ULnorm*mat%flux
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
                 !Build burnup matrix with cross section obtained from MC calculation
+                bMat = bMat0*bstep_size
+                !if(icore==score) print *, 'bMat0', bMat(nnuc,:), bMat0(nnuc,:)
                 DO_ISO: do mt_iso = 1,num_iso
                     iso = mt_iso
                     anum = ace(iso)%zaid/1000
@@ -1526,7 +1584,15 @@ module depletion_module
                     nnum = mnum-anum
                     jnuc = nuclide(inum,nnum,anum)%idx
                     if(jnuc==0) cycle
+                    !if(icore==score) print *, 'INIT', ace(iso)%zaid, jnuc, bMat(nnuc,jnuc), bMat0(nnuc,jnuc)
+                    !do i = 1, nnuc
+                    !    if(icore==score .and. bMat(nnuc,i)/=0) print *, 'nnuc', i, bMat(nnuc,i), bMat0(nnuc,i)
+                    !enddo
                     do rx = 1,ace(iso)%NXS(4)
+                        !do i = 1, nnuc
+                        !    if(icore==score .and. bMat(nnuc,i)/=0) print *, 'RXNN', rx, ace(iso)%MT(rx), i, bMat(nnuc,i)
+                        !enddo
+                        !if(icore==score) print *, 'TESTINGPREV', jnuc, mt,  bMat(nnuc,jnuc)
                         mt = ace(iso)%MT(rx)
                         !if(icore==score) print *, 'F0', ace(iso)%zaid, rx,ace(iso)%NXS(4), mt
                         if(.not. ANY(RXMT==mt)) cycle
@@ -1541,7 +1607,7 @@ module depletion_module
                         
                         toteflux = sum(mat%eflux(1:nueg))
                         ogxs = buildogxs(iso,mt,mat%eflux(1:nueg),toteflux) * real_flux * barn
-                        if(icore==score) print *, 'RX', ace(iso)%zaid, mt, ogxs, real_flux
+                        !if(icore==score) print *, 'RX', ace(iso)%zaid, mt, ogxs, real_flux
                         !ogxs = tmpogxs((iso-1)*num_iso+idx)
                         ! FIND DESTINATION
                         if(mt==18) then ! In case of Fission
@@ -1568,12 +1634,14 @@ module depletion_module
                                     nnum1 = mnum1 - anum1
                                     inum1 = fp_zai(i)-anum1*10000-mnum1*10
                                     knuc = nuclide(inum1,nnum1,anum1)%idx
-                                    if(knuc==1599) print *, 'WTF', fp_zai(i)
+                                    !if(knuc==1599) print *, 'WTF', fp_zai(i)
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) &
                                         + ogxs * yield_data(i,fy_midx) * bstep_size
+                                    !if(knuc/=0) print *, 'FP', knuc, jnuc, bMat(knuc,jnuc)
                                     !if(anum == 94 .and. nnum == 239-anum .and. icore==score) &
                                         !print *, 'FY', anum1, mnum1, yield_data(i,fy_midx)*ogxs,tmp_yield(i,:,fy_midx) 
                                 enddo
+                                !if(icore==score) print *, 'TSTING', jnuc,  bMat(nnuc,jnuc)
                                 !print *, 'SUMFY', fy_midx, fssn_zai(fy_midx), sum(yield_data(1:nfp,fy_midx))
 
                                 bMat(jnuc,jnuc) = bMat(jnuc,jnuc) - ogxs * bstep_size
@@ -1592,15 +1660,18 @@ module depletion_module
                                     knuc = nuclide(0,nnum+1,anum)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) &
                                         = bMat(knuc,jnuc) + ogxs * bstep_size * gnd_frac(ism)
+                                    !if(knuc/=0) print *, 'NGI', knuc, jnuc, bMat(knuc,jnuc)
                                     knuc = nuclide(1,nnum+1,anum)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) &
                                         = bMat(knuc,jnuc) + ogxs * bstep_size * (1.d0-gnd_frac(ism))
-                                    if(knuc==1599) print *, 'WTF', mt, ism
+                                    !if(knuc/=0) print *, 'NG', knuc, jnuc, bMat(knuc,jnuc)
+                                    !if(knuc==1599) print *, 'WTF', mt, ism
                                 else
                                     knuc = nuclide(0,nnum+1,anum)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) &
                                         = bMat(knuc,jnuc) + ogxs * bstep_size
-                                    if(knuc==1599) print *, 'WTF', mt, ism
+                                    !if(knuc/=0) print *, 'NG', knuc, jnuc, bMat(knuc,jnuc)
+                                    !if(knuc==1599) print *, 'WTF', mt, ism
                                 endif
                                 bMat(jnuc,jnuc) = bMat(jnuc,jnuc) - ogxs * bstep_size
                             else
@@ -1609,45 +1680,70 @@ module depletion_module
                                 nnum1 = nnum + 1 - nn - dn - 2*tn - 2*an - a3n
                                 knuc = 0
                                 if(anum1>0 .and. nnum1>0) knuc = nuclide(0,nnum1,anum1)%idx
-                                if(knuc==1599) print *, 'WTF', anum1, nnum1
+                                !do i = 1, nnuc
+                                !    if(icore==score .and. bMat(nnuc,i)/=0) print *, 'RXNN1', rx, ace(iso)%MT(rx), i, bMat(nnuc,i)
+                                !enddo
+                                !if(knuc/=0) print *, 'MTR', knuc, jnuc, mt, bMat(knuc,jnuc)
                                 if(knuc/=0 .and. (nn+pn+dn+tn+an+a3n)>0) then
                                     bMat(knuc,jnuc) = bMat(knuc,jnuc) + ogxs * bstep_size
+                                    !do i = 1, nnuc
+                                    !    if(icore==score .and. bMat(nnuc,i)/=0) print *, 'RXNN2', rx, ace(iso)%MT(rx), i, bMat(nnuc,i)
+                                    !enddo
+                                    !if(knuc/=0) print *, 'RX', knuc, jnuc, anum1, nnum1,  bMat(knuc,jnuc)
+                                    !if(knuc/=0) print *, 'N', nn, pn, dn, tn, an, a3n
+                                    !if(knuc==1599) print *, 'WTF', anum1, nnum1
                                     if(nn>0) then
                                     knuc = nuclide(0,1,0)%idx
-                                    bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
+                                    if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * nn
+                                    !if(knuc/=0) print *, 'NN', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
+                                    !if(knuc==1599) print *, 'WTF neutron trans'
                                     if(pn>0) then
                                     knuc = nuclide(0,0,1)%idx
-                                    bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
+                                    if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * pn
+                                    !if(knuc/=0) print *, 'PN', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
+                                    !if(knuc==1599) print *, 'WTF proton trans'
                                     if(dn>0) then
                                     knuc = nuclide(0,1,1)%idx
-                                    bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
+                                    if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * dn
+                                    !if(knuc/=0) print *, 'DN', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
+                                    !if(knuc==1599) print *, 'WTF deutron trans'
                                     if(tn>0) then
                                     knuc = nuclide(0,2,1)%idx
-                                    bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
+                                    if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * tn
+                                    !if(knuc/=0) print *, 'TN', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
+                                    !if(knuc==1599) print *, 'WTF tritium trans'
                                     if(an>0) then
                                     knuc = nuclide(0,2,2)%idx
-                                    bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
+                                    if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * an
+                                    !if(knuc/=0) print *, 'A4', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
+                                    !if(knuc==1599) print *, 'WTF alpha trans'
                                     if(a3n>0) then
                                     knuc = nuclide(0,1,2)%idx
-                                    bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
+                                    if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * a3n
+                                    !if(knuc/=0) print *, 'A3', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
+                                    !if(knuc==1599) print *, 'WTF alpha-3 trans'
                                 endif
                                 bMat(jnuc,jnuc) = bMat(jnuc,jnuc) - ogxs * bstep_size
                             endif
                         endif
+                        !if(icore==score) print *, 'TESTINGN', jnuc, mt,  bMat(nnuc,jnuc)
                     enddo
+                    !if(icore==score) print *, 'TESTING', jnuc, bMat(nnuc,jnuc)
                 end do DO_ISO
+
+        !if(icore==score) print *, 'bMat', bMat(nnuc,:)
         deallocate(yield_data)
 
         ! WRITE BURNUP MATRIX (OPTIONAL)
@@ -1659,7 +1755,7 @@ module depletion_module
         filename = 'mat_'//trim(adjustl(mat%mat_name(:)))//'_step_'//trim(adjustl(fileid))//'.m'
         open(bumat_test, file = trim(directory)//'/'//trim(filename),action="write",status="replace")
         write(bumat_test,*) 'FLUX=',real_flux,';'
-        write(bumat_test,*) 'ZAI1=zeros(1,',nnuc,');'
+        write(bumat_test,*) 'ZAI1=zeros(',nnuc,',1);'
         do knuc = 1,nnuc
             write(bumat_test,*) 'ZAI1(',knuc,')=',zai_idx(knuc),';'
         enddo

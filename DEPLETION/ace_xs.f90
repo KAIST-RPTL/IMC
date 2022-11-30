@@ -1292,12 +1292,14 @@ type(AceFormat), pointer :: ac
             select case(ac % MT(r))
             case(N_2N) ! (n,2n)
                 allocate(ac%UEG%sig2n(1:nueg))
-                ac % UEG % sig2n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+                !ac % UEG % sig2n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+                ac % UEG % sig2n = 0d0
                 do i = 1, nueg-1
                     if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
                         ac % UEG % sig2n(i) = (ac % sig_MT(r) % cx(1))
                         cycle
                     elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+                        ac % UEG % sig2n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
                         exit
                     endif
                     ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
@@ -1306,12 +1308,14 @@ type(AceFormat), pointer :: ac
                 !if(icore==score) print *, '(n,2n) XS for ', ace(iso) % xslib
             case(N_3N) ! (n,3n)
                 allocate(ac%UEG%sig3n(1:nueg))
-                ac % UEG % sig3n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+                !ac % UEG % sig3n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+                ac % UEG % sig3n = 0d0
                 do i = 1, nueg-1
                     if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
                         ac % UEG % sig3n(i) = (ac % sig_MT(r) % cx(1))
                         cycle
                     elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+                        ac % UEG % sig3n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
                         exit
                     endif
                     ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
@@ -1320,12 +1324,14 @@ type(AceFormat), pointer :: ac
                 !if(icore==score) print *, '(n,3n) XS for ', ace(iso) % xslib
             case(N_4N) ! (n,4n)
                 allocate(ac%UEG%sig4n(1:nueg))
-                ac % UEG % sig4n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+                !ac % UEG % sig4n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+                ac % UEG % sig4n = 0d0
                 do i = 1, nueg-1
                     if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
                         ac % UEG % sig4n(i) = (ac % sig_MT(r) % cx(1))
                         cycle
                     elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+                        ac % UEG % sig4n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
                         exit
                     endif
                     ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
@@ -1334,12 +1340,14 @@ type(AceFormat), pointer :: ac
                 !if(icore==score) print *, '(n,4n) XS for ', ace(iso) % xslib
             case(N_P) ! (n,p)
                 allocate(ac%UEG%sigp(1:nueg))
-                ac % UEG % sigp = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+                !ac % UEG % sigp = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+                ac % UEG % sigp = 0d0
                 do i = 1, nueg-1
                     if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
                         ac % UEG % sigp(i) = (ac % sig_MT(r) % cx(1))
                         cycle
                     elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+                        ac % UEG % sigp(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
                         exit
                     endif
                     ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
@@ -1348,12 +1356,14 @@ type(AceFormat), pointer :: ac
                 !if(icore==score) print *, '(n,)a XS for ', ace(iso) % xslib
             case(N_A) ! (n,al)
                 allocate(ac%UEG%sigal(1:nueg))
-                ac % UEG % sigal = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+                !ac % UEG % sigal = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+                ac % UEG % sigal = 0d0
                 do i = 1, nueg-1
                     if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
                         ac % UEG % sigal(i) = (ac % sig_MT(r) % cx(1))
                         cycle
                     elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+                        ac % UEG % sigal(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
                         exit
                     endif
                     ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))

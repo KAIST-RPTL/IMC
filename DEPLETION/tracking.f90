@@ -65,6 +65,7 @@ subroutine transport(p)
 	integer :: bc
 	integer :: tet_prev, tet_face
     integer :: pt1, pt2, pt3
+    real(8) :: tmp_power
 
 	
 	xyz = p%coord(1)%xyz
@@ -221,9 +222,10 @@ subroutine transport(p)
     endif 
     !> Cycle-power Tally ===================================================================  
     if(curr_cyc > n_inact .and. do_burn) then 
-        
+        tmp_power = distance * p % wgt * macro_xs(5)
+        !cyc_p_arr(icore) = cyc_p_arr(icore) + distance * p%wgt * macro_xs(5)
         !$omp atomic
-        cyc_power = cyc_power + distance*p%wgt*macro_xs(5)
+        cyc_power = cyc_power + tmp_power
         !if(isnan(macro_xs(5))) print *, 'WTF', macro_xs(1:5)
 !        if(do_mgtally) then
 !            ! 1. Find MG

@@ -85,6 +85,10 @@ subroutine simulate_history(bat,cyc)
     k_col = 0; k_tl = 0; k_vrc = 0; fiss_vrc = 0; loss_vrc = 0;
     if ( fmfdon ) call FMFD_initialize()
     cyc_power = 0;
+    !print *, 'CORE', icore, score, ncore
+    !if(.not. allocated(cyc_p_arr)) allocate(cyc_p_arr(0:ncore-1))
+    !cyc_p_arr = 0;
+    
 
 	n_col = 0; n_cross = 0 
 	
@@ -93,11 +97,11 @@ subroutine simulate_history(bat,cyc)
 	if (allocated(prompt_bank)) deallocate(prompt_bank)
 	allocate(prompt_bank(0))
 	
-    !$omp parallel private(p) shared(source_bank, fission_bank, temp_bank, prec_bank)
+    !$omp parallel private(p, cyc_power) shared(source_bank, fission_bank, temp_bank, prec_bank)
       thread_bank(:)%wgt = 0; bank_idx = 0; prec_idx = 0 ; init_idx = 0
       if (tallyon .and. .not. fmfdon) call TALLY_THREAD_INITIAL(cyc)
       if ( fmfdon ) call FMFD_initialize_thread()
-      !$omp do reduction(+:k_col, k_tl) 
+      !$omp do reduction(+: k_tl, k_col) 
         do i= ista, iend 
             call p%initialize()
             call p%set(source_bank(i))
@@ -185,8 +189,15 @@ subroutine simulate_history(bat,cyc)
     call MPI_REDUCE(k_tl,rcv_buf,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
     k_tl = rcv_buf
 	
+    !cyc_power = cyc_p_arr(icore)
+
+    !print *, icore, cyc_power, cyc_p_arr(0:ncore-1)
+
+
     call MPI_REDUCE(cyc_power,rcv_buf,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
     cyc_power = rcv_buf
+
+    
     
 	if (icore == score) avg_power = avg_power + cyc_power
 	

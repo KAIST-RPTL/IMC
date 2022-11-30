@@ -23,6 +23,7 @@ implicit none
     real(8), allocatable:: kprt(:)
     real(8) :: Nominal_Power
     real(8) :: cyc_power, avg_power, cyc_power0, w_tot, w_totprev
+    real(8), allocatable :: cyc_p_arr(:)
     !FLUX TEST
     
     ! Considered for NFY interpolation
