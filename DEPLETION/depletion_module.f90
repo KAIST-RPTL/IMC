@@ -185,6 +185,8 @@ module depletion_module
     integer, allocatable :: mpigeom(:,:), tmpgeom(:)
     integer :: ngeom, totgeom
 
+    integer :: NFYtype = 2
+
     contains 
 
     subroutine getENDFdepletionlibrary
@@ -1440,47 +1442,99 @@ module depletion_module
                 allocate(yield_data(nfp,nfssn))
                 yield_data = 0.d0
                 !TODO NFY interpolation Option
-!                do i = 1,nfssn
-!                    numer = 0d0; denom = 0d0;
-!                    totfiss = 0d0
-!                    zai = fssn_zai(i)
-!                    anum = zai/10000; mnum = (zai-10000*anum)/10; nnum = mnum-anum
-!                    inum = zai-anum*10000-mnum*10
-!                    aceval = find_ACE_iso_idx_zaid(zai)
-!                    mt_iso = 0
-!                    do j = 1, mat % n_iso
-!                        if(mat % ace_idx(j) == aceval) then
-!                            mt_iso = j; exit
-!                        endif
-!                    enddo
-!                    if(mt_iso==0) cycle
-!                    Ep = yieldE(i,1:4); nE = yieldnE(i)
-!                    if(.not. allocated(ace(aceval) % UEG % sigf)) cycle
-!                    do j = 1, nueg
-!                        numer = numer + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * ueggrid(j) * mat % numden(mt_iso)
-!                        denom = denom + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * mat % numden(mt_iso)
-!                    enddo
-!                    erg = numer/denom
-!                    if(nE<=1) then
-!                        yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
-!                    else
-!                        if(erg < Ep(1)) then
-!                            yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
-!                        elseif(erg > Ep(nE)) then
-!                            yield_data(1:nfp,i) = tmp_yield(1:nfp,nE,i)
-!                        else
-!                            do eg = 1, nE-1
-!                                if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
-!                                    g = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
-!                                    yield_data(1:nfp,i) = &
-!                                        tmp_yield(1:nfp,eg,i) * (1d0-g) + &
-!                                        tmp_yield(1:nfp,eg+1,i) * g
-!                                endif
-!                            enddo
-!                        endif
-!                    endif
-!                enddo
+                select case(NFYtype)
+                case(1) ! Nuc.wise Avg Energy 
+                do i = 1,nfssn
+                    numer = 0d0; denom = 0d0;
+                    totfiss = 0d0
+                    zai = fssn_zai(i)
+                    anum = zai/10000; mnum = (zai-10000*anum)/10; nnum = mnum-anum
+                    inum = zai-anum*10000-mnum*10
+                    aceval = find_ACE_iso_idx_zaid(zai)
+                    mt_iso = 0
+                    do j = 1, mat % n_iso
+                        if(mat % ace_idx(j) == aceval) then
+                            mt_iso = j; exit
+                        endif
+                    enddo
+                    if(mt_iso==0) cycle
+                    Ep = yieldE(i,1:4); nE = yieldnE(i)
+                    if(.not. allocated(ace(aceval) % UEG % sigf)) cycle
+                    do j = 1, nueg
+                        numer = numer + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * ueggrid(j) * mat % numden(mt_iso)
+                        denom = denom + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * mat % numden(mt_iso)
+                    enddo
+                    erg = numer/denom
+                    print *, 'NFY', fssn_zai(i), erg
+                    if(nE<=1) then
+                        yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
+                    else
+                        if(erg < Ep(1)) then
+                            yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
+                        elseif(erg > Ep(nE)) then
+                            yield_data(1:nfp,i) = tmp_yield(1:nfp,nE,i)
+                        else
+                            do eg = 1, nE-1
+                                if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
+                                    g = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
+                                    yield_data(1:nfp,i) = &
+                                        tmp_yield(1:nfp,eg,i) * (1d0-g) + &
+                                        tmp_yield(1:nfp,eg+1,i) * g
+                                endif
+                            enddo
+                        endif
+                    endif
+                enddo
 
+                case(2) ! Material-wise Avg. Energy
+                ! USING UNIFIED ENERGY for NFY Interpolation
+                numer = 0d0; denom = 0d0
+                do i = 1,nfssn
+                    totfiss = 0d0
+                    zai = fssn_zai(i)
+                    anum = zai/10000; mnum = (zai-10000*anum)/10; nnum = mnum-anum
+                    inum = zai-anum*10000-mnum*10
+                    aceval = find_ACE_iso_idx_zaid(zai)
+                    mt_iso = 0
+                    do j = 1, mat % n_iso
+                        if(mat % ace_idx(j) == aceval) then
+                            mt_iso = j; exit
+                        endif
+                    enddo
+                    if(mt_iso==0) cycle
+                    Ep = yieldE(i,1:4); nE = yieldnE(i)
+                    if(.not. allocated(ace(aceval) % UEG % sigf)) cycle
+                    do j = 1, nueg
+                        numer = numer + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * ueggrid(j) * mat % numden(mt_iso)
+                        denom = denom + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * mat % numden(mt_iso)
+                    enddo
+                enddo
+                print *, 'NFY', numer/denom
+                erg = numer/denom
+                !erg = 0.85355
+                do i = 1, nfssn
+                    Ep = yieldE(i,1:4); nE = yieldnE(i)
+                    if(nE<=1) then
+                        yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
+                    else
+                        if(erg < Ep(1)) then
+                            yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
+                        elseif(erg > Ep(nE)) then
+                            yield_data(1:nfp,i) = tmp_yield(1:nfp,nE,i)
+                        else
+                            do eg = 1, nE-1
+                                if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
+                                    g = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
+                                    yield_data(1:nfp,i) = &
+                                        tmp_yield(1:nfp,eg,i) * (1d0-g) + &
+                                        tmp_yield(1:nfp,eg+1,i) * g
+                                    print *, 'POS', erg, Ep(eg), Ep(eg+1), g
+                                endif
+                            enddo
+                        endif
+                    endif
+                enddo
+                case(3)
                 do i = 1,nfssn
                     if(nE==0) then
                         yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
@@ -1521,32 +1575,7 @@ module depletion_module
                         enddo
                     endif
                 enddo
-                ! USING UNIFIED ENERGY for NFY Interpolation
-!                print *, 'NFY', numer/denom
-!                erg = numer/denom
-!                !erg = 0.85355
-!                do i = 1, nfssn
-!                    Ep = yieldE(i,1:4); nE = yieldnE(i)
-!                    if(nE<=1) then
-!                        yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
-!                    else
-!                        if(erg < Ep(1)) then
-!                            yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
-!                        elseif(erg > Ep(nE)) then
-!                            yield_data(1:nfp,i) = tmp_yield(1:nfp,nE,i)
-!                        else
-!                            do eg = 1, nE-1
-!                                if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
-!                                    g = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
-!                                    yield_data(1:nfp,i) = &
-!                                        tmp_yield(1:nfp,eg,i) * (1d0-g) + &
-!                                        tmp_yield(1:nfp,eg+1,i) * g
-!                                    print *, 'POS', erg, Ep(eg), Ep(eg+1), g
-!                                endif
-!                            enddo
-!                        endif
-!                    endif
-!                enddo
+                end select
 
                 allocate(nucexist(nfp)); nucexist = 0.d0
                 do i = 1,nfp
