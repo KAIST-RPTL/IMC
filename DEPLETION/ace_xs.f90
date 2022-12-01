@@ -451,8 +451,20 @@ subroutine getiueg(erg, ierg)
     integer, intent(out):: ierg
 
     integer :: pt1, pt2, pt3
+    integer :: uidx
 
-    pt1 = 1; pt2 = nueg
+    uidx = 1 + int(log10(erg/ueggrid(1))/unidel)
+
+    if ( uidx > nuni ) then
+        print *, 'EXCEED', erg, uidx
+        uidx = nuni
+    elseif ( uidx < 1 ) then
+        print *, 'BELOW', erg, uidx
+        uidx = 1
+    endif
+
+    pt1 = unigrid(uidx-1)
+    pt2 = min(unigrid(uidx)+1,nueg)
 
     if(pt1==pt2) then
         pt1 = pt1 - 1
@@ -482,7 +494,6 @@ subroutine setugrid
     real(8), allocatable :: tmpgrid(:)
 
     if(E_mode==0) return
-    totngrid = 0
     !Set ugrid to accelerate energy-grid search
     Emin = 1.d-11
     allocate(ugrid(0:nugrid,1:num_iso))
@@ -490,21 +501,7 @@ subroutine setugrid
     do iso_ = 1, num_iso
       ugrid(0,iso_) = 1
       ugrid(nugrid,iso_) = ace(iso_)%nxs(3)
-      totngrid = totngrid + ace(iso_)%NXS(3)
-      if(ace(iso_) % UNR % URES) & ! URR case
-          totngrid = totngrid + ace(iso_) % UNR % N
     end do
-
-    ! SAB case !TODO
-!    if(sab_iso /= 0) then
-!        do iso_ = 1, sab_iso
-!            totngrid = totngrid + sab(iso_) % NXS(3)
-!        enddo
-!    endif
-
-
-    
-    allocate(tmpgrid(1:totngrid)); pt1 = 1
 
     udelta = log10((Emax+1E-9)/Emin)/dble(nugrid)
 
@@ -522,6 +519,41 @@ subroutine setugrid
         end do
 10        ugrid(i,iso_) = idx - 1
       end do
+    enddo
+
+    if(icore==score) print *, "   Setting ugrid..."
+end subroutine 
+
+subroutine setuegrid
+    implicit none
+    real(8) :: Etmp
+    integer :: totngrid
+    integer :: i, j, k, iso_, idx
+    integer :: pt1
+    real(8), allocatable :: tmpgrid(:)
+
+    if(E_mode==0) return
+    totngrid = 0
+    !Set ugrid to accelerate energy-grid search
+    Emin = 1.d-11
+    !print *, 'ugrid size', nugrid, num_iso
+    do iso_ = 1, num_iso
+      totngrid = totngrid + ace(iso_)%NXS(3)
+      if(ace(iso_) % UNR % URES) & ! URR case
+          totngrid = totngrid + ace(iso_) % UNR % N
+    end do
+
+    ! SAB case !TODO
+!    if(sab_iso /= 0) then
+!        do iso_ = 1, sab_iso
+!            totngrid = totngrid + sab(iso_) % NXS(3)
+!        enddo
+!    endif
+    allocate(tmpgrid(1:totngrid)); pt1 = 1
+
+    udelta = log10((Emax+1E-9)/Emin)/dble(nugrid)
+
+    do iso_ = 1, num_iso
       tmpgrid(pt1:pt1-1+ace(iso_)%NXS(3)) = ace(iso_) % E(:)
       pt1 = pt1 + ace(iso_)%NXS(3)
       
@@ -530,9 +562,11 @@ subroutine setugrid
           tmpgrid(pt1:pt1-1+ace(iso_)%UNR%N) = ace(iso_) % UNR % E(:)
           pt1 = pt1 + ace(iso_) % UNR % N
       endif
+
+      !SAB !TODO
     enddo
 
-    if(icore==score) print *, "   Setting ugrid..."
+    if(icore==score) print *, "   Setting UNIONIZED GRID..."
 
     ! SORT and COLLIDE UEGGRID 
     ! 1. SORT
@@ -553,9 +587,31 @@ subroutine setugrid
     nueg    = idx
     ueggrid = ueggrid(1:nueg)
 
-    if(icore==score) write(*,'(A,I8,A)') '   UNIONIZED GRID SET: ', nueg, 'grids'
-end subroutine 
+    ! 3. SETUP HASH TABLE
+    !   NUNI = len(UNIGRID)
+    Emin = ueggrid(1); Emax = ueggrid(nueg)
+    unidel = log10((Emax+Emin*5d-1)/Emin)/dble(nuni)
 
+    allocate(unigrid(0:nuni))
+
+    idx = 1
+    do i = 1, nuni-1
+        Etmp = Emin * 1d1 ** (dble(i) * unidel)
+        if(Etmp > nueg) then
+            idx = unidel
+            goto 22
+        endif
+        do
+            if(Etmp < ueggrid(idx)) goto 22
+            idx = idx + 1
+        enddo
+22      unigrid(i) = idx - 1
+    enddo
+
+    if(icore==score) print *, 'NUNI:',nuni,'UNIDEL:',unidel,Emin,Emax
+
+    if(icore==score) write(*,'(A,I8,A)') '   UNIONIZED GRID SET: ', nueg, 'grids'
+end subroutine
 
 ! =============================================================================
 ! GET_SAB_MAC

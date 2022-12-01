@@ -232,6 +232,12 @@ integer, allocatable :: ugrid(:,:),&     !Lethargy-grid for hash-based search
 real(8) :: udelta 
 integer :: nugrid
 
+! Hash-based E-search for UEG
+integer, allocatable :: unigrid(:)
+integer, parameter :: nuni = 8192
+real(8) :: unidel
+
+
 real(8), allocatable :: ueggrid(:)
 
 

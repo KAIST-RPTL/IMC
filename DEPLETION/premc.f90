@@ -93,6 +93,10 @@ subroutine premc
     call read_mgtally
     call setugrid
 
+    if ( do_ueg ) then
+        call setuegrid
+    endif
+
     ! UNIONIZED GRID TREATMENT
     call setueg
 

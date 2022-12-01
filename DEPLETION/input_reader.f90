@@ -1642,6 +1642,10 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, bumat_print
                     if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
+                case("NFYINTERP")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, NFYtype
+                    if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
                 end select Card_E_Inp
                 if (Char_Temp=="ENDE") Exit Read_Card_E
             end do Read_Card_E
