@@ -233,6 +233,7 @@ subroutine simulate_history(bat,cyc)
     k_tl  = k_tl  / real(ngen,8) 
     !keff  = (k_tl + k_col) / 2.0d0
     keff = k_col
+    !keff = k_tl
     
     if (icore == score) write(prt_keff,*) keff, k_col, k_tl
     

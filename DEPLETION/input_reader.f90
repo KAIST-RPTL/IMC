@@ -1262,9 +1262,9 @@ end subroutine READ_CTRL
 
                 case('UEGRID')
                     backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ueg
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ueg, nuni
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                    if(icore==score) print *, 'UEG', do_ueg
+                    if(icore==score) print *, 'UEG', do_ueg, nuni
 					
 				case("N_INTERVAL")
                     backspace(File_Number)
@@ -1642,7 +1642,7 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, bumat_print
                     if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
-                case("NFYINTERP")
+                case("NFY_INTERP")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, NFYtype
                     if(Equal/='=') call Card_Error(Card_Type, Char_Temp)

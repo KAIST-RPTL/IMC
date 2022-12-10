@@ -196,8 +196,8 @@ subroutine transport(p)
 	
 	
     !> Track-length estimator
-    !!$omp atomic 
-    !k_tl = k_tl + distance*p%wgt*macro_xs(4) 
+    !$omp atomic 
+    k_tl = k_tl + distance*p%wgt*macro_xs(4) 
 
     !> Flux Tally ===========================================================================
     if ( tally_switch > 0 .and. do_transient == .false.) then 
@@ -221,30 +221,29 @@ subroutine transport(p)
         endif
     endif 
     !> Cycle-power Tally ===================================================================  
-    if(curr_cyc > n_inact .and. do_burn) then 
-        tmp_power = distance * p % wgt * macro_xs(5)
+    if(curr_cyc > n_inact .and. materials(p%material)%fissionable) then 
         !cyc_p_arr(icore) = cyc_p_arr(icore) + distance * p%wgt * macro_xs(5)
         !$omp atomic
-        cyc_power = cyc_power + tmp_power
+        cyc_power = cyc_power + distance * p % wgt * macro_xs(5)
         !if(isnan(macro_xs(5))) print *, 'WTF', macro_xs(1:5)
-!        if(do_mgtally) then
-!            ! 1. Find MG
-!            if(p%E > Ebin(1) .or. p%E < Ebin(n_mg+1)) then            
-!            else
-!            pt1 = 1; pt2 = n_mg+1
-!            do
-!            if(pt2-pt1 == 1 ) exit
-!            pt3 = (pt1 + pt2) / 2
-!            if(p % E < Ebin(pt3)) then
-!                pt1 = pt3
-!            else
-!                pt2 = pt3
-!            endif
-!            enddo
-!            !$omp atomic
-!            micro_flux(pt1) = micro_flux(pt1) + distance * p % wgt
-!            endif
-!        endif
+        if(do_mgtally) then
+            ! 1. Find MG
+            if(p%E > Ebin(1) .or. p%E < Ebin(n_mg+1)) then            
+            else
+            pt1 = 1; pt2 = n_mg+1
+            do
+            if(pt2-pt1 == 1 ) exit
+            pt3 = (pt1 + pt2) / 2
+            if(p % E < Ebin(pt3)) then
+                pt1 = pt3
+            else
+                pt2 = pt3
+            endif
+            enddo
+            !$omp atomic
+            micro_flux(pt1) = micro_flux(pt1) + distance * p % wgt
+            endif
+        endif
     endif 
 
     !> MC Tally
@@ -540,8 +539,9 @@ subroutine transport_VRC(p)
             
     distance = min(d_boundary, d_collision)
     !> Track-length estimator
-    !$omp atomic 
-    k_tl = k_tl + distance*p%wgt*macro_xs(4)
+    !!$omp atomic 
+    !k_tl = k_tl + distance*p%wgt*macro_xs(4)
+
     
     
     if (p % vrc_traced == .false.) then 

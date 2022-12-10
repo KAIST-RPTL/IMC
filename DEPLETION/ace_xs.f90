@@ -459,7 +459,7 @@ subroutine getiueg(erg, ierg)
         print *, 'EXCEED', erg, uidx
         uidx = nuni
     elseif ( uidx < 1 ) then
-        print *, 'BELOW', erg, uidx
+        !print *, 'BELOW', erg, uidx
         uidx = 1
     endif
 
@@ -590,7 +590,7 @@ subroutine setuegrid
     ! 3. SETUP HASH TABLE
     !   NUNI = len(UNIGRID)
     Emin = ueggrid(1); Emax = ueggrid(nueg)
-    unidel = log10((Emax+Emin*5d-1)/Emin)/dble(nuni)
+    unidel = log10((Emax+Emin*1d-1)/Emin)/dble(nuni)
 
     allocate(unigrid(0:nuni))
 

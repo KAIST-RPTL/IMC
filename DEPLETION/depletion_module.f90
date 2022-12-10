@@ -185,7 +185,7 @@ module depletion_module
     integer, allocatable :: mpigeom(:,:), tmpgeom(:)
     integer :: ngeom, totgeom
 
-    integer :: NFYtype = 2
+    integer :: NFYtype
 
     contains 
 
@@ -1112,21 +1112,53 @@ module depletion_module
                 if(icore==score) print *, 'XS pre-calculation completed'
             end subroutine
 
-            subroutine buildflux(iso, eflux, flux)
+            function buildflux(iso, n, eflux) result(flux)
             implicit none
             integer, intent(in)  :: iso
             real(8), intent(in)  :: eflux(:)
-            real(8), intent(out), allocatable :: flux(:)
-            integer :: i, n
+            real(8) :: flux(n)
+            integer :: i, n, idx
+            real(8) :: g, erg
 
-            n = ace(iso) % NXS(3)
-            allocate(flux(1:n)); flux = 0d0
+            flux(1:n) = 0d0
             do i = 1, nueg
-                flux(ace(iso) % UEG % Egrid(i)) = &
-                    flux(ace(iso) % UEG % Egrid(i)) + eflux(i)
+                if( ace(iso) % UEG % Egrid(i) == ace(iso) % NXS(3) ) then
+                    flux(n) = flux(n) + eflux(i)
+                    exit
+                elseif( ace(iso) % UEG % Egrid(i) == 0) then
+                    cycle
+                else ! In between
+                    erg = ueggrid(i)
+                    idx = ace(iso) % UEG % Egrid(i)
+                    g   = (erg - ace(iso) % E(idx))/(ace(iso) % E(idx+1) - ace(iso) % E(idx))
+                    if(g<0 .or. g>1) print *, 'WTF?', iso, erg, i, idx
+                    flux(idx)  = flux(idx)   + (1d0-g) * eflux(i)
+                    flux(idx+1)= flux(idx+1) + g * eflux(i)
+                endif
             enddo
-            end subroutine
+            end function
 
+            function buildogxs_iso(iso, mt, flux)
+            implicit none
+            real(8) :: buildogxs_iso
+            integer, intent(in) :: iso, mt
+            real(8), intent(in) :: flux(:)
+            integer :: r, i
+            select case(mt)
+            case(N_GAMMA)
+                buildogxs_iso = dot_product(ace(iso) % sigd, flux)
+            case(N_FISSION)
+                buildogxs_iso = dot_product(ace(iso) % sigf, flux)
+            case default
+                r = 0
+                do i = 1, ace(iso) % NXS(4)
+                    if(ace(iso) % MT(i) == mt) then
+                        r = i; exit
+                    endif
+                enddo
+                if(r/=0) buildogxs_iso = dot_product(ace(iso) % sig_MT(i) % cx, flux)
+            end select
+            endfunction
 
 
             function buildogxs(iso, mt, eflux, toteflux)
@@ -1262,7 +1294,8 @@ module depletion_module
             integer :: ii, jj
             ! MTRXREAD
             integer :: mt, nn, pn, dn, tn, an, a3n, rx
-            real(8) :: ogxs, erg
+            real(8) :: ogxs, erg, ogxs1
+            real(8),allocatable :: flx(:)
             integer :: ierg,idx
             real(8) :: toteflux
             real(8),allocatable :: tmpogxs(:)
@@ -1274,7 +1307,7 @@ module depletion_module
             real(8) :: tmpnumden
             integer :: tmpaceidx
 
-            real(8) :: totfiss, numer, denom
+            real(8) :: totfiss, numer, denom, g2
 
             if(do_burn==.false.) return
             avg_power = avg_power / dble(n_act)
@@ -1466,6 +1499,7 @@ module depletion_module
                     enddo
                     erg = numer/denom
                     print *, 'NFY', fssn_zai(i), erg
+                    
                     if(nE<=1) then
                         yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
                     else
@@ -1476,10 +1510,11 @@ module depletion_module
                         else
                             do eg = 1, nE-1
                                 if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
-                                    g = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
+                                    g2 = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
+                                    print *, fssn_zai(i), erg, g2, Ep(eg), Ep(eg+1)
                                     yield_data(1:nfp,i) = &
-                                        tmp_yield(1:nfp,eg,i) * (1d0-g) + &
-                                        tmp_yield(1:nfp,eg+1,i) * g
+                                        tmp_yield(1:nfp,eg,i) * (1d0-g2) + &
+                                        tmp_yield(1:nfp,eg+1,i) * g2
                                 endif
                             enddo
                         endif
@@ -1524,11 +1559,11 @@ module depletion_module
                         else
                             do eg = 1, nE-1
                                 if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
-                                    g = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
+                                    g2 = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
                                     yield_data(1:nfp,i) = &
-                                        tmp_yield(1:nfp,eg,i) * (1d0-g) + &
-                                        tmp_yield(1:nfp,eg+1,i) * g
-                                    print *, 'POS', erg, Ep(eg), Ep(eg+1), g
+                                        tmp_yield(1:nfp,eg,i) * (1d0-g2) + &
+                                        tmp_yield(1:nfp,eg+1,i) * g2
+                                    print *, 'POS', erg, Ep(eg), Ep(eg+1), g2
                                 endif
                             enddo
                         endif
@@ -1536,6 +1571,8 @@ module depletion_module
                 enddo
                 case(3)
                 do i = 1,nfssn
+                    Ep = yieldE(i,1:4); nE = yieldnE(i)
+                    zai = fssn_zai(i)
                     if(nE==0) then
                         yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
                     else
@@ -1555,9 +1592,9 @@ module depletion_module
                                 else
                                     do eg = 1,nE-1
                                         if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
-                                            g = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
-                                            mat%fratio(i,eg) = mat%fratio(i,eg) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)*(1D0-g)
-                                            mat%fratio(i,eg+1) = mat%fratio(i,eg+1) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)*g
+                                            g2 = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
+                                            mat%fratio(i,eg) = mat%fratio(i,eg) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)*(1D0-g2)
+                                            mat%fratio(i,eg+1) = mat%fratio(i,eg+1) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)*g2
                                         endif
                                     enddo
                                 endif
@@ -1597,6 +1634,7 @@ module depletion_module
                 real_flux = ULnorm*mat%flux
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
+                toteflux = sum(mat%eflux(1:nueg))
                 !Build burnup matrix with cross section obtained from MC calculation
                 bMat = bMat0*bstep_size
                 !if(icore==score) print *, 'bMat0', bMat(nnuc,:), bMat0(nnuc,:)
@@ -1616,6 +1654,7 @@ module depletion_module
 
                     ! BUILD ISO-WISE FLUX
 
+                    flx  = buildflux(iso,ace(iso)%NXS(3),mat%eflux(1:nueg)/toteflux*real_flux)
 
                     do rx = 1,ace(iso)%NXS(4)
                         !do i = 1, nnuc
@@ -1628,17 +1667,17 @@ module depletion_module
                         !if(icore==score) print *, 'F1', ace(iso)%zaid, rx, mt
                         ! TALLY OGXS
                         ogxs = 0.d0
-                        do idx = 1,numrx
-                            if(RXMT(idx)==mt) goto 220
-                        enddo
-                        cycle
-                        220 continue
+!                        do idx = 1,numrx
+!                            if(RXMT(idx)==mt) goto 220
+!                        enddo
+!                        cycle
+!                        220 continue
                         
-                        toteflux = sum(mat%eflux(1:nueg))
-                        ogxs = buildogxs(iso,mt,mat%eflux(1:nueg),toteflux) * real_flux * barn
-                        !if(icore==score) print *, 'COMPARE', ace(iso)%zaid, mt, ogxs, mat % ogxs(iso,:)
-                        !if(icore==score) print *, 'RX', ace(iso)%zaid, mt, ogxs, real_flux
+                        ogxs = buildogxs_iso(iso,mt,flx) * barn
                         !ogxs = tmpogxs((iso-1)*num_iso+idx)
+                        !ogxs = buildogxs(iso,mt,mat%eflux(1:nueg),toteflux) * real_flux * barn
+
+                        !if(icore==score) print *, 'RX', ace(iso)%zaid, mt, ogxs, ogxs1
                         ! FIND DESTINATION
                         if(mt==18) then ! In case of Fission
                             if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then 
@@ -1667,6 +1706,8 @@ module depletion_module
                                     !if(knuc==1599) print *, 'WTF', fp_zai(i)
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) &
                                         + ogxs * yield_data(i,fy_midx) * bstep_size
+
+                                    !if(anum1==42 .and. mnum1==97) print *, 'MO97', fssn_zai(fy_midx), yield_data(i,fy_midx), tmp_yield(i,:,fy_midx) 
                                     !if(knuc/=0) print *, 'FP', knuc, jnuc, bMat(knuc,jnuc)
                                     !if(anum == 94 .and. nnum == 239-anum .and. icore==score) &
                                         !print *, 'FY', anum1, mnum1, yield_data(i,fy_midx)*ogxs,tmp_yield(i,:,fy_midx) 
@@ -1708,6 +1749,7 @@ module depletion_module
                                 call mtrxread(mt,nn,pn,dn,tn,an,a3n)
                                 anum1 = anum - pn - dn - tn - 2*an - 2*a3n
                                 nnum1 = nnum + 1 - nn - dn - 2*tn - 2*an - a3n
+                                if(anum1 == anum .and. nnum1 == nnum) cycle
                                 knuc = 0
                                 if(anum1>0 .and. nnum1>0) knuc = nuclide(0,nnum1,anum1)%idx
                                 !do i = 1, nnuc
@@ -2049,7 +2091,7 @@ module depletion_module
         !real(8) :: dep_ogxs(7)
         integer :: anum, mnum, inum, nnum !atomic number, mass number, isomer state, neutron number of nuclide
         integer :: a1, m1
-        real(8) :: fluxtmp
+        real(8) :: fluxtmp, val1, val2
         integer :: fssn
 
         real(8), pointer :: ogxs(:,:)
@@ -2067,12 +2109,15 @@ module depletion_module
         ! EFLUX TALLY
         !ierg = 1 + int(log10(erg/Emin)/gdelta); ierg = max(1,min(ngrid-1,ierg))
         call getiueg(erg, ierg)
+
         ipfac = max(0D0,min(1D0,(erg-ueggrid(ierg))/(ueggrid(ierg+1)-ueggrid(ierg))))
+
+
         !$OMP ATOMIC
-        mat%eflux(ierg) = mat%eflux(ierg) + wgt*distance*(1D0-ipfac)
+        mat%eflux(ierg) = mat%eflux(ierg) + wgt * distance * (1d0-ipfac)
         !mat%eflux(ierg) = mat%eflux(ierg) + wgt*distance
         !$OMP ATOMIC
-        mat%eflux(ierg+1) = mat%eflux(ierg+1) + wgt*distance*(ipfac)
+        mat%eflux(ierg+1) = mat%eflux(ierg+1) + wgt * distance * ipfac
 !        do iso = 1,num_iso
 !        ! TEMPORARY... need to reduce
 !           call getierg(iso,ierg,erg)

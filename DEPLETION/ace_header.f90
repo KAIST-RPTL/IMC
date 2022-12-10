@@ -234,7 +234,7 @@ integer :: nugrid
 
 ! Hash-based E-search for UEG
 integer, allocatable :: unigrid(:)
-integer, parameter :: nuni = 8192
+integer :: nuni
 real(8) :: unidel
 
 
