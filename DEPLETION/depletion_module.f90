@@ -1466,7 +1466,7 @@ module depletion_module
                 if(.not. materials(imat)%depletable) cycle    !material imat is not burned
                 !samarium = 0.d0
                 mat => materials(imat)
-                print *, 'MATDEP', imat, '/', totgeom
+                print *, icore, 'MATDEP', imat, '/', totgeom
 !                    write(prt_bumat, *) '' 
 !                    write(prt_bumat, *) mat%mat_name 
 !                    write(prt_bumat, *) ''
@@ -1498,7 +1498,7 @@ module depletion_module
                         denom = denom + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * mat % numden(mt_iso)
                     enddo
                     erg = numer/denom
-                    print *, 'NFY', fssn_zai(i), erg
+                    !print *, 'NFY', fssn_zai(i), erg
                     
                     if(nE<=1) then
                         yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
@@ -1544,7 +1544,7 @@ module depletion_module
                         denom = denom + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * mat % numden(mt_iso)
                     enddo
                 enddo
-                print *, 'NFY', numer/denom
+                !print *, 'NFY', numer/denom
                 erg = numer/denom
                 !erg = 0.85355
                 do i = 1, nfssn
@@ -1563,7 +1563,7 @@ module depletion_module
                                     yield_data(1:nfp,i) = &
                                         tmp_yield(1:nfp,eg,i) * (1d0-g2) + &
                                         tmp_yield(1:nfp,eg+1,i) * g2
-                                    print *, 'POS', erg, Ep(eg), Ep(eg+1), g2
+                                    !print *, 'POS', erg, Ep(eg), Ep(eg+1), g2
                                 endif
                             enddo
                         endif

@@ -62,6 +62,7 @@ BURNUP : do
         call setMacroXS(istep_burnup/=0)
         time2 = omp_get_wtime()
         call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+        if (icore==score) print *, '    UEG', do_ueg, nuni
         if (icore==score) print *, '    MAT XS BUILD DONE'
         if (icore==score) print *, '    Elapsed Time [s]:', time2-time1
     endif

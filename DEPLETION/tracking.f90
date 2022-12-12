@@ -50,7 +50,7 @@ subroutine transport(p)
     real(8) :: d_gmsh                 ! distance to Gmsh grid
     real(8) :: distance               ! distance particle travels
     logical :: found_cell             ! found cell which particle is in?
-    real(8) :: macro_xs(5)
+    real(8) :: macro_xs(5), tmparr(3)
     real(8) :: xyz(3)
     integer :: i_cell, i_bin(4), i_lat, i_surf
     integer :: i_xyz(3), idx_xyz, j_xyz(3)
@@ -117,7 +117,10 @@ subroutine transport(p)
         d_collision = -log(rang())/macro_xs(1)
     elseif (E_mode == 1) then
         if(do_ueg) then
-            macro_xs = getMacroXS_UEG(materials(p%material), p%E,p%kT,p%urn)
+            tmparr = getMacroXS_UEG(materials(p%material), p%E,p%kT,p%urn)
+            macro_xs(1) = tmparr(1)
+            macro_xs(4) = tmparr(2)
+            macro_xs(5) = tmparr(3)
         else
             macro_xs = getMacroXS(materials(p%material), p%E,p%kT,p%urn)
         endif

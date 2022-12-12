@@ -1264,7 +1264,6 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ueg, nuni
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                    if(icore==score) print *, 'UEG', do_ueg, nuni
 					
 				case("N_INTERVAL")
                     backspace(File_Number)

@@ -17,7 +17,8 @@ function getMacroXS_UEG(mat, erg, kT, urn) result (macro_xs)
     type(Material_CE), intent(in) :: mat
     real(8), intent(in) :: erg, kT
     real(8), intent(in) :: urn(1:n_unr)
-    real(8) :: macro_xs(5), xs(4), micro_xs(6)
+    real(8) :: macro_xs(3)
+    real(8) :: xs(4), micro_xs(6)
 
     integer :: ierg, i, iso, iff, ierg0
     real(8) :: ipfac, ipfac0
@@ -29,8 +30,8 @@ function getMacroXS_UEG(mat, erg, kT, urn) result (macro_xs)
     ipfac = max(0D0,min(1D0,(erg-ueggrid(ierg))/(ueggrid(ierg+1)-ueggrid(ierg))))
 
     ! 3. Interpolate
-    macro_xs(1:5) = (mat % macro_ueg(ierg,1:5) &
-        + ipfac * (mat % macro_ueg(ierg+1,1:5) - mat % macro_ueg(ierg,1:5)))
+    macro_xs(:) = (mat % macro_ueg(ierg,:) &
+        + ipfac * (mat % macro_ueg(ierg+1,:) - mat % macro_ueg(ierg,:)))
     !macro_xs(2) = (mat % macro_ueg(ierg,5) &
     !    + ipfac * (mat % macro_ueg(ierg+1,5) - mat % macro_ueg(ierg,5)))
 
@@ -75,11 +76,11 @@ function getMacroXS_UEG(mat, erg, kT, urn) result (macro_xs)
         micro_xs(6) = micro_xs(4) * ace(iso) % qval
 
         macro_xs(1) = macro_xs(1) + micro_xs(1) * mat % numden( mat % uresidx(i) ) * barn
-        macro_xs(2) = macro_xs(2) + micro_xs(3) * mat % numden( mat % uresidx(i) ) * barn
+        !macro_xs(2) = macro_xs(2) + micro_xs(3) * mat % numden( mat % uresidx(i) ) * barn
         if(micro_xs(4) == 0) cycle
-        macro_xs(3) = macro_xs(3) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn
-        macro_xs(4) = macro_xs(4) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn * getnu(iso, erg)
-        macro_xs(5) = macro_xs(5) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn * ace(iso) % qval
+        !macro_xs(3) = macro_xs(3) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn
+        macro_xs(2) = macro_xs(2) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn * getnu(iso, erg)
+        macro_xs(3) = macro_xs(3) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn * ace(iso) % qval
 
     enddo
 
@@ -1344,90 +1345,90 @@ type(AceFormat), pointer :: ac
         !if(icore==score) print *, 'Elastic XS for ', ace(iso) % xslib
         endif
 
-        do r = 1, ac%NXS(4)
-            select case(ac % MT(r))
-            case(N_2N) ! (n,2n)
-                allocate(ac%UEG%sig2n(1:nueg))
-                !ac % UEG % sig2n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
-                ac % UEG % sig2n = 0d0
-                do i = 1, nueg-1
-                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
-                        ac % UEG % sig2n(i) = (ac % sig_MT(r) % cx(1))
-                        cycle
-                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
-                        ac % UEG % sig2n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
-                        exit
-                    endif
-                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
-                    ac % UEG % sig2n(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
-                enddo
-                !if(icore==score) print *, '(n,2n) XS for ', ace(iso) % xslib
-            case(N_3N) ! (n,3n)
-                allocate(ac%UEG%sig3n(1:nueg))
-                !ac % UEG % sig3n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
-                ac % UEG % sig3n = 0d0
-                do i = 1, nueg-1
-                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
-                        ac % UEG % sig3n(i) = (ac % sig_MT(r) % cx(1))
-                        cycle
-                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
-                        ac % UEG % sig3n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
-                        exit
-                    endif
-                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
-                    ac % UEG % sig3n(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
-                enddo
-                !if(icore==score) print *, '(n,3n) XS for ', ace(iso) % xslib
-            case(N_4N) ! (n,4n)
-                allocate(ac%UEG%sig4n(1:nueg))
-                !ac % UEG % sig4n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
-                ac % UEG % sig4n = 0d0
-                do i = 1, nueg-1
-                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
-                        ac % UEG % sig4n(i) = (ac % sig_MT(r) % cx(1))
-                        cycle
-                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
-                        ac % UEG % sig4n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
-                        exit
-                    endif
-                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
-                    ac % UEG % sig4n(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
-                enddo
-                !if(icore==score) print *, '(n,4n) XS for ', ace(iso) % xslib
-            case(N_P) ! (n,p)
-                allocate(ac%UEG%sigp(1:nueg))
-                !ac % UEG % sigp = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
-                ac % UEG % sigp = 0d0
-                do i = 1, nueg-1
-                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
-                        ac % UEG % sigp(i) = (ac % sig_MT(r) % cx(1))
-                        cycle
-                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
-                        ac % UEG % sigp(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
-                        exit
-                    endif
-                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
-                    ac % UEG % sigp(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
-                enddo
-                !if(icore==score) print *, '(n,)a XS for ', ace(iso) % xslib
-            case(N_A) ! (n,al)
-                allocate(ac%UEG%sigal(1:nueg))
-                !ac % UEG % sigal = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
-                ac % UEG % sigal = 0d0
-                do i = 1, nueg-1
-                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
-                        ac % UEG % sigal(i) = (ac % sig_MT(r) % cx(1))
-                        cycle
-                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
-                        ac % UEG % sigal(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
-                        exit
-                    endif
-                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
-                    ac % UEG % sigal(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
-                enddo
-            case default
-            endselect
-        enddo
+!        do r = 1, ac%NXS(4)
+!            select case(ac % MT(r))
+!            case(N_2N) ! (n,2n)
+!                allocate(ac%UEG%sig2n(1:nueg))
+!                !ac % UEG % sig2n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+!                ac % UEG % sig2n = 0d0
+!                do i = 1, nueg-1
+!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+!                        ac % UEG % sig2n(i) = (ac % sig_MT(r) % cx(1))
+!                        cycle
+!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+!                        ac % UEG % sig2n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
+!                        exit
+!                    endif
+!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+!                    ac % UEG % sig2n(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
+!                enddo
+!                !if(icore==score) print *, '(n,2n) XS for ', ace(iso) % xslib
+!            case(N_3N) ! (n,3n)
+!                allocate(ac%UEG%sig3n(1:nueg))
+!                !ac % UEG % sig3n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+!                ac % UEG % sig3n = 0d0
+!                do i = 1, nueg-1
+!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+!                        ac % UEG % sig3n(i) = (ac % sig_MT(r) % cx(1))
+!                        cycle
+!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+!                        ac % UEG % sig3n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
+!                        exit
+!                    endif
+!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+!                    ac % UEG % sig3n(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
+!                enddo
+!                !if(icore==score) print *, '(n,3n) XS for ', ace(iso) % xslib
+!            case(N_4N) ! (n,4n)
+!                allocate(ac%UEG%sig4n(1:nueg))
+!                !ac % UEG % sig4n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+!                ac % UEG % sig4n = 0d0
+!                do i = 1, nueg-1
+!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+!                        ac % UEG % sig4n(i) = (ac % sig_MT(r) % cx(1))
+!                        cycle
+!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+!                        ac % UEG % sig4n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
+!                        exit
+!                    endif
+!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+!                    ac % UEG % sig4n(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
+!                enddo
+!                !if(icore==score) print *, '(n,4n) XS for ', ace(iso) % xslib
+!            case(N_P) ! (n,p)
+!                allocate(ac%UEG%sigp(1:nueg))
+!                !ac % UEG % sigp = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+!                ac % UEG % sigp = 0d0
+!                do i = 1, nueg-1
+!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+!                        ac % UEG % sigp(i) = (ac % sig_MT(r) % cx(1))
+!                        cycle
+!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+!                        ac % UEG % sigp(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
+!                        exit
+!                    endif
+!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+!                    ac % UEG % sigp(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
+!                enddo
+!                !if(icore==score) print *, '(n,)a XS for ', ace(iso) % xslib
+!            case(N_A) ! (n,al)
+!                allocate(ac%UEG%sigal(1:nueg))
+!                !ac % UEG % sigal = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+!                ac % UEG % sigal = 0d0
+!                do i = 1, nueg-1
+!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+!                        ac % UEG % sigal(i) = (ac % sig_MT(r) % cx(1))
+!                        cycle
+!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+!                        ac % UEG % sigal(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
+!                        exit
+!                    endif
+!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+!                    ac % UEG % sigal(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
+!                enddo
+!            case default
+!            endselect
+!        enddo
         if(icore==score) write(*,'(A,A,I4,A,I4)') '   UEG XS set for ', trim(ace(iso) % xslib), iso, '/', num_iso
     enddo
     !$OMP END PARALLEL DO
@@ -1469,14 +1470,14 @@ subroutine setMacroXS(BU)
     logical, intent(in) :: BU
     integer :: i, j, iso, ii, imat
     integer :: nprod
-    real(8) :: micro(5), xs(6), ipfac
+    real(8) :: micro(3), xs(6), ipfac
 
     integer :: ierg
     !$OMP PARALLEL DO PRIVATE(imat, i, iso, j, mat, micro, ii, nprod, xs) 
     do imat = 1, n_materials
     !if(BU .and. .not. materials(imat)%depletable) cycle
     mat => materials(imat)
-    if(.not. allocated(mat % macro_ueg)) allocate(mat % macro_ueg(1:nueg, 5))
+    if(.not. allocated(mat % macro_ueg)) allocate(mat % macro_ueg(1:nueg, 3))
     
     if(do_ures .and. n_unr>0 .and. .not. allocated(mat % ures)) &
         allocate(mat % ures(1:n_unr))
@@ -1501,14 +1502,14 @@ subroutine setMacroXS(BU)
             endif
             micro    = 0D0
             micro(1) = (ace(iso) % UEG % sigt(j))
-            if(allocated(ace(iso)%UEG%sigd)) &
-                micro(2) = (ace(iso) % UEG % sigd(j))
+            !if(allocated(ace(iso)%UEG%sigd)) &
+            !    micro(2) = (ace(iso) % UEG % sigd(j))
 
             if(allocated(ace(iso)%UEG%sigf)) then
-                micro(3) = (ace(iso) % UEG % sigf(j))
-                micro(4) = (getnu(iso,ueggrid(j)) * ace(iso) % UEG % sigf(j))
-                micro(5) = (ace(iso) % qval * ace(iso) % UEG % sigf(j))
-                micro(2) = (micro(2) + micro(3))
+                !micro(3) = (ace(iso) % UEG % sigf(j))
+                micro(2) = (getnu(iso,ueggrid(j)) * ace(iso) % UEG % sigf(j))
+                micro(3) = (ace(iso) % qval * ace(iso) % UEG % sigf(j))
+                !micro(2) = (micro(2) + micro(3))
             endif
 
 !            if(allocated(ace(iso) % UEG % sig2n)) &
@@ -1518,8 +1519,8 @@ subroutine setMacroXS(BU)
 !            if(allocated(ace(iso) % UEG % sig4n)) &
 !                micro(2) = micro(2) - ace(iso) % UEG % sig4n(j) * 3D0
 
-            mat % macro_ueg(j,1:5) = mat % macro_ueg(j,1:5) &
-               + (micro(1:5) * mat % numden(i) * barn)
+            mat % macro_ueg(j,:) = mat % macro_ueg(j,:) &
+               + (micro(:) * mat % numden(i) * barn)
 
         enddo
     enddo
