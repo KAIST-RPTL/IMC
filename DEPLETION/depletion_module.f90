@@ -1363,7 +1363,6 @@ module depletion_module
                 if (prod(k,1)>0 .or. prod(k,2)>0 .or. prod(k,3)>0) then
                     knuc = nuclide(prod(k,1),prod(k,2),prod(k,3))%idx
                     if (knuc>0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) + nuclide(inum,nnum,anum)%lambda*f_decay(k)
-                    !nif(knuc==1599) print *, 'WTF 1313', inum, nnum, anum, prod(k,1:3)
                 elseif(nuclide(inum,nnum,anum)%sfiss==k) then !Spontaneous fission
                     if(nuclide(inum,nnum,anum)%sfy_idx>0) then
                         ! If SFY exists
@@ -1376,7 +1375,6 @@ module depletion_module
                             if(knuc/=0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) &
                                 + nuclide(inum,nnum,anum)%lambda*f_decay(k) &
                                 *sfy_yield(j,nuclide(inum,nnum,anum)%sfy_idx)
-                            !if(knuc==1599) print *, 'WTF 1326'
                         end do
                     else
                         if(anum>=89) then !For actinides
@@ -1410,7 +1408,6 @@ module depletion_module
                             if(knuc/=0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) + &
                                 nuclide(inum,nnum,anum)%lambda*f_decay(k) &
                                 *sfy_yield(j,fy_midx)
-                            !if(knuc==1599) print *, 'WTF 1360'
                         end do
                         end if
                         end if
@@ -1425,19 +1422,16 @@ module depletion_module
 !                    knuc = nuclide(0,2,2)%idx
 !                    if (knuc>0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) + &
 !                        nuclide(inum,nnum,anum)%lambda*nuclide(inum,nnum,anum)%a_emit
-!                    if(knuc==1599) print *, 'WTF alpha'
 !                endif
 !                if (nuclide(inum,nnum,anum)%n_emit>0.d0) then
 !                    knuc = nuclide(0,1,0)%idx
 !                    if (knuc>0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) + &
 !                        nuclide(inum,nnum,anum)%lambda*nuclide(inum,nnum,anum)%n_emit
-!                    if(knuc==1599) print *, 'WTF neutron'
 !                endif
 !                if (nuclide(inum,nnum,anum)%p_emit>0.d0) then
 !                    knuc = nuclide(0,0,1)%idx
 !                    if (knuc>0) bMat0(knuc,jnuc) = bMat0(knuc,jnuc) + &
 !                        nuclide(inum,nnum,anum)%lambda*nuclide(inum,nnum,anum)%p_emit
-!                    if(knuc==1599) print *, 'WTF proton'
 !                endif
                 
                 ! Count for removal per circulation
@@ -1511,7 +1505,7 @@ module depletion_module
                             do eg = 1, nE-1
                                 if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
                                     g2 = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
-                                    print *, fssn_zai(i), erg, g2, Ep(eg), Ep(eg+1)
+                                    !print *, fssn_zai(i), erg, g2, Ep(eg), Ep(eg+1)
                                     yield_data(1:nfp,i) = &
                                         tmp_yield(1:nfp,eg,i) * (1d0-g2) + &
                                         tmp_yield(1:nfp,eg+1,i) * g2
@@ -1638,6 +1632,8 @@ module depletion_module
                 !Build burnup matrix with cross section obtained from MC calculation
                 bMat = bMat0*bstep_size
                 !if(icore==score) print *, 'bMat0', bMat(nnuc,:), bMat0(nnuc,:)
+                !$omp parallel private(mt_iso, rx, flx), shared(bMat)
+                !$omp do
                 DO_ISO: do mt_iso = 1,num_iso
                     iso = mt_iso
                     anum = ace(iso)%zaid/1000
@@ -1655,7 +1651,7 @@ module depletion_module
                     ! BUILD ISO-WISE FLUX
 
                     flx  = buildflux(iso,ace(iso)%NXS(3),mat%eflux(1:nueg)/toteflux*real_flux)
-
+                    
                     do rx = 1,ace(iso)%NXS(4)
                         !do i = 1, nnuc
                         !    if(icore==score .and. bMat(nnuc,i)/=0) print *, 'RXNN', rx, ace(iso)%MT(rx), i, bMat(nnuc,i)
@@ -1703,7 +1699,6 @@ module depletion_module
                                     nnum1 = mnum1 - anum1
                                     inum1 = fp_zai(i)-anum1*10000-mnum1*10
                                     knuc = nuclide(inum1,nnum1,anum1)%idx
-                                    !if(knuc==1599) print *, 'WTF', fp_zai(i)
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) &
                                         + ogxs * yield_data(i,fy_midx) * bstep_size
 
@@ -1736,13 +1731,11 @@ module depletion_module
                                     if(knuc/=0) bMat(knuc,jnuc) &
                                         = bMat(knuc,jnuc) + ogxs * bstep_size * (1.d0-gnd_frac(ism))
                                     !if(knuc/=0) print *, 'NG', knuc, jnuc, bMat(knuc,jnuc)
-                                    !if(knuc==1599) print *, 'WTF', mt, ism
                                 else
                                     knuc = nuclide(0,nnum+1,anum)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) &
                                         = bMat(knuc,jnuc) + ogxs * bstep_size
                                     !if(knuc/=0) print *, 'NG', knuc, jnuc, bMat(knuc,jnuc)
-                                    !if(knuc==1599) print *, 'WTF', mt, ism
                                 endif
                                 bMat(jnuc,jnuc) = bMat(jnuc,jnuc) - ogxs * bstep_size
                             else
@@ -1763,49 +1756,42 @@ module depletion_module
                                     !enddo
                                     !if(knuc/=0) print *, 'RX', knuc, jnuc, anum1, nnum1,  bMat(knuc,jnuc)
                                     !if(knuc/=0) print *, 'N', nn, pn, dn, tn, an, a3n
-                                    !if(knuc==1599) print *, 'WTF', anum1, nnum1
                                     if(nn>0) then
                                     knuc = nuclide(0,1,0)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * nn
                                     !if(knuc/=0) print *, 'NN', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
-                                    !if(knuc==1599) print *, 'WTF neutron trans'
                                     if(pn>0) then
                                     knuc = nuclide(0,0,1)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * pn
                                     !if(knuc/=0) print *, 'PN', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
-                                    !if(knuc==1599) print *, 'WTF proton trans'
                                     if(dn>0) then
                                     knuc = nuclide(0,1,1)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * dn
                                     !if(knuc/=0) print *, 'DN', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
-                                    !if(knuc==1599) print *, 'WTF deutron trans'
                                     if(tn>0) then
                                     knuc = nuclide(0,2,1)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * tn
                                     !if(knuc/=0) print *, 'TN', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
-                                    !if(knuc==1599) print *, 'WTF tritium trans'
                                     if(an>0) then
                                     knuc = nuclide(0,2,2)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * an
                                     !if(knuc/=0) print *, 'A4', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
-                                    !if(knuc==1599) print *, 'WTF alpha trans'
                                     if(a3n>0) then
                                     knuc = nuclide(0,1,2)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * a3n
                                     !if(knuc/=0) print *, 'A3', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
-                                    !if(knuc==1599) print *, 'WTF alpha-3 trans'
                                 endif
                                 bMat(jnuc,jnuc) = bMat(jnuc,jnuc) - ogxs * bstep_size
                             endif

@@ -54,7 +54,7 @@ subroutine read_geom
     
     integer :: i, j, k, ix, iy,iz, idx, n, level
     integer :: i_cell, i_univ, i_lat, i_surf 
-    integer :: ntemp, itemp
+    integer :: ntemp, itemp, tmpidx
     integer :: ierr
     real(8) :: dtemp, xyz(3)
     character(200) :: line
@@ -157,8 +157,10 @@ subroutine read_geom
                 
                 if (E_mode == 0) cells(j)%mat_idx = find_mat_idx(XS_MG,mat_id)
                 if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
-                if(materials(cells(j)%mat_idx) % duplicable .and. do_burn&
+                if(materials(cells(j)%mat_idx) % duplicable &
                     .and. materials(cells(j)%mat_idx) % depletable) then
+                    if(icore==score)print *, 'DUPL', materials(cells(j)%mat_idx) % geom_count, mat_id, univptr % univ_id
+                    tmpidx = cells(j) % mat_idx
                     if(materials(cells(j)%mat_idx) % geom_count > 0) then
                         allocate(materials_temp(n_materials+1))
                         materials_temp(1:n_materials) = materials(:)
@@ -168,9 +170,8 @@ subroutine read_geom
                         n_materials = n_materials + 1
                         cells(j) % mat_idx = n_materials
                     endif
-                    materials(cells(j)%mat_idx) % geom_count = &
-                        materials(cells(j)%mat_idx) % geom_count + 1
-                    if(icore==score) print *, 'ADDED', n_materials, cells(j)%mat_idx
+                    materials(tmpidx) % geom_count = &
+                        materials(tmpidx) % geom_count + 1
                 endif
             enddo
             j = size(cells)
@@ -180,7 +181,7 @@ subroutine read_geom
             
             if (E_mode == 0) cells(j)%mat_idx = find_mat_idx(XS_MG,mat_id)
             if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
-            if(materials(cells(j)%mat_idx) % duplicable .and. do_burn&
+            if(materials(cells(j)%mat_idx) % duplicable &
                 .and. materials(cells(j)%mat_idx) % depletable) then
                 if(materials(cells(j)%mat_idx) % geom_count > 0) then
                     allocate(materials_temp(n_materials+1))
@@ -511,7 +512,7 @@ subroutine read_cell (Cellobj, args, nargs)
 		read(args(4), *) mat_id
 		if (E_mode == 0) Cellobj%mat_idx = find_mat_idx(XS_MG,mat_id)
 		if (E_mode == 1) Cellobj%mat_idx = find_CE_mat_idx (materials, mat_id)
-        if(materials(Cellobj%mat_idx) % duplicable .and. do_burn&
+        if(materials(Cellobj%mat_idx) % duplicable &
             .and. materials(Cellobj%mat_idx) % depletable) then
             if(materials(Cellobj%mat_idx) % geom_count > 0) then
                 allocate(materials_temp(n_materials+1))
@@ -849,6 +850,7 @@ end subroutine READ_CTRL
 		integer :: nargs
 		integer :: ierr, curr_line
 		character(20) :: surf_id
+        integer :: rgb(3)
 		
 		
         File_Error=0
@@ -1389,6 +1391,8 @@ end subroutine READ_CTRL
                     allocate(materials_temp(n))
                     if (n > 1) materials_temp(1:n-1) = materials(:) 
                     CE_mat_ptr => materials_temp(n)
+
+                    CE_mat_ptr % rgb = -1
                 
                     if(File_Error/=0) call Card_Error(Card_Type,Char_Temp)
                     Read_Mat : do 
@@ -1519,7 +1523,14 @@ end subroutine READ_CTRL
 							case("FUEL"); CE_mat_ptr%mat_type = 1
 							case("CLAD"); CE_mat_ptr%mat_type = 2
 							case("COOL"); CE_mat_ptr%mat_type = 3
-							end select                        
+							end select                       
+
+                        case("RGB")
+                            backspace(File_Number)
+                        read(File_Number,*,iostat=File_Error) Char_Temp, Equal, rgb(1), rgb(2), rgb(3)
+                            if(ANY(rgb)<0 .or. ANY(rgb) > 255) &
+                                call Card_Error(Card_Type, Char_Temp)
+                            CE_mat_ptr % rgb(1:3) = rgb(1:3)
 
 						end select Card_D_Inp
                     

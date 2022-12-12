@@ -1309,10 +1309,14 @@ end subroutine
 		
 		!> make material color map 
 		do i = 1, n_materials
-			do j = 1, 3
-				call random_number(rn) 
-				mat_rgb(i,j) = floor(rn*255)
-			enddo 
+            if(sum(materials(i) % rgb) < 0) then
+    			do j = 1, 3
+    				call random_number(rn) 
+    				mat_rgb(i,j) = floor(rn*255)
+    			enddo 
+            else ! RGB assigned
+                mat_rgb(i,1:3) = materials(i) % rgb(1:3)
+            endif
 		enddo 
 		rgb_blk(1:3) = 0
 		
