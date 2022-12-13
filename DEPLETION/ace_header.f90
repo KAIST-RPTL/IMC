@@ -137,9 +137,6 @@ real(8), allocatable :: signuf(:) !> Fission Neutron Production
 real(8), allocatable ::  sigqf(:) !> Fission heating ..
 real(8), allocatable ::  sigal(:) !> (n,Alpha) XS
 real(8), allocatable ::   sigp(:) !> (n,p) XS
-real(8), allocatable :: sig2n2(:) !> (n,2nx) XS
-real(8), allocatable :: sig3n2(:) !> (n,3nx) XS
-real(8), allocatable :: sig4n2(:) !> (n,4nx) XS
 endtype
 
 

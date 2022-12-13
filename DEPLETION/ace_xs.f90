@@ -8,6 +8,8 @@ use ace_module
 
 implicit none
     real(8), parameter:: inv_sqrt_pi = 0.564189583547756D0 ! 1/sqrt(pi)
+    integer, allocatable :: mpiace(:,:)
+    integer :: nace
 
 contains
 
@@ -466,6 +468,9 @@ subroutine getiueg(erg, ierg)
 
     pt1 = unigrid(uidx-1)
     pt2 = min(unigrid(uidx)+1,nueg)
+    if(pt1==0 .or. pt2==0) then
+        print *, 'WTF', pt1, pt2
+    endif
 
     if(pt1==pt2) then
         pt1 = pt1 - 1
@@ -596,6 +601,7 @@ subroutine setuegrid
     allocate(unigrid(0:nuni))
 
     idx = 1
+    unigrid(0) = 1
     do i = 1, nuni-1
         Etmp = Emin * 1d1 ** (dble(i) * unidel)
         if(Etmp > nueg) then
@@ -1306,7 +1312,7 @@ type(AceFormat), pointer :: ac
         
         if(allocated(ace(iso)%sigf)) then
         allocate(ac%UEG%sigf(1:nueg))
-!        allocate(ac%UEG%signuf(1:nueg))
+        allocate(ac%UEG%signuf(1:nueg))
 !        allocate(ac%UEG%sigqf(1:nueg))
         ! 1) Fission XS
         ac % UEG % sigf = (ac % sigf ( ac % NXS(3) ))
@@ -1322,10 +1328,10 @@ type(AceFormat), pointer :: ac
         enddo
 
 !        ! 2) NuFiss XS and Q Fiss XS
-!        do i = 1, nueg
-!            ac % UEG % signuf(i) = ac % UEG % sigf (i) * getnu(iso, ueggrid(i))
+        do i = 1, nueg
+            ac % UEG % signuf(i) = ac % UEG % sigf (i) * getnu(iso, ueggrid(i))
 !            ac % UEG % sigqf(i)  = ac % UEG % sigf (i) * ac % qval
-!        enddo
+        enddo
         !if(icore==score) print *, 'Fission XS for ', ace(iso) % xslib
         endif
         
@@ -1472,8 +1478,9 @@ subroutine setMacroXS(BU)
     integer :: nprod
     real(8) :: micro(3), xs(6), ipfac
 
-    integer :: ierg
-    !$OMP PARALLEL DO PRIVATE(imat, i, iso, j, mat, micro, ii, nprod, xs) 
+    integer :: ierg, cnt
+    cnt = 0
+    !$OMP PARALLEL DO PRIVATE(iso, mat, micro, nprod, xs)
     do imat = 1, n_materials
     !if(BU .and. .not. materials(imat)%depletable) cycle
     mat => materials(imat)
@@ -1493,38 +1500,59 @@ subroutine setMacroXS(BU)
             mat % ures(ace(iso) % UNR % unridx) = .true.
             mat % uresidx(ace(iso)%UNR% unridx) = i
         endif
-        do j = 1, nueg
-            if(do_ures .and. ace(iso) % UNR % URES) then
-            !if(mat % ures(ace(iso) % UNR % unridx)) cycle
-            if(mat % ures(ace(iso) % UNR % unridx) .and. &
-                ueggrid(j) >= ace(iso) % UNR % Emin .and. &
-                ueggrid(j) <= ace(iso) % UNR % Emax) cycle
-            endif
-            micro    = 0D0
-            micro(1) = (ace(iso) % UEG % sigt(j))
-            !if(allocated(ace(iso)%UEG%sigd)) &
-            !    micro(2) = (ace(iso) % UEG % sigd(j))
 
-            if(allocated(ace(iso)%UEG%sigf)) then
-                !micro(3) = (ace(iso) % UEG % sigf(j))
-                micro(2) = (getnu(iso,ueggrid(j)) * ace(iso) % UEG % sigf(j))
-                micro(3) = (ace(iso) % qval * ace(iso) % UEG % sigf(j))
-                !micro(2) = (micro(2) + micro(3))
-            endif
+        if(do_ures) then
+            do j = 1, nueg
+                if(ace(iso) % UNR % URES) then
+                !if(mat % ures(ace(iso) % UNR % unridx)) cycle
+                if(mat % ures(ace(iso) % UNR % unridx) .and. &
+                    ueggrid(j) >= ace(iso) % UNR % Emin .and. &
+                    ueggrid(j) <= ace(iso) % UNR % Emax) cycle
+                endif
+                micro    = 0D0
+                micro(1) = (ace(iso) % UEG % sigt(j))
+                !if(allocated(ace(iso)%UEG%sigd)) &
+                !    micro(2) = (ace(iso) % UEG % sigd(j))
+    
+                if(allocated(ace(iso)%UEG%sigf)) then
+                    !micro(3) = (ace(iso) % UEG % sigf(j))
+                    micro(2) = (getnu(iso,ueggrid(j)) * ace(iso) % UEG % sigf(j))
+                    micro(3) = (ace(iso) % qval * ace(iso) % UEG % sigf(j))
+                    !micro(2) = (micro(2) + micro(3))
+                endif
+    
+                mat % macro_ueg(j,:) = mat % macro_ueg(j,:) &
+                   + (micro(:) * mat % numden(i) * barn)
+            enddo
 
-!            if(allocated(ace(iso) % UEG % sig2n)) &
-!                micro(2) = micro(2) - ace(iso) % UEG % sig2n(j)
-!            if(allocated(ace(iso) % UEG % sig3n)) &
-!                micro(2) = micro(2) - ace(iso) % UEG % sig3n(j) * 2D0
-!            if(allocated(ace(iso) % UEG % sig4n)) &
-!                micro(2) = micro(2) - ace(iso) % UEG % sig4n(j) * 3D0
+        else
+            mat % macro_ueg(:,1) = mat % macro_ueg(:,1) + &
+                ace(iso) % UEG % sigt(:) * mat % numden(i) * barn
 
-            mat % macro_ueg(j,:) = mat % macro_ueg(j,:) &
-               + (micro(:) * mat % numden(i) * barn)
-
-        enddo
+            if(allocated(ace(iso) % UEG % sigf)) then
+                mat % macro_ueg(:,2) = mat % macro_ueg(:,2) + &
+                    ace(iso) % UEG % signuf(:) * mat % numden(i) * barn
+                mat % macro_ueg(:,3) = mat % macro_ueg(:,3) + &
+                    ace(iso) % UEG % sigf(:) * mat % numden(i) * barn * ace(iso) % qval
+            endif               
+        endif
     enddo
-    if(icore==score) write(*,*) 'XS SET FOR MAT #:', imat
+    if(n_materials < 10) then
+        if(icore==score) write(*,*) 'XS SET FOR MAT #:', imat
+    else ! n_materials >= 100
+        !$OMP ATOMIC
+        cnt = cnt + 1
+        if(icore/=score) cycle
+        if(cnt == n_materials/4) then
+            print *, 'MATERIAL XS CALC ( 25%/100%)'
+        elseif(cnt == n_materials/4*2) then
+            print *, 'MATERIAL XS CALC ( 50%/100%)'
+        elseif(cnt == n_materials/4*3) then
+            print *, 'MATERIAL XS CALC ( 75%/100%)'
+        elseif(cnt == n_materials) then
+            print *, 'MATERIAL XS CALC (100%/100%)'
+        endif
+    endif
     enddo
 
 end subroutine

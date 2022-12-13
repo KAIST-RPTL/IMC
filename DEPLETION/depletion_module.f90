@@ -921,7 +921,7 @@ module depletion_module
                                             idx1 = idx1 + 1
                                             daugh(idx1) = tgt*10+11
                                             call ADDACE(daugh(idx1),tail)
-                                            if(icore==score) write(*,*) 'ADDED from ', ace(iso)%xslib, daugh(idx1)
+                                            !if(icore==score) write(*,*) 'ADDED from ', ace(iso)%xslib, daugh(idx1)
                                         endif
                                         if(nuclide(0,nnum+1,anum)%data_exist .and. nuclide(0,nnum+1,anum)%conn<0) then
                                             nuclide(0,nnum+1,anum)%conn = conval
@@ -1308,6 +1308,7 @@ module depletion_module
             integer :: tmpaceidx
 
             real(8) :: totfiss, numer, denom, g2
+            integer :: cnt, rcv
 
             if(do_burn==.false.) return
             avg_power = avg_power / dble(n_act)
@@ -1453,6 +1454,7 @@ module depletion_module
             ULnorm = RealPower/(avg_power*eVtoJoule)
             !Substitute burnup matrix element
             !do imat = 1, n_materials
+            cnt = 0
             do ii = 1, ngeom
                 imat = mpigeom(ii,icore)
 
@@ -1460,7 +1462,7 @@ module depletion_module
                 if(.not. materials(imat)%depletable) cycle    !material imat is not burned
                 !samarium = 0.d0
                 mat => materials(imat)
-                print *, icore, 'MATDEP', imat, '/', totgeom
+                !print *, icore, 'MATDEP', imat, '/', totgeom
 !                    write(prt_bumat, *) '' 
 !                    write(prt_bumat, *) mat%mat_name 
 !                    write(prt_bumat, *) ''
@@ -1632,9 +1634,12 @@ module depletion_module
                 !Build burnup matrix with cross section obtained from MC calculation
                 bMat = bMat0*bstep_size
                 !if(icore==score) print *, 'bMat0', bMat(nnuc,:), bMat0(nnuc,:)
-                !$omp parallel private(mt_iso, rx, flx), shared(bMat)
-                !$omp do
+                !!$omp parallel do default(private) &
+                !!$omp shared(bMat, real_flux, toteflux, bstep_size, yield_data, ZAIMT_ism, gnd_frac, ace, nuclide, fssn_zai, fp_zai, nfssn, RXMT, num_iso)
+                !$OMP PARALLEL DO &
+                !$OMP PRIVATE(iso, anum, mnum, nnum, inum, jnuc, flx, mt, ogxs, fy_midx, anum1, nnum1, mnum1, inum1, knuc, a1, m1, n1, ism, zai, pn, dn, tn, an, a3n, nn)  
                 DO_ISO: do mt_iso = 1,num_iso
+                    !print *, 'ISO', mt_iso
                     iso = mt_iso
                     anum = ace(iso)%zaid/1000
                     mnum = (ace(iso)%zaid - anum*1000)
@@ -1653,27 +1658,11 @@ module depletion_module
                     flx  = buildflux(iso,ace(iso)%NXS(3),mat%eflux(1:nueg)/toteflux*real_flux)
                     
                     do rx = 1,ace(iso)%NXS(4)
-                        !do i = 1, nnuc
-                        !    if(icore==score .and. bMat(nnuc,i)/=0) print *, 'RXNN', rx, ace(iso)%MT(rx), i, bMat(nnuc,i)
-                        !enddo
-                        !if(icore==score) print *, 'TESTINGPREV', jnuc, mt,  bMat(nnuc,jnuc)
                         mt = ace(iso)%MT(rx)
-                        !if(icore==score) print *, 'F0', ace(iso)%zaid, rx,ace(iso)%NXS(4), mt
                         if(.not. ANY(RXMT==mt)) cycle
-                        !if(icore==score) print *, 'F1', ace(iso)%zaid, rx, mt
                         ! TALLY OGXS
-                        ogxs = 0.d0
-!                        do idx = 1,numrx
-!                            if(RXMT(idx)==mt) goto 220
-!                        enddo
-!                        cycle
-!                        220 continue
-                        
                         ogxs = buildogxs_iso(iso,mt,flx) * barn
-                        !ogxs = tmpogxs((iso-1)*num_iso+idx)
-                        !ogxs = buildogxs(iso,mt,mat%eflux(1:nueg),toteflux) * real_flux * barn
-
-                        !if(icore==score) print *, 'RX', ace(iso)%zaid, mt, ogxs, ogxs1
+                        !print *, iso, mt, flx, ogxs
                         ! FIND DESTINATION
                         if(mt==18) then ! In case of Fission
                             if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then 
@@ -1800,6 +1789,7 @@ module depletion_module
                     enddo
                     !if(icore==score) print *, 'TESTING', jnuc, bMat(nnuc,jnuc)
                 end do DO_ISO
+                !$omp end parallel do
 
         !if(icore==score) print *, 'bMat', bMat(nnuc,:)
         deallocate(yield_data)
@@ -1841,7 +1831,28 @@ module depletion_module
             print *, "ERROR :: No such matrix_exponential_solver option", matrix_exponential_solver
             stop 
         end select
-        print *, 'CRAM solved for mat:',imat,'/',totgeom
+        if(totgeom < 10) then
+            print *, 'DEP solved for mat:',imat,'/',totgeom, ':', icore
+        else
+            !$OMP ATOMIC
+            cnt = cnt + 1
+
+            call MPI_ALLREDUCE(cnt,rcv,1,MPI_INTEGER,MPI_SUM,core,ierr)
+
+            if(icore==score) then
+
+            if(cnt == totgeom/4) then
+                print *, 'DEPLETION CALC ( 25%/100%)'
+            elseif(cnt == totgeom/4*2) then
+                print *, 'DEPLETION CALC ( 50%/100%)'
+            elseif(cnt == totgeom/4*3) then
+                print *, 'DEPLETION CALC ( 75%/100%)'
+            elseif(cnt == totgeom) then
+                print *, 'DEPLETION CALC (100%/100%)'
+            endif
+            
+            endif
+        endif
         
         ! WRITE ATOMIC DENSITY IN MATLAB .m FILE (OPTIONAL)
         if(bumat_print)then

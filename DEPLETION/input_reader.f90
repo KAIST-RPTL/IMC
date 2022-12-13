@@ -159,7 +159,7 @@ subroutine read_geom
                 if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
                 if(materials(cells(j)%mat_idx) % duplicable &
                     .and. materials(cells(j)%mat_idx) % depletable) then
-                    if(icore==score)print *, 'DUPL', materials(cells(j)%mat_idx) % geom_count, mat_id, univptr % univ_id
+                    !if(icore==score)print *, 'DUPL', materials(cells(j)%mat_idx) % geom_count, mat_id, univptr % univ_id
                     tmpidx = cells(j) % mat_idx
                     if(materials(cells(j)%mat_idx) % geom_count > 0) then
                         allocate(materials_temp(n_materials+1))
@@ -1528,7 +1528,7 @@ end subroutine READ_CTRL
                         case("RGB")
                             backspace(File_Number)
                         read(File_Number,*,iostat=File_Error) Char_Temp, Equal, rgb(1), rgb(2), rgb(3)
-                            if(ANY(rgb)<0 .or. ANY(rgb) > 255) &
+                            if(ANY(rgb<0) .or. ANY(rgb > 255)) &
                                 call Card_Error(Card_Type, Char_Temp)
                             CE_mat_ptr % rgb(1:3) = rgb(1:3)
 
