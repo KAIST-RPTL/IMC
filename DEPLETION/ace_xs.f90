@@ -5,6 +5,7 @@ use variables, only : E_mode, k_steady
 use material_header 
 use ace_header 
 use ace_module 
+use mpi
 
 implicit none
     real(8), parameter:: inv_sqrt_pi = 0.564189583547756D0 ! 1/sqrt(pi)

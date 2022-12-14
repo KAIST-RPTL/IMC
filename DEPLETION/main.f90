@@ -273,11 +273,11 @@ end do TH
 
     !> Check burnup loop exit condition
     if ( do_burn ) then
+        time_dep = omp_get_wtime() 
 		!> Gather Burnup Tallies
 		call MPI_reduce_burnup()
 
 		!> Make & Solve depletion matrix
-        time_dep = omp_get_wtime() 
 		call depletion
 	    time_dep_done = omp_get_wtime()
         if ( istep_burnup > nstep_burnup ) exit BURNUP

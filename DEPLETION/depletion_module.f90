@@ -1838,6 +1838,7 @@ module depletion_module
             cnt = cnt + 1
 
             call MPI_ALLREDUCE(cnt,rcv,1,MPI_INTEGER,MPI_SUM,core,ierr)
+            cnt = rcv
 
             if(icore==score) then
 
