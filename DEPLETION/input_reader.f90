@@ -66,6 +66,9 @@ subroutine read_geom
     integer :: nargs
 	
     logical :: found 
+
+    character(20) :: dupname
+    character(5) :: char1, char2
     
     !Read geom.inp
     open(rd_geom, file=trim(trim(directory)//"geom.inp"),action="read", status="old")
@@ -162,9 +165,31 @@ subroutine read_geom
                     !if(icore==score)print *, 'DUPL', materials(cells(j)%mat_idx) % geom_count, mat_id, univptr % univ_id
                     tmpidx = cells(j) % mat_idx
                     if(materials(cells(j)%mat_idx) % geom_count > 0) then
+                        if(univptr%univ_id<10) then
+                            write(char1, '(I1)') univptr%univ_id
+                        elseif(univptr%univ_id<100) then
+                            write(char1, '(I2)') univptr%univ_id
+                        elseif(univptr%univ_id<1000) then
+                            write(char1, '(I3)') univptr%univ_id
+                        elseif(univptr%univ_id<10000) then
+                            write(char1, '(I4)') univptr%univ_id
+                        elseif(univptr%univ_id<100000) then
+                            write(char1, '(I5)') univptr%univ_id
+                        endif
+
+                        if(i<10) then
+                            write(char2, '(I1)') i
+                        elseif(i<100) then
+                            write(char2, '(I2)') i
+                        endif
+                        !if(icore==score) print *, 'CHCK', char1, char2
+                        !write(dupname, '(A,A1,A,A1,A)') adjustl(trim(materials(cells(j)%mat_idx) % mat_name)), '_', adjustl(trim(char1)), '_', adjustl(trim(char2))
+                        dupname = adjustl(trim(materials(cells(j)%mat_idx)%mat_name)) //'_' //adjustl(trim(char1)) // '_' // adjustl(trim(char2))
+                        if(icore==score) print *, 'DUP ', dupname, materials(cells(j)%mat_idx) % geom_count
                         allocate(materials_temp(n_materials+1))
                         materials_temp(1:n_materials) = materials(:)
                         materials_temp(n_materials+1) = materials(cells(j)%mat_idx)
+                        materials_temp(n_materials+1) % mat_name = dupname
                         if(allocated(materials)) deallocate(materials)
                         call move_alloc(materials_temp, materials)
                         n_materials = n_materials + 1
