@@ -1442,7 +1442,7 @@ module depletion_module
 !                end if
             end do
             end if
-            
+            !print *, 'BU' 
             if (icore==score) then 
                 write(prt_bumat, '(a45)')         '   =========================================='
                 write(prt_bumat, '(a17,i4)')     '      Burnup step', istep_burnup+1
@@ -1790,6 +1790,7 @@ module depletion_module
                     !if(icore==score) print *, 'TESTING', jnuc, bMat(nnuc,jnuc)
                 end do DO_ISO
                 !$omp end parallel do
+                print *, 'END DOISO', imat, materials(imat) % mat_name, icore
 
         !if(icore==score) print *, 'bMat', bMat(nnuc,:)
         deallocate(yield_data)
@@ -1814,6 +1815,7 @@ module depletion_module
             enddo
         enddo
         endif
+        print *, 'B4 CRAM', imat, materials(imat) % mat_name, icore
         !Solve the burnup matrix equation 
         select case(matrix_exponential_solver)
         case(0)
@@ -1831,29 +1833,32 @@ module depletion_module
             print *, "ERROR :: No such matrix_exponential_solver option", matrix_exponential_solver
             stop 
         end select
-        if(totgeom < 10) then
-            print *, 'DEP solved for mat:',imat,'/',totgeom, ':', icore
-        else
-            !$OMP ATOMIC
-            cnt = cnt + 1
+        print *, 'DONE', icore, imat, totgeom
+!        if(totgeom < 10) then
+!            print *, 'DEP solved for mat:',imat,'/',totgeom, ':', icore
+!        else
+!            !$OMP ATOMIC
+!            cnt = cnt + 1
+!
+!            call MPI_ALLREDUCE(cnt,rcv,1,MPI_INTEGER,MPI_SUM,core,ierr)
+!            cnt = rcv
+!
+!            if(icore==score) then
+!
+!            if(cnt == totgeom/4) then
+!                print *, 'DEPLETION CALC ( 25%/100%)'
+!            elseif(cnt == totgeom/4*2) then
+!                print *, 'DEPLETION CALC ( 50%/100%)'
+!            elseif(cnt == totgeom/4*3) then
+!                print *, 'DEPLETION CALC ( 75%/100%)'
+!            elseif(cnt == totgeom) then
+!                print *, 'DEPLETION CALC (100%/100%)'
+!            endif
+!            
+!            endif
+!        endif
 
-            call MPI_ALLREDUCE(cnt,rcv,1,MPI_INTEGER,MPI_SUM,core,ierr)
-            cnt = rcv
-
-            if(icore==score) then
-
-            if(cnt == totgeom/4) then
-                print *, 'DEPLETION CALC ( 25%/100%)'
-            elseif(cnt == totgeom/4*2) then
-                print *, 'DEPLETION CALC ( 50%/100%)'
-            elseif(cnt == totgeom/4*3) then
-                print *, 'DEPLETION CALC ( 75%/100%)'
-            elseif(cnt == totgeom) then
-                print *, 'DEPLETION CALC (100%/100%)'
-            endif
-            
-            endif
-        endif
+        print *, 'COUNT?', icore, imat, totgeom
         
         ! WRITE ATOMIC DENSITY IN MATLAB .m FILE (OPTIONAL)
         if(bumat_print)then
@@ -1870,6 +1875,7 @@ module depletion_module
         !Update number density
         mat%full_numden = nxt_full_numden 
         
+        print *, 'FLAG1', imat, icore
         ! ======================================================================================
         ! Reset material isotope inventory
         knuc = 0 
@@ -1888,7 +1894,7 @@ module depletion_module
             endif
         end do
 
-
+        print *, 'FLAG2', imat, icore
 
         mat%n_iso = knuc
         deallocate(mat%ace_idx);allocate(mat%ace_idx(1:knuc));     mat%ace_idx= 0D0
@@ -1930,9 +1936,11 @@ module depletion_module
 !            enddo
 !        endif
                     
+    print *, 'FLAG3', imat, icore
             
 
     enddo
+    print *, 'ARRIVED', icore
     call MPI_BARRIER(MPI_COMM_WORLD, ierr)
     if(icore==score) print *, 'Total Flux', tot_flux
 
@@ -1964,7 +1972,7 @@ module depletion_module
         if(.not. materials(imat)%depletable) cycle
             mat => materials(imat)
             write(prt_bumat,*) ''
-            write(prt_bumat,*) mat%mat_name
+            write(prt_bumat,*) 'mat: ', mat%mat_name
             write(prt_bumat,*) ''
             do mt_iso = 1, mat%n_iso
                write(prt_bumat, '(a15,e14.5)') ace(mat%ace_idx(mt_iso))%xslib, mat%numden(mt_iso)*barn 
