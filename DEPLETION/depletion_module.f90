@@ -734,22 +734,43 @@ module depletion_module
                     nnum= mnum - anum
                     nuclide(inum,nnum,anum)%conn = 0
 
-                    if(nuclide(0,2,2)%data_exist .and. nuclide(0,2,2)%conn<0) then
+                    if(nuclide(0,2,2)%data_exist .and. nuclide(0,2,2)%conn<0) then ! ALPHA
                         nuclide(0,2,2)%conn = 0
                         idx = idx + 1
                         decay(idx) = 20040
                         call ADDACE(decay(idx),tail)
                     endif
 
-                    if(nuclide(0,0,1)%data_exist .and. nuclide(0,0,1)%conn<0) then
+                    if(nuclide(0,0,1)%data_exist .and. nuclide(0,0,1)%conn<0) then ! PROTON
                         nuclide(0,0,1)%conn = 0
                         idx = idx + 1
                         decay(idx) = 10010
                         call ADDACE(decay(idx),tail)
                     endif
 
-                    if(nuclide(0,1,0)%data_exist .and. nuclide(0,1,0)%conn<0) then
+                    if(nuclide(0,1,0)%data_exist .and. nuclide(0,1,0)%conn<0) then ! NEUTRON
                         nuclide(0,1,0)%conn = 0
+                        idx = idx + 1
+                        decay(idx) = 00010
+                        call ADDACE(decay(idx),tail)
+                    endif
+
+                    if(nuclide(0,1,1)%data_exist .and. nuclide(0,1,0)%conn<0) then ! D
+                        nuclide(0,1,0)%conn = 0
+                        idx = idx + 1
+                        decay(idx) = 00010
+                        call ADDACE(decay(idx),tail)
+                    endif
+
+                    if(nuclide(0,2,1)%data_exist .and. nuclide(0,1,0)%conn<0) then ! T
+                        nuclide(0,1,0)%conn = 0
+                        idx = idx + 1
+                        decay(idx) = 00010
+                        call ADDACE(decay(idx),tail)
+                    endif
+
+                    if(nuclide(0,1,2)%data_exist .and. nuclide(0,1,0)%conn<0) then ! A3
+                        nuclide(0,1,2)%conn = 0
                         idx = idx + 1
                         decay(idx) = 00010
                         call ADDACE(decay(idx),tail)
@@ -1057,7 +1078,7 @@ module depletion_module
                         enddo
                         if(.not. materials(i)%depletable) cycle
                         write(prt_bumat,*) ' '
-                        write(prt_bumat,*) materials(i)%mat_name
+                        write(prt_bumat,*) 'mat: ', materials(i)%mat_name
                         write(prt_bumat,*) ' '
                         do mt_iso = 1,materials(i)%n_iso
                             write(prt_bumat,'(a15,e14.5)')&
@@ -1121,9 +1142,19 @@ module depletion_module
             real(8) :: g, erg
 
             flux(1:n) = 0d0
+            if(ace(iso)%zaid==93234) then
+                print *, 'TESTING...', ace(iso) % E(1), ace(iso) % E(ace(iso)%NXS(3)), ace(iso) % NXS(3)
+                print *, 'EGRID'
+                print *, ace(iso) % E(1:ace(iso)%NXS(3))
+                do i = 1, nueg-1
+                    if(ace(iso)%UEG%Egrid(i)/=ace(iso)%UEG%Egrid(i+1)) then
+                        print *, ueggrid(i), ueggrid(i+1), i, ace(iso) % UEG % Egrid(i)
+                    endif
+                enddo
+            endif
             do i = 1, nueg
                 if( ace(iso) % UEG % Egrid(i) == ace(iso) % NXS(3) ) then
-                    flux(n) = flux(n) + eflux(i)
+                    flux(n) = flux(n) + sum(eflux(i:nueg))
                     exit
                 elseif( ace(iso) % UEG % Egrid(i) == 0) then
                     cycle
@@ -1134,29 +1165,40 @@ module depletion_module
                     if(g<0 .or. g>1) print *, 'WTF?', iso, erg, i, idx
                     flux(idx)  = flux(idx)   + (1d0-g) * eflux(i)
                     flux(idx+1)= flux(idx+1) + g * eflux(i)
+                    if(ace(iso)%zaid==93234 .and. erg >= 18d0 .and. eflux(i)/=0d0) &
+                        print *, i, erg, ace(iso) % E(idx), ace(iso) % E(idx+1), eflux(i)
                 endif
             enddo
+
+            if(ace(iso)%zaid==93234) then
+                do i = 1, n
+                    if(flux(i)==0) then
+                        print *, 'ZERO', i, ace(iso) % E(i)
+                   endif
+                enddo
+            endif
+
             end function
 
-            function buildogxs_iso(iso, mt, flux)
+            function buildogxs_iso(iso, rx, flux)
             implicit none
             real(8) :: buildogxs_iso
-            integer, intent(in) :: iso, mt
+            integer, intent(in) :: iso, rx
             real(8), intent(in) :: flux(:)
-            integer :: r, i
+            integer :: mt
+            mt = ace(iso) % MT(rx)
             select case(mt)
             case(N_GAMMA)
                 buildogxs_iso = dot_product(ace(iso) % sigd, flux)
             case(N_FISSION)
                 buildogxs_iso = dot_product(ace(iso) % sigf, flux)
             case default
-                r = 0
-                do i = 1, ace(iso) % NXS(4)
-                    if(ace(iso) % MT(i) == mt) then
-                        r = i; exit
-                    endif
-                enddo
-                if(r/=0) buildogxs_iso = dot_product(ace(iso) % sig_MT(i) % cx, flux)
+                if(rx/=0) buildogxs_iso = dot_product(ace(iso) % sig_MT(rx) % cx, flux)
+                if(mt==17 .and. ace(iso)%zaid==93234) then
+                    print *, 'MT', buildogxs_iso
+                    print *, 'CX', ace(iso)%sig_MT(rx)%cx
+                    print *, 'FLX', flux
+                endif
             end select
             endfunction
 
@@ -1308,7 +1350,7 @@ module depletion_module
             integer :: tmpaceidx
 
             real(8) :: totfiss, numer, denom, g2
-            integer :: cnt, rcv
+            integer :: cnt, rcv, addn
 
             if(do_burn==.false.) return
             avg_power = avg_power / dble(n_act)
@@ -1637,7 +1679,7 @@ module depletion_module
                 !!$omp parallel do default(private) &
                 !!$omp shared(bMat, real_flux, toteflux, bstep_size, yield_data, ZAIMT_ism, gnd_frac, ace, nuclide, fssn_zai, fp_zai, nfssn, RXMT, num_iso)
                 !$OMP PARALLEL DO &
-                !$OMP PRIVATE(iso, anum, mnum, nnum, inum, jnuc, flx, mt, ogxs, fy_midx, anum1, nnum1, mnum1, inum1, knuc, a1, m1, n1, ism, zai, pn, dn, tn, an, a3n, nn)  
+                !$OMP PRIVATE(iso, anum, mnum, nnum, inum, jnuc, flx, mt, ogxs, fy_midx, anum1, nnum1, mnum1, inum1, knuc, a1, m1, n1, ism, zai, pn, dn, tn, an, a3n, nn, addn)  
                 DO_ISO: do mt_iso = 1,num_iso
                     !print *, 'ISO', mt_iso
                     iso = mt_iso
@@ -1659,25 +1701,40 @@ module depletion_module
                     
                     do rx = 1,ace(iso)%NXS(4)
                         mt = ace(iso)%MT(rx)
-                        if(.not. ANY(RXMT==mt)) cycle
+                        !if(.not. ANY(RXMT==mt)) cycle
+                        !if(abs(ace(iso)%TY(rx))==1) print *, 'EXCLUDED', iso, mt
+                        if(abs(ace(iso)%TY(rx))==1 .and. .not.(mt==N_P .or. mt==N_A .or. mt==N_D .or. mt==N_T .or. mt==N_3HE)) cycle ! Maybe inelastic?
+                        if(mt == 4 .or. mt >= 200) cycle ! Inelastic and Damage
                         ! TALLY OGXS
-                        ogxs = buildogxs_iso(iso,mt,flx) * barn
-                        !print *, iso, mt, flx, ogxs
+                        ogxs = buildogxs_iso(iso,rx,flx) * barn
+                        !if(ace(iso)%zaid==42099) print *, iso, mt, ogxs, ace(iso) % TY(rx)
+                        if(mt==17) print *, 'N3N', iso, ace(iso)%zaid, ogxs
                         ! FIND DESTINATION
-                        if(mt==18) then ! In case of Fission
+                        if(mt==18 .or. ace(iso)%TY(rx)==19) then ! In case of Fission
                             if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then 
-                                if(nuclide(inum,nnum,anum)%fy_idx>0) then
-                                    fy_midx = nuclide(inum,nnum,anum)%fy_idx
+                                addn = 0
+                                if(ace(iso)%MT(rx)==N_F) then ! NF
+                                    addn = 0
+                                elseif(ace(iso)%MT(rx)==N_NF) then ! NNF
+                                    addn = 1
+                                elseif(ace(iso)%MT(rx)==N_2NF) then
+                                    addn = 2
+                                elseif(ace(iso)%MT(rx)==N_3NF) then
+                                    addn = 3
+                                endif
+
+                                if(nuclide(inum,addn+nnum,anum)%fy_idx>0) then
+                                    fy_midx = nuclide(inum,addn+nnum,anum)%fy_idx
                                 else
                                     fy_midx = 0
-                                    if(inum>1 .and. nuclide(0,nnum,anum)%fy_idx>0) then
-                                        fy_midx = nuclide(0,nnum,anum)%fy_idx
+                                    if(inum>1 .and. nuclide(0,addn+nnum,anum)%fy_idx>0) then
+                                        fy_midx = nuclide(0,addn+nnum,anum)%fy_idx
                                     else
                                         do i = 1,nfssn
                                             a1 = fssn_zai(i)/10000
                                             m1 = (fssn_zai(i)-a1*10000)/10
                                             n1 = m1-a1
-                                            if(n1==nnum) fy_midx = i
+                                            if(n1==addn+nnum) fy_midx = i
                                         enddo
                                     if(fy_midx==0) fy_midx = nuclide(0,143,92)%fy_idx
                                     endif
@@ -2046,6 +2103,8 @@ module depletion_module
         nn = 5
     elseif(mt==N_2ND) then
         nn = 2; dn = 1
+    elseif(mt==N_2NP) then
+        nn = 2; pn = 1
     elseif(mt==N_2N) then
         nn = 2
     elseif(mt==N_3N) then
@@ -2118,7 +2177,9 @@ module depletion_module
 
         ipfac = max(0D0,min(1D0,(erg-ueggrid(ierg))/(ueggrid(ierg+1)-ueggrid(ierg))))
 
-
+        if(erg >= 18d0) then
+            print *, 'HIGHE', erg, ierg, ueggrid(ierg), ueggrid(ierg+1), ipfac
+        endif
         !$OMP ATOMIC
         mat%eflux(ierg) = mat%eflux(ierg) + wgt * distance * (1d0-ipfac)
         !mat%eflux(ierg) = mat%eflux(ierg) + wgt*distance

@@ -490,6 +490,7 @@ subroutine getiueg(erg, ierg)
         enddo
     endif
     ierg = pt1
+    if(ueggrid(ierg+1) <= erg) print *, 'WTF?', ierg, ueggrid(ierg), ueggrid(ierg+1)
 end subroutine
 
 subroutine setugrid
@@ -1281,7 +1282,7 @@ type(AceFormat), pointer :: ac
         do i = 1, nueg
             if(ueggrid(i) >= ac % E(idx+1)) idx = idx + 1
             ac % UEG % Egrid(i) = idx
-            if(idx == ac % NXS(3)) exit
+            if(idx >= ac % NXS(3)) exit
         enddo
         allocate(ac%UEG%sigt(1:nueg))
         ac % UEG % sigt = (ac % sigt ( ac % NXS(3) ))
