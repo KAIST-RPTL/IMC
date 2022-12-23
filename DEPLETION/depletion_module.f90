@@ -1142,19 +1142,9 @@ module depletion_module
             real(8) :: g, erg
 
             flux(1:n) = 0d0
-            if(ace(iso)%zaid==93234) then
-                print *, 'TESTING...', ace(iso) % E(1), ace(iso) % E(ace(iso)%NXS(3)), ace(iso) % NXS(3)
-                print *, 'EGRID'
-                print *, ace(iso) % E(1:ace(iso)%NXS(3))
-                do i = 1, nueg-1
-                    if(ace(iso)%UEG%Egrid(i)/=ace(iso)%UEG%Egrid(i+1)) then
-                        print *, ueggrid(i), ueggrid(i+1), i, ace(iso) % UEG % Egrid(i)
-                    endif
-                enddo
-            endif
             do i = 1, nueg
-                if( ace(iso) % UEG % Egrid(i) == ace(iso) % NXS(3) ) then
-                    flux(n) = flux(n) + sum(eflux(i:nueg))
+                if( ace(iso) % UEG % Egrid(i) >= ace(iso) % NXS(3) ) then
+                    flux(n) = flux(n) + eflux(i)
                     exit
                 elseif( ace(iso) % UEG % Egrid(i) == 0) then
                     cycle
@@ -1163,20 +1153,23 @@ module depletion_module
                     idx = ace(iso) % UEG % Egrid(i)
                     g   = (erg - ace(iso) % E(idx))/(ace(iso) % E(idx+1) - ace(iso) % E(idx))
                     if(g<0 .or. g>1) print *, 'WTF?', iso, erg, i, idx
-                    flux(idx)  = flux(idx)   + (1d0-g) * eflux(i)
-                    flux(idx+1)= flux(idx+1) + g * eflux(i)
-                    if(ace(iso)%zaid==93234 .and. erg >= 18d0 .and. eflux(i)/=0d0) &
-                        print *, i, erg, ace(iso) % E(idx), ace(iso) % E(idx+1), eflux(i)
+                    if(idx==n) then
+                        flux(idx) = flux(idx) + eflux(i)
+                    else                
+                        flux(idx)  = flux(idx)   + (1d0-g) * eflux(i)
+                        flux(idx+1)= flux(idx+1) + g * eflux(i)
+                    endif
+!                    if(ace(iso)%zaid==93234 .and. erg >= 18d0) &
+!                        print *, 'EFL', i, erg, eflux(i), idx
                 endif
             enddo
 
-            if(ace(iso)%zaid==93234) then
-                do i = 1, n
-                    if(flux(i)==0) then
-                        print *, 'ZERO', i, ace(iso) % E(i)
-                   endif
-                enddo
-            endif
+!            if(ace(iso)%zaid==93234) then
+!                print *, 'MAXE', ace(iso)%E(n)
+!                do i = 1, n
+!                    print *, 'ERG', i, flux(i), ace(iso)%E(i)
+!                enddo
+!            endif
 
             end function
 
@@ -1194,10 +1187,10 @@ module depletion_module
                 buildogxs_iso = dot_product(ace(iso) % sigf, flux)
             case default
                 if(rx/=0) buildogxs_iso = dot_product(ace(iso) % sig_MT(rx) % cx, flux)
-                if(mt==17 .and. ace(iso)%zaid==93234) then
+                if(mt==N_3N .and. ace(iso)%zaid==42099) then
                     print *, 'MT', buildogxs_iso
-                    print *, 'CX', ace(iso)%sig_MT(rx)%cx
-                    print *, 'FLX', flux
+                    !print *, 'CX', ace(iso)%sig_MT(rx)%cx
+                    !print *, 'FLX', flux
                 endif
             end select
             endfunction
@@ -1696,19 +1689,20 @@ module depletion_module
                     if(jnuc==0) cycle
 
                     ! BUILD ISO-WISE FLUX
-
-                    flx  = buildflux(iso,ace(iso)%NXS(3),mat%eflux(1:nueg)/toteflux*real_flux)
+                    flx  = buildflux(iso,ace(iso)%NXS(3),mat%eflux(1:nueg))
+                    flx  = flx / toteflux; flx = flx * real_flux
                     
                     do rx = 1,ace(iso)%NXS(4)
                         mt = ace(iso)%MT(rx)
                         !if(.not. ANY(RXMT==mt)) cycle
                         !if(abs(ace(iso)%TY(rx))==1) print *, 'EXCLUDED', iso, mt
                         if(abs(ace(iso)%TY(rx))==1 .and. .not.(mt==N_P .or. mt==N_A .or. mt==N_D .or. mt==N_T .or. mt==N_3HE)) cycle ! Maybe inelastic?
-                        if(mt == 4 .or. mt >= 200) cycle ! Inelastic and Damage
+                        if(mt == 4 .or. mt > 200) cycle ! Inelastic and Damage
                         ! TALLY OGXS
                         ogxs = buildogxs_iso(iso,rx,flx) * barn
+                        !if(ace(iso)%zaid==42099 .and. mt == N_2N) ogxs = 1.61613737E-14
                         !if(ace(iso)%zaid==42099) print *, iso, mt, ogxs, ace(iso) % TY(rx)
-                        if(mt==17) print *, 'N3N', iso, ace(iso)%zaid, ogxs
+                        !if(mt==17) print *, 'N3N', iso, ace(iso)%zaid, ogxs
                         ! FIND DESTINATION
                         if(mt==18 .or. ace(iso)%TY(rx)==19) then ! In case of Fission
                             if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then 
@@ -1789,6 +1783,7 @@ module depletion_module
                                 anum1 = anum - pn - dn - tn - 2*an - 2*a3n
                                 nnum1 = nnum + 1 - nn - dn - 2*tn - 2*an - a3n
                                 if(anum1 == anum .and. nnum1 == nnum) cycle
+                                if(anum1==42 .and. nnum1==97-42) print *, ace(iso)%zaid, ogxs, mt ,nn, pn, dn, tn, an, a3n
                                 knuc = 0
                                 if(anum1>0 .and. nnum1>0) knuc = nuclide(0,nnum1,anum1)%idx
                                 !do i = 1, nnuc
@@ -2177,14 +2172,15 @@ module depletion_module
 
         ipfac = max(0D0,min(1D0,(erg-ueggrid(ierg))/(ueggrid(ierg+1)-ueggrid(ierg))))
 
-        if(erg >= 18d0) then
-            print *, 'HIGHE', erg, ierg, ueggrid(ierg), ueggrid(ierg+1), ipfac
-        endif
         !$OMP ATOMIC
         mat%eflux(ierg) = mat%eflux(ierg) + wgt * distance * (1d0-ipfac)
         !mat%eflux(ierg) = mat%eflux(ierg) + wgt*distance
         !$OMP ATOMIC
         mat%eflux(ierg+1) = mat%eflux(ierg+1) + wgt * distance * ipfac
+!        if(erg >= 17d0) then
+!            print *, 'HIGHE', erg, ierg, ueggrid(ierg), ipfac, wgt * distance
+!            print *, 'CHK', mat%eflux(ierg), mat%eflux(ierg+1)
+!        endif
 !        do iso = 1,num_iso
 !        ! TEMPORARY... need to reduce
 !           call getierg(iso,ierg,erg)
@@ -2440,6 +2436,7 @@ module depletion_module
             sndbufarrlong(1:nueg) = materials(imat)%eflux(1:nueg)
             call MPI_ALLREDUCE(sndbufarrlong, rcvbufarrlong, nueg, MPI_DOUBLE_PRECISION, MPI_SUM, core, ierr)
             rcvbufarrlong(1:nueg) = rcvbufarrlong(1:nueg)/ val
+            materials(imat)%eflux = rcvbufarrlong
             deallocate(rcvbufarrlong); deallocate(sndbufarrlong)
 
             ! DIRECT RX rate TALLY
