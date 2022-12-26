@@ -1159,8 +1159,6 @@ module depletion_module
                         flux(idx)  = flux(idx)   + (1d0-g) * eflux(i)
                         flux(idx+1)= flux(idx+1) + g * eflux(i)
                     endif
-!                    if(ace(iso)%zaid==93234 .and. erg >= 18d0) &
-!                        print *, 'EFL', i, erg, eflux(i), idx
                 endif
             enddo
 
@@ -1195,6 +1193,37 @@ module depletion_module
             end select
             endfunction
 
+            function buildogxs_e2(iso, rx, flux, flux2)
+            implicit none
+            real(8) :: buildogxs_e2
+            integer, intent(in) :: iso, rx
+            real(8), intent(in) :: flux(:), flux2(:)
+            integer :: mt, i
+            mt = ace(iso) % MT(rx)
+            buildogxs_e2 = 0d0
+            select case(mt)
+            case(N_GAMMA)
+                do i = 1, ace(iso) % NXS(3)-1
+                    buildogxs_e2 = buildogxs_e2 + &
+                        flux(i) * ace(iso) % sigd(i) + &
+                        (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sigd(i+1)-ace(iso)%sigd(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
+                enddo
+
+            case(N_FISSION)
+                do i = 1, ace(iso) % NXS(3)-1
+                    buildogxs_e2 = buildogxs_e2 + &
+                        flux(i) * ace(iso) % sigf(i) + &
+                        (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sigf(i+1)-ace(iso)%sigf(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
+                enddo
+            case default
+                if(rx == 0) return
+                do i = 1, ace(iso) % NXS(3)-1
+                    buildogxs_e2 = buildogxs_e2 + &
+                        flux(i) * ace(iso) % sig_MT(rx) % cx(i) + &
+                        (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sig_MT(rx)%cx(i+1)-ace(iso)%sig_MT(rx)%cx(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
+                enddo
+            end select
+            endfunction
 
             function buildogxs(iso, mt, eflux, toteflux)
             implicit none
@@ -1330,7 +1359,7 @@ module depletion_module
             ! MTRXREAD
             integer :: mt, nn, pn, dn, tn, an, a3n, rx
             real(8) :: ogxs, erg, ogxs1
-            real(8),allocatable :: flx(:)
+            real(8),allocatable :: flx(:), flx2(:)
             integer :: ierg,idx
             real(8) :: toteflux
             real(8),allocatable :: tmpogxs(:)
@@ -1672,7 +1701,7 @@ module depletion_module
                 !!$omp parallel do default(private) &
                 !!$omp shared(bMat, real_flux, toteflux, bstep_size, yield_data, ZAIMT_ism, gnd_frac, ace, nuclide, fssn_zai, fp_zai, nfssn, RXMT, num_iso)
                 !$OMP PARALLEL DO &
-                !$OMP PRIVATE(iso, anum, mnum, nnum, inum, jnuc, flx, mt, ogxs, fy_midx, anum1, nnum1, mnum1, inum1, knuc, a1, m1, n1, ism, zai, pn, dn, tn, an, a3n, nn, addn)  
+                !$OMP PRIVATE(iso, anum, mnum, nnum, inum, jnuc, flx, flx2, mt, ogxs, fy_midx, anum1, nnum1, mnum1, inum1, knuc, a1, m1, n1, ism, zai, pn, dn, tn, an, a3n, nn, addn)  
                 DO_ISO: do mt_iso = 1,num_iso
                     !print *, 'ISO', mt_iso
                     iso = mt_iso
@@ -1689,8 +1718,12 @@ module depletion_module
                     if(jnuc==0) cycle
 
                     ! BUILD ISO-WISE FLUX
-                    flx  = buildflux(iso,ace(iso)%NXS(3),mat%eflux(1:nueg))
-                    flx  = flx / toteflux; flx = flx * real_flux
+                    if(do_ueg) then
+                        flx  = buildflux(iso,ace(iso)%NXS(3),mat%eflux(1:nueg))
+                        flx2 = buildflux(iso,ace(iso)%NXS(3),mat%e2flux(1:nueg))
+                        flx  = flx / toteflux; flx = flx * real_flux
+                        flx2 = flx2/ toteflux; flx2= flx2* real_flux
+                    endif
                     
                     do rx = 1,ace(iso)%NXS(4)
                         mt = ace(iso)%MT(rx)
@@ -1699,10 +1732,11 @@ module depletion_module
                         if(abs(ace(iso)%TY(rx))==1 .and. .not.(mt==N_P .or. mt==N_A .or. mt==N_D .or. mt==N_T .or. mt==N_3HE)) cycle ! Maybe inelastic?
                         if(mt == 4 .or. mt > 200) cycle ! Inelastic and Damage
                         ! TALLY OGXS
-                        ogxs = buildogxs_iso(iso,rx,flx) * barn
-                        !if(ace(iso)%zaid==42099 .and. mt == N_2N) ogxs = 1.61613737E-14
-                        !if(ace(iso)%zaid==42099) print *, iso, mt, ogxs, ace(iso) % TY(rx)
-                        !if(mt==17) print *, 'N3N', iso, ace(iso)%zaid, ogxs
+                        !if(do_ueg) then
+                        !    ogxs = buildogxs_iso(iso,rx,flx) * barn
+                        !elseif(
+                        if(do_ueg) ogxs = buildogxs_e2(iso, rx, flx, flx2) * barn
+                        print *, 'OGXS', ace(iso)%zaid, rx, sum(flx), sum(flx2), ogxs
                         ! FIND DESTINATION
                         if(mt==18 .or. ace(iso)%TY(rx)==19) then ! In case of Fission
                             if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then 
@@ -1783,7 +1817,6 @@ module depletion_module
                                 anum1 = anum - pn - dn - tn - 2*an - 2*a3n
                                 nnum1 = nnum + 1 - nn - dn - 2*tn - 2*an - a3n
                                 if(anum1 == anum .and. nnum1 == nnum) cycle
-                                if(anum1==42 .and. nnum1==97-42) print *, ace(iso)%zaid, ogxs, mt ,nn, pn, dn, tn, an, a3n
                                 knuc = 0
                                 if(anum1>0 .and. nnum1>0) knuc = nuclide(0,nnum1,anum1)%idx
                                 !do i = 1, nnuc
@@ -2170,13 +2203,17 @@ module depletion_module
         !ierg = 1 + int(log10(erg/Emin)/gdelta); ierg = max(1,min(ngrid-1,ierg))
         call getiueg(erg, ierg)
 
-        ipfac = max(0D0,min(1D0,(erg-ueggrid(ierg))/(ueggrid(ierg+1)-ueggrid(ierg))))
+        !ipfac = max(0D0,min(1D0,(erg-ueggrid(ierg))/(ueggrid(ierg+1)-ueggrid(ierg))))
 
         !$OMP ATOMIC
-        mat%eflux(ierg) = mat%eflux(ierg) + wgt * distance * (1d0-ipfac)
-        !mat%eflux(ierg) = mat%eflux(ierg) + wgt*distance
+        mat%eflux(ierg) = mat%eflux(ierg) + wgt * distance
+
         !$OMP ATOMIC
-        mat%eflux(ierg+1) = mat%eflux(ierg+1) + wgt * distance * ipfac
+        mat%e2flux(ierg)= mat%e2flux(ierg)+ wgt * distance * erg
+
+        !mat%eflux(ierg) = mat%eflux(ierg) + wgt*distance
+        !!$OMP ATOMIC
+        !mat%eflux(ierg+1) = mat%eflux(ierg+1) + wgt * distance * ipfac
 !        if(erg >= 17d0) then
 !            print *, 'HIGHE', erg, ierg, ueggrid(ierg), ipfac, wgt * distance
 !            print *, 'CHK', mat%eflux(ierg), mat%eflux(ierg+1)
@@ -2277,6 +2314,7 @@ module depletion_module
         do imat = 1, n_materials
             materials(imat)%flux = 0.0d0 
             materials(imat)%eflux = 0D0
+            materials(imat)%e2flux= 0d0
             !materials(imat)%pwr = 0.0d0 
             materials(imat)%ogxs(:,:) = 0.0d0
             !allocate(materials(imat)%full_numden(nnuc))
@@ -2330,6 +2368,7 @@ module depletion_module
             allocate(materials(imat)%ogxs(1:num_iso,1:7))
             materials(imat)%ogxs(:,:) = 0.0d0
             allocate(materials(imat)%eflux(1:nueg))
+            allocate(materials(imat)%e2flux(1:nueg))
             !materials(imat)%eflux(:) = 0.d0
             
             if (materials(imat)%depletable) then
@@ -2437,6 +2476,11 @@ module depletion_module
             call MPI_ALLREDUCE(sndbufarrlong, rcvbufarrlong, nueg, MPI_DOUBLE_PRECISION, MPI_SUM, core, ierr)
             rcvbufarrlong(1:nueg) = rcvbufarrlong(1:nueg)/ val
             materials(imat)%eflux = rcvbufarrlong
+            
+            sndbufarrlong(1:nueg) = materials(imat)%e2flux(1:nueg)
+            call MPI_ALLREDUCE(sndbufarrlong, rcvbufarrlong, nueg, MPI_DOUBLE_PRECISION, MPI_SUM, core, ierr)
+            rcvbufarrlong(1:nueg) = rcvbufarrlong(1:nueg)/ val
+            materials(imat)%e2flux = rcvbufarrlong
             deallocate(rcvbufarrlong); deallocate(sndbufarrlong)
 
             ! DIRECT RX rate TALLY

@@ -121,7 +121,7 @@ subroutine premc
     if(do_ures) call setures
 
     ! NEED TO BE DISCARDED LATER
-    !call setogxs
+    call setogxs
     !==============================================================================
     !Set material library for burnup and equilibrium Xe135 search 
     call setmat

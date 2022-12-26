@@ -27,7 +27,7 @@ module material_header
         real(8), allocatable :: ogxs(:,:)
 
         !(21/10/12) eflux testing...
-        real(8), allocatable :: eflux(:)
+        real(8), allocatable :: eflux(:), e2flux(:)
 
         !(21/11/23) materialwise-fratio
         real(8), allocatable :: fratio(:,:)
