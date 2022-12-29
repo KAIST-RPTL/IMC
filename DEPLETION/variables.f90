@@ -71,6 +71,9 @@ implicit none
 
     ! UNIONIZED GRID
     logical :: do_ueg = .true.
+
+    ! OGXS DIRECT TALLY
+    logical :: do_rx_tally = .true.
 	
     !==============================================================================
     ! MPI parameters 

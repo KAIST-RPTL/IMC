@@ -1143,31 +1143,17 @@ module depletion_module
 
             flux(1:n) = 0d0
             do i = 1, nueg
-                if( ace(iso) % UEG % Egrid(i) >= ace(iso) % NXS(3) ) then
-                    flux(n) = flux(n) + eflux(i)
+                if( ace(iso) % UEG % Egrid(i) > ace(iso) % NXS(3) ) then
+                    !flux(n) = flux(n) + eflux(i)
                     exit
-                elseif( ace(iso) % UEG % Egrid(i) == 0) then
+                elseif( ace(iso) % UEG % Egrid(i) == 0 .or. &
+                        ace(iso) % E(1) > ueggrid(i)) then
                     cycle
                 else ! In between
-                    erg = ueggrid(i)
                     idx = ace(iso) % UEG % Egrid(i)
-                    g   = (erg - ace(iso) % E(idx))/(ace(iso) % E(idx+1) - ace(iso) % E(idx))
-                    if(g<0 .or. g>1) print *, 'WTF?', iso, erg, i, idx
-                    if(idx==n) then
-                        flux(idx) = flux(idx) + eflux(i)
-                    else                
-                        flux(idx)  = flux(idx)   + (1d0-g) * eflux(i)
-                        flux(idx+1)= flux(idx+1) + g * eflux(i)
-                    endif
+                    flux(idx) = flux(idx) + eflux(i)
                 endif
             enddo
-
-!            if(ace(iso)%zaid==93234) then
-!                print *, 'MAXE', ace(iso)%E(n)
-!                do i = 1, n
-!                    print *, 'ERG', i, flux(i), ace(iso)%E(i)
-!                enddo
-!            endif
 
             end function
 
@@ -1207,6 +1193,8 @@ module depletion_module
                     buildogxs_e2 = buildogxs_e2 + &
                         flux(i) * ace(iso) % sigd(i) + &
                         (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sigd(i+1)-ace(iso)%sigd(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
+                    !buildogxs_e2 = buildogxs_e2 + flux(i) * (ace(iso)%sigd(i)+ace(iso)%sigd(i+1))*5d-1
+                    if(flux2(i)<ace(iso)%E(i)*flux(i) .or.  flux2(i)>ace(iso)%E(i+1)*flux(i)) print *, 'OUTOF', i, flux2(i), ace(iso)%E(i), ace(iso)%E(i+1), ace(iso)%E(i)*flux(i), ace(iso)%E(i+1)*flux(i)
                 enddo
 
             case(N_FISSION)
@@ -1214,13 +1202,15 @@ module depletion_module
                     buildogxs_e2 = buildogxs_e2 + &
                         flux(i) * ace(iso) % sigf(i) + &
                         (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sigf(i+1)-ace(iso)%sigf(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
+                    !buildogxs_e2 = buildogxs_e2 + flux(i) * (ace(iso)%sigf(i)+ace(iso)%sigf(i+1))*5d-1
                 enddo
             case default
                 if(rx == 0) return
-                do i = 1, ace(iso) % NXS(3)-1
+                do i = ace(iso) % sig_MT(rx) % IE, ace(iso) % sig_MT(rx) % IE + ace(iso) % sig_MT(rx) % NE-2
                     buildogxs_e2 = buildogxs_e2 + &
                         flux(i) * ace(iso) % sig_MT(rx) % cx(i) + &
                         (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sig_MT(rx)%cx(i+1)-ace(iso)%sig_MT(rx)%cx(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
+                    !buildogxs_e2 = buildogxs_e2 + flux(i) * (ace(iso)%sig_MT(rx)%cx(i)+ace(iso)%sig_MT(rx)%cx(i+1))*5d-1
                 enddo
             end select
             endfunction
@@ -1355,7 +1345,7 @@ module depletion_module
             ! Homogenized OGXS
             real(8) :: sigmaa
             real(8) :: nusigf
-            integer :: ii, jj
+            integer :: ii, jj, i_rx
             ! MTRXREAD
             integer :: mt, nn, pn, dn, tn, an, a3n, rx
             real(8) :: ogxs, erg, ogxs1
@@ -1727,16 +1717,22 @@ module depletion_module
                     
                     do rx = 1,ace(iso)%NXS(4)
                         mt = ace(iso)%MT(rx)
-                        !if(.not. ANY(RXMT==mt)) cycle
+                        if(.not. ANY(RXMT==mt)) cycle
                         !if(abs(ace(iso)%TY(rx))==1) print *, 'EXCLUDED', iso, mt
                         if(abs(ace(iso)%TY(rx))==1 .and. .not.(mt==N_P .or. mt==N_A .or. mt==N_D .or. mt==N_T .or. mt==N_3HE)) cycle ! Maybe inelastic?
                         if(mt == 4 .or. mt > 200) cycle ! Inelastic and Damage
                         ! TALLY OGXS
-                        !if(do_ueg) then
-                        !    ogxs = buildogxs_iso(iso,rx,flx) * barn
                         !elseif(
-                        if(do_ueg) ogxs = buildogxs_e2(iso, rx, flx, flx2) * barn
-                        print *, 'OGXS', ace(iso)%zaid, rx, sum(flx), sum(flx2), ogxs
+                        if(do_ueg) ogxs1 = buildogxs_e2(iso, rx, flx, flx2) * barn
+                        if(do_rx_tally) then
+                            do i_rx = 1, 7
+                                if(RXMT(i_rx)==mt) then
+                                    ogxs = mat % ogxs(iso, i_rx) * real_flux
+                                    print *, imat, mt, i_rx, ogxs * real_flux, ogxs1
+                                    exit
+                                endif
+                            enddo
+                        endif
                         ! FIND DESTINATION
                         if(mt==18 .or. ace(iso)%TY(rx)==19) then ! In case of Fission
                             if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then 
@@ -1875,7 +1871,7 @@ module depletion_module
                     !if(icore==score) print *, 'TESTING', jnuc, bMat(nnuc,jnuc)
                 end do DO_ISO
                 !$omp end parallel do
-                print *, 'END DOISO', imat, materials(imat) % mat_name, icore
+                !print *, 'END DOISO', imat, materials(imat) % mat_name, icore
 
         !if(icore==score) print *, 'bMat', bMat(nnuc,:)
         deallocate(yield_data)
@@ -1900,7 +1896,7 @@ module depletion_module
             enddo
         enddo
         endif
-        print *, 'B4 CRAM', imat, materials(imat) % mat_name, icore
+        !print *, 'B4 CRAM', imat, materials(imat) % mat_name, icore
         !Solve the burnup matrix equation 
         select case(matrix_exponential_solver)
         case(0)
@@ -1918,7 +1914,7 @@ module depletion_module
             print *, "ERROR :: No such matrix_exponential_solver option", matrix_exponential_solver
             stop 
         end select
-        print *, 'DONE', icore, imat, totgeom
+        !print *, 'DONE', icore, imat, totgeom
 !        if(totgeom < 10) then
 !            print *, 'DEP solved for mat:',imat,'/',totgeom, ':', icore
 !        else
@@ -1943,7 +1939,7 @@ module depletion_module
 !            endif
 !        endif
 
-        print *, 'COUNT?', icore, imat, totgeom
+        !print *, 'COUNT?', icore, imat, totgeom
         
         ! WRITE ATOMIC DENSITY IN MATLAB .m FILE (OPTIONAL)
         if(bumat_print)then
@@ -1960,7 +1956,7 @@ module depletion_module
         !Update number density
         mat%full_numden = nxt_full_numden 
         
-        print *, 'FLAG1', imat, icore
+        !print *, 'FLAG1', imat, icore
         ! ======================================================================================
         ! Reset material isotope inventory
         knuc = 0 
@@ -1979,7 +1975,7 @@ module depletion_module
             endif
         end do
 
-        print *, 'FLAG2', imat, icore
+        !print *, 'FLAG2', imat, icore
 
         mat%n_iso = knuc
         deallocate(mat%ace_idx);allocate(mat%ace_idx(1:knuc));     mat%ace_idx= 0D0
@@ -2021,11 +2017,11 @@ module depletion_module
 !            enddo
 !        endif
                     
-    print *, 'FLAG3', imat, icore
+    !print *, 'FLAG3', imat, icore
             
 
     enddo
-    print *, 'ARRIVED', icore
+    !print *, 'ARRIVED', icore
     call MPI_BARRIER(MPI_COMM_WORLD, ierr)
     if(icore==score) print *, 'Total Flux', tot_flux
 
@@ -2199,50 +2195,43 @@ module depletion_module
         
         !$omp atomic
         mat%flux = mat%flux + wgt*distance !Volume-integrated flux tally (not normalized)
-        ! EFLUX TALLY
-        !ierg = 1 + int(log10(erg/Emin)/gdelta); ierg = max(1,min(ngrid-1,ierg))
-        call getiueg(erg, ierg)
-
-        !ipfac = max(0D0,min(1D0,(erg-ueggrid(ierg))/(ueggrid(ierg+1)-ueggrid(ierg))))
-
-        !$OMP ATOMIC
-        mat%eflux(ierg) = mat%eflux(ierg) + wgt * distance
-
-        !$OMP ATOMIC
-        mat%e2flux(ierg)= mat%e2flux(ierg)+ wgt * distance * erg
-
-        !mat%eflux(ierg) = mat%eflux(ierg) + wgt*distance
-        !!$OMP ATOMIC
-        !mat%eflux(ierg+1) = mat%eflux(ierg+1) + wgt * distance * ipfac
-!        if(erg >= 17d0) then
-!            print *, 'HIGHE', erg, ierg, ueggrid(ierg), ipfac, wgt * distance
-!            print *, 'CHK', mat%eflux(ierg), mat%eflux(ierg+1)
-!        endif
-!        do iso = 1,num_iso
-!        ! TEMPORARY... need to reduce
-!           call getierg(iso,ierg,erg)
-!           ipfac = max(0.d0, min(1.d0,(erg-ace(iso)%E(ierg))/(ace(iso)%E(ierg+1)-ace(iso)%E(ierg))))
-!           micro_d = ace(iso)%sigd(ierg) + ipfac*(ace(iso)%sigd(ierg+1)-ace(iso)%sigd(ierg))
-!           micro_f = 0.d0
-!           !FISSIONABLE
-!           if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then
-!               micro_f = ace(iso)%sigf(ierg) + ipfac*(ace(iso)%sigf(ierg+1)-ace(iso)%sigf(ierg))
-!           endif
-!           !$OMP ATOMIC
-!           mat%ogxs(iso,1) = mat%ogxs(iso,1) + micro_d*wgt*distance*barn
-!           !$OMP ATOMIC
-!           mat%ogxs(iso,2) = mat%ogxs(iso,2) + getxs(N_2N,iso,erg,ierg)*wgt*distance*barn
-!           !$OMP ATOMIC
-!           mat%ogxs(iso,3) = mat%ogxs(iso,3) + getxs(N_3N,iso,erg,ierg)*wgt*distance*barn
-!           !$OMP ATOMIC
-!           mat%ogxs(iso,4) = mat%ogxs(iso,4) + getxs(N_4N,iso,erg,ierg)*wgt*distance*barn
-!           !$OMP ATOMIC
-!           mat%ogxs(iso,5) = mat%ogxs(iso,5) + getxs(N_P,iso,erg,ierg)*wgt*distance*barn
-!           !$OMP ATOMIC
-!           mat%ogxs(iso,6) = mat%ogxs(iso,6) + getxs(N_A,iso,erg,ierg)*wgt*distance*barn
-!           !$OMP ATOMIC
-!           mat%ogxs(iso,7) = mat%ogxs(iso,7) + micro_f*wgt*distance*barn
-!        enddo
+        if(do_ueg) then
+            ! EFLUX TALLY
+            call getiueg(erg, ierg)
+    
+            !$OMP ATOMIC
+            mat%eflux(ierg) = mat%eflux(ierg) + wgt * distance
+    
+            !$OMP ATOMIC
+            mat%e2flux(ierg)= mat%e2flux(ierg)+ wgt * distance * erg
+        endif
+        
+        if(do_rx_tally)then
+            do iso = 1,num_iso
+               call getierg(iso,ierg,erg)
+               ipfac = max(0.d0, min(1.d0,(erg-ace(iso)%E(ierg))/(ace(iso)%E(ierg+1)-ace(iso)%E(ierg))))
+               micro_d = ace(iso)%sigd(ierg) + ipfac*(ace(iso)%sigd(ierg+1)-ace(iso)%sigd(ierg))
+               micro_f = 0.d0
+               !FISSIONABLE
+               if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then
+                   micro_f = ace(iso)%sigf(ierg) + ipfac*(ace(iso)%sigf(ierg+1)-ace(iso)%sigf(ierg))
+               endif
+               !$OMP ATOMIC
+               mat%ogxs(iso,1) = mat%ogxs(iso,1) + micro_d*wgt*distance*barn
+               !$OMP ATOMIC
+               mat%ogxs(iso,2) = mat%ogxs(iso,2) + getxs(N_2N,iso,erg,ierg)*wgt*distance*barn
+               !$OMP ATOMIC
+               mat%ogxs(iso,3) = mat%ogxs(iso,3) + getxs(N_3N,iso,erg,ierg)*wgt*distance*barn
+               !$OMP ATOMIC
+               mat%ogxs(iso,4) = mat%ogxs(iso,4) + getxs(N_4N,iso,erg,ierg)*wgt*distance*barn
+               !$OMP ATOMIC
+               mat%ogxs(iso,5) = mat%ogxs(iso,5) + getxs(N_P,iso,erg,ierg)*wgt*distance*barn
+               !$OMP ATOMIC
+               mat%ogxs(iso,6) = mat%ogxs(iso,6) + getxs(N_A,iso,erg,ierg)*wgt*distance*barn
+               !$OMP ATOMIC
+               mat%ogxs(iso,7) = mat%ogxs(iso,7) + micro_f*wgt*distance*barn
+            enddo
+        endif
     end subroutine tally_burnup
     
     
@@ -2369,7 +2358,8 @@ module depletion_module
             materials(imat)%ogxs(:,:) = 0.0d0
             allocate(materials(imat)%eflux(1:nueg))
             allocate(materials(imat)%e2flux(1:nueg))
-            !materials(imat)%eflux(:) = 0.d0
+            materials(imat)%eflux(:) = 0.d0
+            materials(imat)%e2flux(:)= 0d0
             
             if (materials(imat)%depletable) then
                 allocate(materials(imat)%full_numden(1:nnuc))
@@ -2476,7 +2466,9 @@ module depletion_module
             call MPI_ALLREDUCE(sndbufarrlong, rcvbufarrlong, nueg, MPI_DOUBLE_PRECISION, MPI_SUM, core, ierr)
             rcvbufarrlong(1:nueg) = rcvbufarrlong(1:nueg)/ val
             materials(imat)%eflux = rcvbufarrlong
+            deallocate(rcvbufarrlong); deallocate(sndbufarrlong)
             
+            allocate(rcvbufarrlong(1:nueg)); allocate(sndbufarrlong(1:nueg))
             sndbufarrlong(1:nueg) = materials(imat)%e2flux(1:nueg)
             call MPI_ALLREDUCE(sndbufarrlong, rcvbufarrlong, nueg, MPI_DOUBLE_PRECISION, MPI_SUM, core, ierr)
             rcvbufarrlong(1:nueg) = rcvbufarrlong(1:nueg)/ val
@@ -2484,20 +2476,20 @@ module depletion_module
             deallocate(rcvbufarrlong); deallocate(sndbufarrlong)
 
             ! DIRECT RX rate TALLY
-!            allocate(rcvbufarrlong(1:num_iso*7))
-!            allocate(sndbufarrlong(1:num_iso*7))
-!
-!            val = dble(n_act) * materials(imat)%flux * materials(imat)%vol
-!            do iso = 1,num_iso
-!                sndbufarrlong((iso-1)*7+1:(iso-1)*7+7) = materials(imat)%ogxs(iso,:)
-!            enddo 
-!            call MPI_ALLREDUCE(sndbufarrlong, rcvbufarrlong, num_iso*7, MPI_DOUBLE_PRECISION, MPI_SUM, core, ierr)                    
-!            rcvbufarrlong(:) = rcvbufarrlong(:) / val
-!            do iso = 1,num_iso
-!                materials(imat)%ogxs(iso,:) = rcvbufarrlong((iso-1)*7+1:(iso-1)*7+7) 
-!            enddo
-!            deallocate(rcvbufarrlong)
-!            deallocate(sndbufarrlong) 
+            allocate(rcvbufarrlong(1:num_iso*7))
+            allocate(sndbufarrlong(1:num_iso*7))
+
+            val = dble(n_act) * materials(imat)%flux * materials(imat)%vol
+            do iso = 1,num_iso
+                sndbufarrlong((iso-1)*7+1:(iso-1)*7+7) = materials(imat)%ogxs(iso,:)
+            enddo 
+            call MPI_ALLREDUCE(sndbufarrlong, rcvbufarrlong, num_iso*7, MPI_DOUBLE_PRECISION, MPI_SUM, core, ierr)                    
+            rcvbufarrlong(:) = rcvbufarrlong(:) / val
+            do iso = 1,num_iso
+                materials(imat)%ogxs(iso,:) = rcvbufarrlong((iso-1)*7+1:(iso-1)*7+7) 
+            enddo
+            deallocate(rcvbufarrlong)
+            deallocate(sndbufarrlong) 
         enddo
 
     end subroutine MPI_reduce_burnup
