@@ -174,7 +174,7 @@ module depletion_module
     integer :: RXMT(7)
 
     ! EFLUX
-    integer :: depopt = 7
+    integer :: depopt = 0
     integer :: ngrid
     real(8) :: gdelta
     integer, parameter :: numrx = 7
@@ -1146,8 +1146,7 @@ module depletion_module
                 if( ace(iso) % UEG % Egrid(i) > ace(iso) % NXS(3) ) then
                     !flux(n) = flux(n) + eflux(i)
                     exit
-                elseif( ace(iso) % UEG % Egrid(i) == 0 .or. &
-                        ace(iso) % E(1) > ueggrid(i)) then
+                elseif( ace(iso) % UEG % Egrid(i) == 0) then
                     cycle
                 else ! In between
                     idx = ace(iso) % UEG % Egrid(i)
@@ -1211,6 +1210,38 @@ module depletion_module
                         flux(i) * ace(iso) % sig_MT(rx) % cx(i) + &
                         (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sig_MT(rx)%cx(i+1)-ace(iso)%sig_MT(rx)%cx(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
                     !buildogxs_e2 = buildogxs_e2 + flux(i) * (ace(iso)%sig_MT(rx)%cx(i)+ace(iso)%sig_MT(rx)%cx(i+1))*5d-1
+                enddo
+            end select
+            endfunction
+
+            function buildogxs_bias(iso, rx, flux, flux2)
+            implicit none
+            real(8) :: buildogxs_bias
+            integer, intent(in) :: iso, rx
+            real(8), intent(in) :: flux(:), flux2(:)
+            integer :: mt, i
+            mt = ace(iso) % MT(rx)
+            buildogxs_bias = 0d0
+            select case(mt)
+            case(N_GAMMA)
+                do i = 1, ace(iso) % NXS(3)-1
+                    buildogxs_bias = buildogxs_bias + &
+                        flux(i) * (ace(iso) % sigd(i)-ace(iso)%sigd(i+1))/2d0 + &
+                        (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sigd(i+1)-ace(iso)%sigd(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
+                enddo
+
+            case(N_FISSION)
+                do i = 1, ace(iso) % NXS(3)-1
+                    buildogxs_bias = buildogxs_bias + &
+                        flux(i) * (ace(iso) % sigf(i)-ace(iso)%sigf(i+1))/2d0 + &
+                        (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sigf(i+1)-ace(iso)%sigf(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
+                enddo
+            case default
+                if(rx == 0) return
+                do i = ace(iso) % sig_MT(rx) % IE, ace(iso) % sig_MT(rx) % IE + ace(iso) % sig_MT(rx) % NE-2
+                    buildogxs_bias = buildogxs_bias + &
+                        flux(i) * (ace(iso) % sig_MT(rx) % cx(i)-ace(iso) % sig_MT(rx) % cx(i+1))/2d0 + &
+                        (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sig_MT(rx)%cx(i+1)-ace(iso)%sig_MT(rx)%cx(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
                 enddo
             end select
             endfunction
@@ -1363,6 +1394,8 @@ module depletion_module
 
             real(8) :: totfiss, numer, denom, g2
             integer :: cnt, rcv, addn
+
+            logical :: do_exist
 
             if(do_burn==.false.) return
             avg_power = avg_power / dble(n_act)
@@ -1717,18 +1750,21 @@ module depletion_module
                     
                     do rx = 1,ace(iso)%NXS(4)
                         mt = ace(iso)%MT(rx)
-                        if(.not. ANY(RXMT==mt)) cycle
                         !if(abs(ace(iso)%TY(rx))==1) print *, 'EXCLUDED', iso, mt
                         if(abs(ace(iso)%TY(rx))==1 .and. .not.(mt==N_P .or. mt==N_A .or. mt==N_D .or. mt==N_T .or. mt==N_3HE)) cycle ! Maybe inelastic?
                         if(mt == 4 .or. mt > 200) cycle ! Inelastic and Damage
                         ! TALLY OGXS
                         !elseif(
-                        if(do_ueg) ogxs1 = buildogxs_e2(iso, rx, flx, flx2) * barn
+                        if(do_ueg) ogxs = buildogxs_e2(iso, rx, flx, flx2) * barn
+                        if(ace(iso)%zaid==92235 .and. imat == 3) print *, 'BIAS', mt, ogxs, buildogxs_bias(iso,rx,flx,flx2) * barn
+
                         if(do_rx_tally) then
+                            if(.not. ANY(RXMT==mt)) cycle
+                            ogxs1 = ogxs
                             do i_rx = 1, 7
                                 if(RXMT(i_rx)==mt) then
                                     ogxs = mat % ogxs(iso, i_rx) * real_flux
-                                    print *, imat, mt, i_rx, ogxs * real_flux, ogxs1
+                                    if(ace(iso)%zaid==92235 .and. imat == 3) print *, 'BIAS', mt, ogxs, buildogxs_bias(iso,rx,flx,flx2) * barn, ogxs1
                                     exit
                                 endif
                             enddo
@@ -1881,8 +1917,20 @@ module depletion_module
         
         write(fileid,'(i3)') istep_burnup
         directory = './BUMAT/'//adjustl(trim(fileid))
+        !directory = './BUMAT/UEG'
         call execute_command_line('mkdir -p '//adjustl(trim(directory)))
         filename = 'mat_'//trim(adjustl(mat%mat_name(:)))//'_step_'//trim(adjustl(fileid))//'.m'
+!        idx = 0
+!        do
+!            idx = idx + 1
+!            write(fileid,'(i3)') idx
+!            filename = trim(adjustl(mat%mat_name(:)))//'_trial'//trim(adjustl(fileid))//'.m'
+!            inquire(file=trim(directory)//'/'//trim(filename),exist=do_exist)
+!            if(.not. do_exist) then
+!                exit
+!            endif
+!        enddo
+
         open(bumat_test, file = trim(directory)//'/'//trim(filename),action="write",status="replace")
         write(bumat_test,*) 'FLUX=',real_flux,';'
         write(bumat_test,*) 'ZAI1=zeros(',nnuc,',1);'
@@ -2198,12 +2246,18 @@ module depletion_module
         if(do_ueg) then
             ! EFLUX TALLY
             call getiueg(erg, ierg)
+            
+            if(ueggrid(1) > erg) ierg = 0
+
+            if(ierg>0) then
     
             !$OMP ATOMIC
             mat%eflux(ierg) = mat%eflux(ierg) + wgt * distance
     
             !$OMP ATOMIC
             mat%e2flux(ierg)= mat%e2flux(ierg)+ wgt * distance * erg
+
+            endif
         endif
         
         if(do_rx_tally)then

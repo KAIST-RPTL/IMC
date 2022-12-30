@@ -607,7 +607,7 @@ subroutine setuegrid
     do i = 1, nuni-1
         Etmp = Emin * 1d1 ** (dble(i) * unidel)
         if(Etmp > nueg) then
-            idx = unidel
+            idx = nuni
             goto 22
         endif
         do
@@ -1277,7 +1277,7 @@ type(AceFormat), pointer :: ac
         allocate(ac%UEG%Egrid(1:nueg))
         !if(icore==score) print *, iso, nueg
         !   * Set Egrid: Closest lower E point of iso for each ueggrid
-        ac % UEG % Egrid = ac % NXS(3)
+        ac % UEG % Egrid = ac % NXS(3)+1
         idx = 0
         do i = 1, nueg
             if(ueggrid(i) >= ac % E(idx+1)) idx = idx + 1
