@@ -1144,7 +1144,7 @@ module depletion_module
             flux(1:n) = 0d0
             do i = 1, nueg
                 if( ace(iso) % UEG % Egrid(i) > ace(iso) % NXS(3) ) then
-                    !flux(n) = flux(n) + eflux(i)
+                    flux(n) = flux(n) + sum(eflux(i:nueg))
                     exit
                 elseif( ace(iso) % UEG % Egrid(i) == 0) then
                     cycle
@@ -1756,7 +1756,6 @@ module depletion_module
                         ! TALLY OGXS
                         !elseif(
                         if(do_ueg) ogxs = buildogxs_e2(iso, rx, flx, flx2) * barn
-                        if(ace(iso)%zaid==92235 .and. imat == 3) print *, 'BIAS', mt, ogxs, buildogxs_bias(iso,rx,flx,flx2) * barn
 
                         if(do_rx_tally) then
                             if(.not. ANY(RXMT==mt)) cycle
@@ -1764,7 +1763,7 @@ module depletion_module
                             do i_rx = 1, 7
                                 if(RXMT(i_rx)==mt) then
                                     ogxs = mat % ogxs(iso, i_rx) * real_flux
-                                    if(ace(iso)%zaid==92235 .and. imat == 3) print *, 'BIAS', mt, ogxs, buildogxs_bias(iso,rx,flx,flx2) * barn, ogxs1
+                                    !@if(ace(iso)%zaid==92235) print *, 'BIAS', mt, ogxs, ogxs1
                                     exit
                                 endif
                             enddo

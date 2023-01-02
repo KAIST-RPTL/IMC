@@ -73,7 +73,7 @@ implicit none
     logical :: do_ueg = .true.
 
     ! OGXS DIRECT TALLY
-    logical :: do_rx_tally = .true.
+    logical :: do_rx_tally = .false.
 	
     !==============================================================================
     ! MPI parameters 
