@@ -1144,7 +1144,7 @@ module depletion_module
             flux(1:n) = 0d0
             do i = 1, nueg
                 if( ace(iso) % UEG % Egrid(i) > ace(iso) % NXS(3) ) then
-                    flux(n) = flux(n) + sum(eflux(i:nueg))
+                    !flux(n) = flux(n) + sum(eflux(i:nueg))
                     exit
                 elseif( ace(iso) % UEG % Egrid(i) == 0) then
                     cycle
@@ -1193,7 +1193,6 @@ module depletion_module
                         flux(i) * ace(iso) % sigd(i) + &
                         (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sigd(i+1)-ace(iso)%sigd(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
                     !buildogxs_e2 = buildogxs_e2 + flux(i) * (ace(iso)%sigd(i)+ace(iso)%sigd(i+1))*5d-1
-                    if(flux2(i)<ace(iso)%E(i)*flux(i) .or.  flux2(i)>ace(iso)%E(i+1)*flux(i)) print *, 'OUTOF', i, flux2(i), ace(iso)%E(i), ace(iso)%E(i+1), ace(iso)%E(i)*flux(i), ace(iso)%E(i+1)*flux(i)
                 enddo
 
             case(N_FISSION)
@@ -1724,7 +1723,7 @@ module depletion_module
                 !!$omp parallel do default(private) &
                 !!$omp shared(bMat, real_flux, toteflux, bstep_size, yield_data, ZAIMT_ism, gnd_frac, ace, nuclide, fssn_zai, fp_zai, nfssn, RXMT, num_iso)
                 !$OMP PARALLEL DO &
-                !$OMP PRIVATE(iso, anum, mnum, nnum, inum, jnuc, flx, flx2, mt, ogxs, fy_midx, anum1, nnum1, mnum1, inum1, knuc, a1, m1, n1, ism, zai, pn, dn, tn, an, a3n, nn, addn)  
+                !$OMP PRIVATE(iso, anum, mnum, nnum, inum, jnuc, flx, flx2, mt, ogxs, ogxs1, fy_midx, anum1, nnum1, mnum1, inum1, knuc, a1, m1, n1, ism, zai, pn, dn, tn, an, a3n, nn, addn)  
                 DO_ISO: do mt_iso = 1,num_iso
                     !print *, 'ISO', mt_iso
                     iso = mt_iso
@@ -1763,7 +1762,7 @@ module depletion_module
                             do i_rx = 1, 7
                                 if(RXMT(i_rx)==mt) then
                                     ogxs = mat % ogxs(iso, i_rx) * real_flux
-                                    !@if(ace(iso)%zaid==92235) print *, 'BIAS', mt, ogxs, ogxs1
+                                    if(mt==18) write(*,'(A,A,I6,E15.5,E15.5,F8.3)') 'BIAS', trim(materials(imat)%mat_name), ace(iso)%zaid, ogxs, ogxs1, (ogxs1-ogxs)/ogxs*1E4
                                     exit
                                 endif
                             enddo
@@ -2237,6 +2236,7 @@ module depletion_module
         if(curr_cyc <= n_inact) return 
         if(.not. materials(imat)%depletable) return ! not depletable -> return
         
+        if(erg > ueggrid(nueg) .or. erg < ueggrid(1)) return
         
         mat => materials(imat)
         
@@ -2246,7 +2246,7 @@ module depletion_module
             ! EFLUX TALLY
             call getiueg(erg, ierg)
             
-            if(ueggrid(1) > erg) ierg = 0
+            if(ierg==0) print *, 'LOW?', erg, ueggrid(1)
 
             if(ierg>0) then
     
@@ -2528,21 +2528,23 @@ module depletion_module
             materials(imat)%e2flux = rcvbufarrlong
             deallocate(rcvbufarrlong); deallocate(sndbufarrlong)
 
-            ! DIRECT RX rate TALLY
-            allocate(rcvbufarrlong(1:num_iso*7))
-            allocate(sndbufarrlong(1:num_iso*7))
-
-            val = dble(n_act) * materials(imat)%flux * materials(imat)%vol
-            do iso = 1,num_iso
-                sndbufarrlong((iso-1)*7+1:(iso-1)*7+7) = materials(imat)%ogxs(iso,:)
-            enddo 
-            call MPI_ALLREDUCE(sndbufarrlong, rcvbufarrlong, num_iso*7, MPI_DOUBLE_PRECISION, MPI_SUM, core, ierr)                    
-            rcvbufarrlong(:) = rcvbufarrlong(:) / val
-            do iso = 1,num_iso
-                materials(imat)%ogxs(iso,:) = rcvbufarrlong((iso-1)*7+1:(iso-1)*7+7) 
-            enddo
-            deallocate(rcvbufarrlong)
-            deallocate(sndbufarrlong) 
+            if(do_rx_tally) then
+                ! DIRECT RX rate TALLY
+                allocate(rcvbufarrlong(1:num_iso*7))
+                allocate(sndbufarrlong(1:num_iso*7))
+    
+                val = dble(n_act) * materials(imat)%flux * materials(imat)%vol
+                do iso = 1,num_iso
+                    sndbufarrlong((iso-1)*7+1:(iso-1)*7+7) = materials(imat)%ogxs(iso,:)
+                enddo 
+                call MPI_ALLREDUCE(sndbufarrlong, rcvbufarrlong, num_iso*7, MPI_DOUBLE_PRECISION, MPI_SUM, core, ierr)                    
+                rcvbufarrlong(:) = rcvbufarrlong(:) / val
+                do iso = 1,num_iso
+                    materials(imat)%ogxs(iso,:) = rcvbufarrlong((iso-1)*7+1:(iso-1)*7+7) 
+                enddo
+                deallocate(rcvbufarrlong)
+                deallocate(sndbufarrlong) 
+            endif
         enddo
 
     end subroutine MPI_reduce_burnup
