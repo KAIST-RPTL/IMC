@@ -461,10 +461,14 @@ subroutine getiueg(erg, ierg)
 
     if ( uidx > nuni ) then
         print *, 'EXCEED', erg, uidx
-        uidx = nuni
+        uidx = nuni; !erg = ueggrid(nueg)
+        ierg = nueg;
+        return
     elseif ( uidx < 1 ) then
         !print *, 'BELOW', erg, uidx
-        uidx = 1
+        uidx = 1; !erg = ueggrid(1)
+        ierg  = 1;
+        return
     endif
 
     pt1 = unigrid(uidx-1)
@@ -472,6 +476,9 @@ subroutine getiueg(erg, ierg)
     if(pt1==0 .or. pt2==0) then
         print *, 'WTF', pt1, pt2
     endif
+
+    if(ueggrid(pt1) > erg) print *,'LO', ueggrid(pt1), erg
+    if(ueggrid(pt2) < erg) print *,'HI', ueggrid(pt2), erg
 
     if(pt1==pt2) then
         pt1 = pt1 - 1
@@ -1280,10 +1287,12 @@ type(AceFormat), pointer :: ac
         ac % UEG % Egrid = ac % NXS(3)+1
         idx = 0
         do i = 1, nueg
+            !if(iso==1 .and. ueggrid(i) >= ac % E(idx+1)) print *, ac % zaid, idx, ueggrid(i), ac % E(idx), ac % E(idx+1)
             if(ueggrid(i) >= ac % E(idx+1)) idx = idx + 1
             ac % UEG % Egrid(i) = idx
             if(idx >= ac % NXS(3)) exit
         enddo
+
         allocate(ac%UEG%sigt(1:nueg))
         ac % UEG % sigt = (ac % sigt ( ac % NXS(3) ))
         do i = 1, nueg

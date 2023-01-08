@@ -1677,6 +1677,10 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, bumat_print
                     if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
+                case("PRINT_BUMAT")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, bumat_print
+                    if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
                 case("NFY_INTERP")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, NFYtype

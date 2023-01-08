@@ -1045,6 +1045,9 @@ module depletion_module
                 if(icore==score) print *, "Number of isotopes:", nnuc-1 ! Checking number of isotopes
                 if(icore==score) print *, "ACE FORMAT ISOTOPES:", num_iso 
 
+                !do i = 1, num_iso
+                !    if(abs(ace(i)%TY(rx))==1 .and. .not. (mt==
+
 
                 !Burnup result files
                 if(icore==score) then
@@ -1145,6 +1148,7 @@ module depletion_module
             do i = 1, nueg
                 if( ace(iso) % UEG % Egrid(i) > ace(iso) % NXS(3) ) then
                     !flux(n) = flux(n) + sum(eflux(i:nueg))
+                    
                     exit
                 elseif( ace(iso) % UEG % Egrid(i) == 0) then
                     cycle
@@ -1194,6 +1198,7 @@ module depletion_module
                         (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sigd(i+1)-ace(iso)%sigd(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
                     !buildogxs_e2 = buildogxs_e2 + flux(i) * (ace(iso)%sigd(i)+ace(iso)%sigd(i+1))*5d-1
                 enddo
+                buildogxs_e2 = buildogxs_e2 + flux(ace(iso)%NXS(3)) * ace(iso)%sigd(ace(iso)%NXS(3))
 
             case(N_FISSION)
                 do i = 1, ace(iso) % NXS(3)-1
@@ -1202,14 +1207,17 @@ module depletion_module
                         (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sigf(i+1)-ace(iso)%sigf(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
                     !buildogxs_e2 = buildogxs_e2 + flux(i) * (ace(iso)%sigf(i)+ace(iso)%sigf(i+1))*5d-1
                 enddo
+                buildogxs_e2 = buildogxs_e2 + flux(ace(iso)%NXS(3)) * ace(iso)%sigf(ace(iso)%NXS(3))
             case default
                 if(rx == 0) return
-                do i = ace(iso) % sig_MT(rx) % IE, ace(iso) % sig_MT(rx) % IE + ace(iso) % sig_MT(rx) % NE-2
+                !do i = ace(iso) % sig_MT(rx) % IE, ace(iso) % sig_MT(rx) % IE + ace(iso) % sig_MT(rx) % NE-2
+                do i = 1, ace(iso) % NXS(3)-1
                     buildogxs_e2 = buildogxs_e2 + &
                         flux(i) * ace(iso) % sig_MT(rx) % cx(i) + &
                         (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sig_MT(rx)%cx(i+1)-ace(iso)%sig_MT(rx)%cx(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
                     !buildogxs_e2 = buildogxs_e2 + flux(i) * (ace(iso)%sig_MT(rx)%cx(i)+ace(iso)%sig_MT(rx)%cx(i+1))*5d-1
                 enddo
+                buildogxs_e2 = buildogxs_e2 + flux(ace(iso)%NXS(3)) * ace(iso)%sig_MT(rx)%cx(ace(iso)%NXS(3))
             end select
             endfunction
 
@@ -1538,6 +1546,7 @@ module depletion_module
             
             !Normalization constant to be real power
             ULnorm = RealPower/(avg_power*eVtoJoule)
+            call MPI_BCAST(ULnorm, 1, MPI_DOUBLE_PRECISION, score, MPI_COMM_WORLD, ierr)
             !Substitute burnup matrix element
             !do imat = 1, n_materials
             cnt = 0
@@ -1757,23 +1766,23 @@ module depletion_module
                         if(do_ueg) ogxs = buildogxs_e2(iso, rx, flx, flx2) * barn
 
                         if(do_rx_tally) then
-                            if(.not. ANY(RXMT==mt)) cycle
-                            ogxs1 = ogxs
-                            do i_rx = 1, 7
-                                if(RXMT(i_rx)==mt) then
-                                    ogxs = mat % ogxs(iso, i_rx) * real_flux
-                                    if(mt==18) write(*,'(A,A,I6,E15.5,E15.5,F8.3)') 'BIAS', trim(materials(imat)%mat_name), ace(iso)%zaid, ogxs, ogxs1, (ogxs1-ogxs)/ogxs*1E4
-                                    exit
-                                endif
-                            enddo
+                            if(ANY(RXMT==mt)) then
+                                ogxs1 = ogxs
+                                do i_rx = 1, 7
+                                    if(RXMT(i_rx)==mt) then
+                                        ogxs = mat % ogxs(iso, i_rx) * real_flux
+                                        if(ace(iso)%zaid==92235) write(*,'(A,A,I6, I3,E15.5,E15.5,E15.5)') 'BIAS ', trim(materials(imat)%mat_name), ace(iso)%zaid, mt, ogxs, ogxs1, (ogxs1-ogxs)/ogxs*1E2
+                                        exit
+                                    endif
+                                enddo
+                            endif
                         endif
+                        !if(mt==N_NF .or. mt==N_2NF .or. mt==N_3NF) cycle
                         ! FIND DESTINATION
                         if(mt==18 .or. ace(iso)%TY(rx)==19) then ! In case of Fission
                             if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then 
                                 addn = 0
-                                if(ace(iso)%MT(rx)==N_F) then ! NF
-                                    addn = 0
-                                elseif(ace(iso)%MT(rx)==N_NF) then ! NNF
+                                if(ace(iso)%MT(rx)==N_NF) then ! NNF
                                     addn = 1
                                 elseif(ace(iso)%MT(rx)==N_2NF) then
                                     addn = 2
@@ -1781,18 +1790,18 @@ module depletion_module
                                     addn = 3
                                 endif
 
-                                if(nuclide(inum,addn+nnum,anum)%fy_idx>0) then
-                                    fy_midx = nuclide(inum,addn+nnum,anum)%fy_idx
+                                if(nuclide(inum,nnum-addn,anum)%fy_idx>0) then
+                                    fy_midx = nuclide(inum,nnum-addn,anum)%fy_idx
                                 else
                                     fy_midx = 0
-                                    if(inum>1 .and. nuclide(0,addn+nnum,anum)%fy_idx>0) then
-                                        fy_midx = nuclide(0,addn+nnum,anum)%fy_idx
+                                    if(inum>1 .and. nuclide(0,nnum-addn,anum)%fy_idx>0) then
+                                        fy_midx = nuclide(0,nnum-addn,anum)%fy_idx
                                     else
                                         do i = 1,nfssn
                                             a1 = fssn_zai(i)/10000
                                             m1 = (fssn_zai(i)-a1*10000)/10
                                             n1 = m1-a1
-                                            if(n1==addn+nnum) fy_midx = i
+                                            if(n1==nnum-addn) fy_midx = i
                                         enddo
                                     if(fy_midx==0) fy_midx = nuclide(0,143,92)%fy_idx
                                     endif

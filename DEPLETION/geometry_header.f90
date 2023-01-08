@@ -469,6 +469,7 @@ module geometry_header
             do i = 1, 3 
                 if(abs(xyz_(i)) > this%pitch(i)*0.5d0) d_surf = INFINITY
 		    enddo 
+!            if(ANY(abs(xyz_(1:3))-this%pitch(1:3)*5d-1 > 0)) d_surf = INFINITY
         elseif(this%lat_type==2) then
             tmp = sqrt(3.d0)*0.5d0
             if(abs(xyz_(1)) > this%pitch(1)*0.5d0) d_surf = INFINITY

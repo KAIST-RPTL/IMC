@@ -631,12 +631,12 @@ end subroutine
 ! =============================================================================
 subroutine BURNUP_MSG
     write(*,10), '   =========================================='
-    write(*,11), '      Burnup step', istep_burnup
+    write(*,11), '      Burnup step', istep_burnup, '/',nstep_burnup
     write(*,12), burn_step(istep_burnup)/86400.d0, ' CUMULATIVE DAYS'
     write(*,10), '   =========================================='
 
     10 format(A45)
-    11 format(A17,I4)
+    11 format(A17,I4,A1,I4)
     12 format(F14.2,A16)
 
 end subroutine
