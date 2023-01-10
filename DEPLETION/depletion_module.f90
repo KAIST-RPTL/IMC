@@ -1147,7 +1147,7 @@ module depletion_module
             flux(1:n) = 0d0
             do i = 1, nueg
                 if( ace(iso) % UEG % Egrid(i) > ace(iso) % NXS(3) ) then
-                    !flux(n) = flux(n) + sum(eflux(i:nueg))
+                    flux(n) = flux(n) + sum(eflux(i:nueg))
                     
                     exit
                 elseif( ace(iso) % UEG % Egrid(i) == 0) then
