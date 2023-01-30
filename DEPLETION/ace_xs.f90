@@ -23,6 +23,8 @@ function getMacroXS_UEG(mat, erg, kT, urn) result (macro_xs)
     real(8) :: macro_xs(3)
     real(8) :: xs(4), micro_xs(6)
 
+    real(8) :: dtemp ! OTF DB
+
     integer :: ierg, i, iso, iff, ierg0
     real(8) :: ipfac, ipfac0
 
@@ -33,11 +35,14 @@ function getMacroXS_UEG(mat, erg, kT, urn) result (macro_xs)
     ipfac = max(0D0,min(1D0,(erg-ueggrid(ierg))/(ueggrid(ierg+1)-ueggrid(ierg))))
 
     ! 3. Interpolate
-    macro_xs(:) = (mat % macro_ueg(ierg,:) &
-        + ipfac * (mat % macro_ueg(ierg+1,:) - mat % macro_ueg(ierg,:)))
-    !macro_xs(2) = (mat % macro_ueg(ierg,5) &
-    !    + ipfac * (mat % macro_ueg(ierg+1,5) - mat % macro_ueg(ierg,5)))
-
+    !dtemp = abs(mat % acetemp - kT)
+    !if(mat % db .and. dtemp > K_B .and. erg < 1d0) then
+    !    ! CONDITION OBTAINED FROM CONVENTIONAL MACRO XS
+    !    macro_xs(:) = get_OTF_DB_UEG(mat, ierg, dtemp)
+    !else ! NO OTF_DB
+        macro_xs(:) = (mat % macro_ueg(ierg,:) &
+            + ipfac * (mat % macro_ueg(ierg+1,:) - mat % macro_ueg(ierg,:)))
+    !endif
 
     ! 4. ADDITIONAL XS: URES
     if(n_unr == 0) return
@@ -981,6 +986,21 @@ subroutine GET_OTF_DB_MIC(temp1,iso,E0,xs1)
 !    1 format(100es15.7)
 
 end subroutine
+
+! =============================================================================
+! GET_OTF_DB
+! =============================================================================
+
+function get_OTF_DB_UEG(mat, ierg0, dtemp) result (macro_xs)
+    use ace_header, only: ace, ghq, wghq, ghq2, xghq2, wghq2
+    use constants, only: k_b
+    implicit none
+    type(Material_CE), intent(in) :: mat
+    integer, intent(in) :: ierg0
+    real(8), intent(in) :: dtemp
+    real(8) :: macro_xs(3) !Total, NuF, QF
+
+end function
 
 ! =============================================================================
 !

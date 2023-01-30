@@ -83,6 +83,7 @@ subroutine premc
         deallocate(tmpgeom); ngeom = iwork1
         if(icore==score)then
             print *, 'NGEOM', ngeom
+            print *, 'NMAT', n_materials
             do mm = 0, ncore-1
            !     print *, mm, mpigeom(1:ngeom,mm)
             enddo
