@@ -1,0 +1,92 @@
+[35m[Kace_reactions.f90[m[K[36m[K:[m[K[32m[K760[m[K[36m[K:[m[K        if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%delayedarr(1:[01;31m[Klatent[m[K-1) = p%delayedarr(2:[01;31m[Klatent[m[K)
+[35m[Kace_reactions.f90[m[K[36m[K:[m[K[32m[K761[m[K[36m[K:[m[K        if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%delayedlam(1:[01;31m[Klatent[m[K-1) = p%delayedlam(2:[01;31m[Klatent[m[K)
+[35m[Kace_reactions.f90[m[K[36m[K:[m[K[32m[K762[m[K[36m[K:[m[K        if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%nlifearr(1:[01;31m[Klatent[m[K-1)   = p%nlifearr(2:[01;31m[Klatent[m[K)
+[35m[Kace_reactions.f90[m[K[36m[K:[m[K[32m[K763[m[K[36m[K:[m[K        thread_bank(bank_idx)%nlifearr([01;31m[Klatent[m[K)    = p%trvltime
+[35m[Kace_reactions.f90[m[K[36m[K:[m[K[32m[K765[m[K[36m[K:[m[K            thread_bank(bank_idx)%delayedarr([01;31m[Klatent[m[K) = iMT
+[35m[Kace_reactions.f90[m[K[36m[K:[m[K[32m[K766[m[K[36m[K:[m[K            thread_bank(bank_idx)%delayedlam([01;31m[Klatent[m[K) = ace(iso) % prcr(iMT) % decay_const
+[35m[Kace_reactions.f90[m[K[36m[K:[m[K[32m[K774[m[K[36m[K:[m[K            thread_bank(bank_idx)%delayedarr([01;31m[Klatent[m[K) = 0
+[35m[Kace_reactions.f90[m[K[36m[K:[m[K[32m[K775[m[K[36m[K:[m[K            thread_bank(bank_idx)%delayedlam([01;31m[Klatent[m[K) = 0
+[35m[Kace_reactions.f90[m[K[36m[K:[m[K[32m[K778[m[K[36m[K:[m[K        !if(icore==score) print *, p%trvltime, thread_bank(bank_idx)%nlifearr(1:[01;31m[Klatent[m[K)
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K3[m[K[36m[K:[m[K    use variables, only : [01;31m[Klatent[m[K
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K19[m[K[36m[K:[m[K        integer :: delayedarr(1:[01;31m[Klatent[m[K)
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K20[m[K[36m[K:[m[K        real(8) :: delayedlam(1:[01;31m[Klatent[m[K)
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K21[m[K[36m[K:[m[K        real(8) :: nlifearr(1:[01;31m[Klatent[m[K)
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K37[m[K[36m[K:[m[K        integer :: delayedarr(1:[01;31m[Klatent[m[K)
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K38[m[K[36m[K:[m[K        real(8) :: delayedlam(1:[01;31m[Klatent[m[K)
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K39[m[K[36m[K:[m[K        real(8) :: nlifearr(1:[01;31m[Klatent[m[K)
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K123[m[K[36m[K:[m[K        blocklength(9) = [01;31m[Klatent[m[K
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K124[m[K[36m[K:[m[K        blocklength(10)= [01;31m[Klatent[m[K
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K125[m[K[36m[K:[m[K        blocklength(11)= [01;31m[Klatent[m[K
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K140[m[K[36m[K:[m[K        displacement(10)= 8*realex + intex + logicex + realex + 8*realex + 8*realex + [01;31m[Klatent[m[K*intex
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K141[m[K[36m[K:[m[K        displacement(11)= 8*realex + intex + logicex + realex + 8*realex + 8*realex + [01;31m[Klatent[m[K*intex + [01;31m[Klatent[m[K*realex
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K171[m[K[36m[K:[m[K        blocklength(8) = [01;31m[Klatent[m[K
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K172[m[K[36m[K:[m[K        blocklength(9) = [01;31m[Klatent[m[K
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K173[m[K[36m[K:[m[K        blocklength(10)= [01;31m[Klatent[m[K
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K185[m[K[36m[K:[m[K        displacement(9) = 5*realex + 2*intex + 9*realex + 8 * realex + [01;31m[Klatent[m[K*intex
+[35m[Kbank_header.f90[m[K[36m[K:[m[K[32m[K186[m[K[36m[K:[m[K        displacement(10)= 5*realex + 2*intex + 9*realex + 8 * realex + [01;31m[Klatent[m[K*intex + [01;31m[Klatent[m[K*realex
+[35m[Kinput_reader.f90[m[K[36m[K:[m[K[32m[K837[m[K[36m[K:[m[K                !    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, [01;31m[Klatent[m[K
+[35m[Kmain.f90[m[K[36m[K:[m[K[32m[K715[m[K[36m[K:[m[K    write(*,22), ' BETASUM',PCM(AVG(betaarr(1:n_act-[01;31m[Klatent[m[K,0))),'+/-',PCM(STD_M(betaarr(1:n_act-[01;31m[Klatent[m[K,0))),' scale:1E-5'
+[35m[Kmain.f90[m[K[36m[K:[m[K[32m[K717[m[K[36m[K:[m[K    !write(*,13), '  LAMSUM',1E2*(AVG(lamarr(1:n_act-[01;31m[Klatent[m[K,0))),'+/-',1E2*(STD_M(lamarr(1:n_act-[01;31m[Klatent[m[K,0))),' scale:1E-2'
+[35m[Kmain.f90[m[K[36m[K:[m[K[32m[K719[m[K[36m[K:[m[K        write(*,12), '  BETA',i,PCM(AVG(betaarr(1:n_act-[01;31m[Klatent[m[K,i))),'+/-',PCM(STD_M(betaarr(1:n_act-[01;31m[Klatent[m[K,i))),' scale:1E-5'
+[35m[Kmain.f90[m[K[36m[K:[m[K[32m[K721[m[K[36m[K:[m[K        !write(*,15), '   LAM',i,AVG(lamarr(1:n_act-[01;31m[Klatent[m[K,i))*1E2,'+/-',STD_M(lamarr(1:n_act-[01;31m[Klatent[m[K,i))*1E2,' scale:1E-2'
+[35m[Kparticle_header.f90[m[K[36m[K:[m[K[32m[K127[m[K[36m[K:[m[K        integer :: delayedarr(1:[01;31m[Klatent[m[K)
+[35m[Kparticle_header.f90[m[K[36m[K:[m[K[32m[K128[m[K[36m[K:[m[K        real(8) :: delayedlam(1:[01;31m[Klatent[m[K)
+[35m[Kparticle_header.f90[m[K[36m[K:[m[K[32m[K129[m[K[36m[K:[m[K        real(8) :: nlifearr(1:[01;31m[Klatent[m[K)
+[35m[Kparticle_header.f90[m[K[36m[K:[m[K[32m[K206[m[K[36m[K:[m[K        this % delayedarr(1:[01;31m[Klatent[m[K) = 0
+[35m[Kparticle_header.f90[m[K[36m[K:[m[K[32m[K207[m[K[36m[K:[m[K        this % delayedlam(1:[01;31m[Klatent[m[K) = ZERO
+[35m[Kparticle_header.f90[m[K[36m[K:[m[K[32m[K208[m[K[36m[K:[m[K        this % nlifearr(1:[01;31m[Klatent[m[K)   = ZERO
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K329[m[K[36m[K:[m[K                if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%delayedarr(1:[01;31m[Klatent[m[K-1) &
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K330[m[K[36m[K:[m[K                    = thread_bank(bank_idx)%delayedarr(2:[01;31m[Klatent[m[K)
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K331[m[K[36m[K:[m[K                thread_bank(bank_idx)%delayedarr([01;31m[Klatent[m[K) = i_group
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K332[m[K[36m[K:[m[K                if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%nlifearr(1:[01;31m[Klatent[m[K-1) &
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K333[m[K[36m[K:[m[K                    = thread_bank(bank_idx)%nlifearr(2:[01;31m[Klatent[m[K)
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K334[m[K[36m[K:[m[K                thread_bank(bank_idx)%nlifearr([01;31m[Klatent[m[K) = p%trvltime
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K335[m[K[36m[K:[m[K                if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%delayedlam(1:[01;31m[Klatent[m[K-1) &
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K336[m[K[36m[K:[m[K                    = thread_bank(bank_idx)%delayedlam(2:[01;31m[Klatent[m[K)
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K337[m[K[36m[K:[m[K                thread_bank(bank_idx)%delayedlam([01;31m[Klatent[m[K) = MGD(p%material)%lambda(i_group)
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K345[m[K[36m[K:[m[K                if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%delayedarr(1:[01;31m[Klatent[m[K-1) &
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K346[m[K[36m[K:[m[K                    = thread_bank(bank_idx)%delayedarr(2:[01;31m[Klatent[m[K)
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K347[m[K[36m[K:[m[K                thread_bank(bank_idx)%delayedarr([01;31m[Klatent[m[K) = 0
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K348[m[K[36m[K:[m[K                if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%nlifearr(1:[01;31m[Klatent[m[K-1) &
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K349[m[K[36m[K:[m[K                    = thread_bank(bank_idx)%nlifearr(2:[01;31m[Klatent[m[K)
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K350[m[K[36m[K:[m[K                thread_bank(bank_idx)%nlifearr([01;31m[Klatent[m[K) = p%trvltime
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K351[m[K[36m[K:[m[K                if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%delayedlam(1:[01;31m[Klatent[m[K-1) &
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K352[m[K[36m[K:[m[K                    = thread_bank(bank_idx)%delayedlam(2:[01;31m[Klatent[m[K)
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K353[m[K[36m[K:[m[K                thread_bank(bank_idx)%delayedlam([01;31m[Klatent[m[K) = 0.d0
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K838[m[K[36m[K:[m[K                if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%delayedarr(1:[01;31m[Klatent[m[K-1) &
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K839[m[K[36m[K:[m[K                    = thread_bank(bank_idx)%delayedarr(2:[01;31m[Klatent[m[K)
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K840[m[K[36m[K:[m[K                thread_bank(bank_idx)%delayedarr([01;31m[Klatent[m[K) = i_group
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K841[m[K[36m[K:[m[K                if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%nlifearr(1:[01;31m[Klatent[m[K-1) &
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K842[m[K[36m[K:[m[K                    = thread_bank(bank_idx)%nlifearr(2:[01;31m[Klatent[m[K)
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K843[m[K[36m[K:[m[K                thread_bank(bank_idx)%nlifearr([01;31m[Klatent[m[K) = p%trvltime
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K844[m[K[36m[K:[m[K                if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%delayedlam(1:[01;31m[Klatent[m[K-1) &
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K845[m[K[36m[K:[m[K                    = thread_bank(bank_idx)%delayedlam(2:[01;31m[Klatent[m[K)
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K846[m[K[36m[K:[m[K                thread_bank(bank_idx)%delayedlam([01;31m[Klatent[m[K) = ace(iso) % prcr(i_group) % decay_const
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K853[m[K[36m[K:[m[K                if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%delayedarr(1:[01;31m[Klatent[m[K-1) &
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K854[m[K[36m[K:[m[K                    = thread_bank(bank_idx)%delayedarr(2:[01;31m[Klatent[m[K)
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K855[m[K[36m[K:[m[K                thread_bank(bank_idx)%delayedarr([01;31m[Klatent[m[K) = 0
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K856[m[K[36m[K:[m[K                if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%nlifearr(1:[01;31m[Klatent[m[K-1) &
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K857[m[K[36m[K:[m[K                    = thread_bank(bank_idx)%nlifearr(2:[01;31m[Klatent[m[K)
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K858[m[K[36m[K:[m[K                thread_bank(bank_idx)%nlifearr([01;31m[Klatent[m[K) = p%trvltime
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K859[m[K[36m[K:[m[K                if([01;31m[Klatent[m[K>1) thread_bank(bank_idx)%delayedlam(1:[01;31m[Klatent[m[K-1) &
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K860[m[K[36m[K:[m[K                    = thread_bank(bank_idx)%delayedlam(2:[01;31m[Klatent[m[K)
+[35m[KPCQS.f90[m[K[36m[K:[m[K[32m[K861[m[K[36m[K:[m[K                thread_bank(bank_idx)%delayedlam([01;31m[Klatent[m[K) = 0.d0
+[35m[Kpremc.f90[m[K[36m[K:[m[K[32m[K70[m[K[36m[K:[m[K    allocate(betaarr(n_act-[01;31m[Klatent[m[K,0:8)); allocate(genarr(n_act-[01;31m[Klatent[m[K));
+[35m[Kpremc.f90[m[K[36m[K:[m[K[32m[K71[m[K[36m[K:[m[K    allocate(alphaarr(n_act-[01;31m[Klatent[m[K)); allocate(lamarr(n_act-[01;31m[Klatent[m[K,0:8))
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K279[m[K[36m[K:[m[K    if (curr_cyc > n_inact+[01;31m[Klatent[m[K .and. icore == score) then
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K281[m[K[36m[K:[m[K            betaarr(curr_cyc-n_inact-[01;31m[Klatent[m[K,i) = beta_numer(i)/denom
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K283[m[K[36m[K:[m[K                lamarr(curr_cyc-n_inact-[01;31m[Klatent[m[K,i)  = beta_numer(i)/lam_denom(i)
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K285[m[K[36m[K:[m[K                lamarr(curr_cyc-n_inact-[01;31m[Klatent[m[K,i)  = 0.d0
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K289[m[K[36m[K:[m[K        betaarr(curr_cyc-n_inact-[01;31m[Klatent[m[K,0) = sum(beta_numer)/denom
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K291[m[K[36m[K:[m[K            lamarr(curr_cyc-n_inact-[01;31m[Klatent[m[K,0)  = sum(beta_numer)/sum(lam_denom)
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K293[m[K[36m[K:[m[K            lamarr(curr_cyc-n_inact-[01;31m[Klatent[m[K,0)  = 0.d0
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K296[m[K[36m[K:[m[K        genarr(curr_cyc-n_inact-[01;31m[Klatent[m[K)  = gen_numer /denom
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K297[m[K[36m[K:[m[K        !alphaarr(curr_cyc-n_inact-[01;31m[Klatent[m[K)= -(denom*sum(beta_numer(1:8)))/gen_numer 
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K298[m[K[36m[K:[m[K        alphaarr(curr_cyc-n_inact-[01;31m[Klatent[m[K) = &
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K299[m[K[36m[K:[m[K                -betaarr(curr_cyc-n_inact-[01;31m[Klatent[m[K,0)/genarr(curr_cyc-n_inact-[01;31m[Klatent[m[K)
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K300[m[K[36m[K:[m[K        !alphaarr(curr_cyc-n_inact-[01;31m[Klatent[m[K)= -sum(betaarr(curr_cyc-n_inact-[01;31m[Klatent[m[K,1:8))/gen_prompt*denom_prompt
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K301[m[K[36m[K:[m[K        write(prt_adjoint,*) 'GENAlpha', genarr(curr_cyc-n_inact-[01;31m[Klatent[m[K), alphaarr(curr_cyc-n_inact-[01;31m[Klatent[m[K)
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K302[m[K[36m[K:[m[K        write(prt_adjoint,*) 'TOTAL', (betaarr(curr_cyc-n_inact-[01;31m[Klatent[m[K,0)), (lamarr(curr_cyc-n_inact-[01;31m[Klatent[m[K,0))
+[35m[Ksimulation.f90[m[K[36m[K:[m[K[32m[K304[m[K[36m[K:[m[K            write(prt_adjoint,*) i,betaarr(curr_cyc-n_inact-[01;31m[Klatent[m[K,i), lamarr(curr_cyc-n_inact-[01;31m[Klatent[m[K,i)
+[35m[Ktracking.f90[m[K[36m[K:[m[K[32m[K1048[m[K[36m[K:[m[K    if (curr_cyc > n_pcqs_inact-[01;31m[Klatent[m[K) then
+[35m[Kvariables.f90[m[K[36m[K:[m[K[32m[K52[m[K[36m[K:[m[K    integer, parameter :: [01;31m[Klatent[m[K = 10 ! # of [01;31m[Klatent[m[K cycles

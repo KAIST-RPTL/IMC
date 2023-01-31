@@ -199,8 +199,8 @@ subroutine transport(p)
 	
 	
     !> Track-length estimator
-    !$omp atomic 
-    k_tl = k_tl + distance*p%wgt*macro_xs(4) 
+!    !$omp atomic 
+!    k_tl = k_tl + distance*p%wgt*macro_xs(4) 
 
     !> Flux Tally ===========================================================================
     if ( tally_switch > 0 .and. do_transient == .false.) then 
@@ -266,7 +266,7 @@ subroutine transport(p)
     do j = 1, p % n_coord
         p % coord(j) % xyz = p % coord(j) % xyz + distance * p % coord(j) % uvw
     enddo
-    !print *,'PTS', p%coord(1)%xyz(:), sqrt(p%coord(1)%xyz(1)**2+p%coord(1)%xyz(2)**2+p%coord(1)%xyz(3)**2)
+    !write(*,'(A,F10.3,F10.3,F10.3)')'PTS', p%coord(1)%xyz(:)
     found_cell = .false.
     call find_cell(p, found_cell, i_cell)
 	

@@ -144,6 +144,7 @@ function getMacroXS (mat, erg,kT, urn) result (macro_xs)
         ! =====================================================================
         ! On-the-fly Doppler broadening
         dtemp = abs(ace(iso_)%temp-kT)
+        !print *,  dtemp, kT, ace(iso_)%temp, ace(iso_)%zaid
         if ( mat%db .and. ( dtemp > K_B .and. erg < 1d0 ) ) then
             call GET_OTF_DB_MAC(mat%numden(i_iso),i_iso,iso_,erg,xs,dtemp)
             macro_t   = macro_t   + xs(1)
