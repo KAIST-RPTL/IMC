@@ -1,5 +1,6 @@
 module bank_header 
 	use mpi 
+    use variables, only: latent
 	
     implicit none
     type :: Bank
@@ -12,6 +13,10 @@ module bank_header
 		real(8) :: time
 		real(8) :: beta(1:8)
 		real(8) :: lambda(1:8)
+        
+        integer :: delayedarr(1:latent)
+        real(8) :: delayedlam(1:latent)
+        real(8) :: nlifearr(1:latent)
         !integer :: ep
       contains 
         !procedure :: initialize => bank_initialize
@@ -26,6 +31,10 @@ module bank_header
 		real(8) :: time
 		real(8) :: beta(1:8)
 		real(8) :: lambda(1:8)
+        
+        integer :: delayedarr(1:latent)
+        real(8) :: delayedlam(1:latent)
+        real(8) :: nlifearr(1:latent)
     end type PrecBank
 	
 	
@@ -86,12 +95,11 @@ module bank_header
 	integer :: MPI_bank, MPI_precbank!, MPI_vrcbank
 	
 	contains 
-	
     subroutine MPI_banktype() 
 		integer :: ierr 
 		integer :: realex, intex, logicex
-		integer, dimension(0:8) :: blocklength, displacement, oldtype 
-		
+		!integer, dimension(0:8) :: blocklength, displacement, oldtype 
+        integer, dimension(0:11) :: blocklength, displacement, oldtype
 		
 		blocklength(0) = 1
 		blocklength(1) = 3
@@ -102,7 +110,10 @@ module bank_header
 		blocklength(6) = 1
 		blocklength(7) = 8
 		blocklength(8) = 8
-        !blocklength(9) = 1
+        ! ADJOINT MPI_BANK
+        blocklength(9) = latent
+        blocklength(10)= latent
+        blocklength(11)= latent
 		
 		call MPI_TYPE_EXTENT(MPI_double_precision, realex, ierr)
 		call MPI_TYPE_EXTENT(MPI_INTEGER, intex, ierr)
@@ -116,15 +127,19 @@ module bank_header
 		displacement(6) = 8*realex + intex + logicex
 		displacement(7) = 8*realex + intex + logicex + realex
 		displacement(8) = 8*realex + intex + logicex + realex + 8*realex
-        !displacement(9) = 8*realex + intex + logicex + realex + 8*realex + intex
+        displacement(9) = 8*realex + intex + logicex + realex + 8*realex + 8*realex
+        displacement(10)= 8*realex + intex + logicex + realex + 8*realex + 8*realex + latent*intex
+        displacement(11)= 8*realex + intex + logicex + realex + 8*realex + 8*realex + latent*intex + latent*realex
 		
 		oldtype(0:3) = MPI_double_precision
 		oldtype(4)   = MPI_INTEGER
 		oldtype(5)   = MPI_logical
 		oldtype(6:8) = MPI_double_precision
-        !oldtype(9)   = MPI_INTEGER
+        oldtype(9)   = MPI_INTEGER
+        oldtype(10)  = MPI_double_precision
+        oldtype(11)  = MPI_double_precision
 		
-		call MPI_TYPE_STRUCT (9, blocklength, displacement, oldtype,MPI_bank, ierr)
+		call MPI_TYPE_STRUCT (12, blocklength, displacement, oldtype,MPI_bank, ierr)
 		call MPI_TYPE_COMMIT (MPI_bank, ierr)
 	end subroutine 
 	
@@ -132,7 +147,7 @@ module bank_header
     subroutine MPI_precbanktype() 
 		integer :: ierr 
 		integer :: realex, intex, logicex
-		integer, dimension(0:7) :: blocklength, displacement, oldtype 
+		integer, dimension(0:10) :: blocklength, displacement, oldtype 
 		
 		
 		blocklength(0) = 1
@@ -143,6 +158,10 @@ module bank_header
 		blocklength(5) = 1
 		blocklength(6) = 8
 		blocklength(7) = 8
+        ! ADJOINT MPI_PRECBANK
+        blocklength(8) = latent
+        blocklength(9) = latent
+        blocklength(10)= latent
 		
 		call MPI_TYPE_EXTENT(MPI_double_precision, realex, ierr) 
 		call MPI_TYPE_EXTENT(MPI_INTEGER, intex, ierr) 
@@ -153,17 +172,20 @@ module bank_header
 		displacement(5) = 5*realex + 2*intex
 		displacement(6) = 5*realex + 2*intex + realex
 		displacement(7) = 5*realex + 2*intex + 9*realex
+        displacement(8) = 5*realex + 2*intex + 9*realex + 8 * realex
+        displacement(9) = 5*realex + 2*intex + 9*realex + 8 * realex + latent*intex
+        displacement(10)= 5*realex + 2*intex + 9*realex + 8 * realex + latent*intex + latent*realex
 		
 		oldtype(0:2) = MPI_double_precision
 		oldtype(3:4)   = MPI_INTEGER
 		oldtype(5:7)   = MPI_double_precision
+        oldtype(8)     = MPI_INTEGER
+        oldtype(9)     = MPI_double_precision
+        oldtype(10)    = MPI_double_precision
 				
-		call MPI_TYPE_STRUCT (8, blocklength, displacement, oldtype,MPI_precbank, ierr)
+		call MPI_TYPE_STRUCT (11, blocklength, displacement, oldtype,MPI_precbank, ierr)
 		call MPI_TYPE_COMMIT (MPI_precbank, ierr)
 	end subroutine 	
-	
-	
-	
     !subroutine MPI_vrcbanktype() 
 	!	integer :: ierr 
 	!	integer :: realex, intex

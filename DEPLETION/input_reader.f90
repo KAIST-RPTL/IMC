@@ -92,6 +92,16 @@ subroutine read_geom
               if (icore == score) open(prt_keff, file=filename, status="new")
             end if
             
+            if(do_ifp) then
+                filename = trim(title)//'_adj.out'
+                inquire(file=filename, exist=found)
+                if (found) then
+                  if (icore == score) open(prt_adjoint, file=filename, status="old")
+                else
+                  if (icore == score) open(prt_adjoint, file=filename, status="new")
+                end if
+                if(icore==score) write(prt_adjoint,*) 'BETA   GENTIME'
+            endif
 		case ('gmsh')
 			read (args(2), '(L)') do_gmsh
 			if (do_gmsh) call read_msh()
@@ -1378,7 +1388,42 @@ end subroutine READ_CTRL
 						end select 
 						
 					enddo 
-					
+				
+                case("DO_IFP")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ifp
+
+				case("FUEL_SPEED_AXIAL")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fuel_speed
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+                    if(fuel_speed>=0.d0 .and. do_ifp) do_fuel_mv = .true.
+
+                case("RECIRCULATION_TIME")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, t_rc
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+                    
+                case("CORE_HEIGHT")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_height
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+
+                case("CORE_RADIUS")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_radius
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+
+                case("CORE_BASE")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_base
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+                case("N_CORE_MESH")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_core_radial, n_core_axial
+                    allocate(core_prec(8,n_core_axial,n_core_radial)); core_prec = 0.d0
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+				
 
 					
 					

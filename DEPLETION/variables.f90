@@ -74,6 +74,24 @@ implicit none
 
     ! OGXS DIRECT TALLY
     logical :: do_rx_tally = .false.
+
+    ! IFP ADJOINT
+    logical :: do_ifp = .false.
+    integer, parameter :: latent = 10
+    real(8) :: betaeff, gentime
+    real(8) :: denom,  gen_numer, gen_prompt, beta_numer(8), lam_denom(8),denom_prompt
+    real(8), allocatable :: betaarr(:,:), genarr(:), alphaarr(:), lamarr(:,:), betad(:,:)
+
+    ! MSR parameter
+    real(8) :: fuel_speed = 0.d0
+    logical :: do_fuel_mv = .false.
+    real(8) :: t_rc       = 0.d0
+    real(8) :: core_height
+    real(8) :: core_radius
+    real(8) :: core_base
+    integer :: n_core_axial, n_core_radial
+    real(8), allocatable :: core_prec(:,:,:)
+    integer :: MSR_leak, MSR_leak0
 	
     !==============================================================================
     ! MPI parameters 

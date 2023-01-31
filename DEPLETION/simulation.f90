@@ -61,12 +61,13 @@ subroutine simulate_history(bat,cyc)
     real(8) :: Jtemp
     real(8), allocatable :: shape(:), rcvbuflong(:)
     integer :: id(3)
-    real(8) :: rcv_buf
+    real(8) :: rcv_buf, rcv_buf_long(8), rcv_msh(8)
     integer :: realex, intex, restype, ndata, idata
     integer, dimension(0:4) :: blocklength, displacement, oldtype 
     integer, allocatable :: ircnt(:), idisp(:) 
     real(8) :: time1, time2
 	integer :: i_bin(4)
+    real(8) :: adj_sum, totwgt
 
     if (allocated(fission_bank)) call move_alloc(fission_bank, source_bank)
     if ( icore == score ) then
@@ -226,6 +227,42 @@ subroutine simulate_history(bat,cyc)
 !        ogfis = rcv_buf
     endif
 	
+    if(do_fuel_mv) then
+        do i = 1,n_core_axial
+            do j = 1,n_core_radial
+            call MPI_REDUCE(core_prec(1:8,i,j),rcv_msh,8,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+            core_prec(1:8,i,j) = rcv_msh
+            enddo
+        enddo
+        if(curr_cyc>n_inact .and. icore==score) then
+            do i = 1,8
+                do j = 1,n_core_radial
+                    write(prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') core_prec(i,1:n_core_axial,j)
+                enddo
+            enddo
+        endif
+        core_prec = 0.d0
+        !print *, 'leak', MSR_leak
+        call MPI_ALLREDUCE(MSR_leak,ndata,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
+        MSR_leak = ndata
+        !print *, 'leak_red', MSR_leak
+    endif
+        
+        !if(icore == score) print *, curr_cyc, isize, n_col	
+    if(icore==score .and. curr_cyc>n_inact) then 
+        betad(:,curr_cyc-n_inact) = 0.d0
+        isize = size(fission_bank)
+        totwgt = 0.d0
+        do i = 1,isize
+            totwgt = totwgt+fission_bank(i)%wgt
+            if(fission_bank(i)%delayed .and. fission_bank(i)%G>0) &
+            betad(fission_bank(i)%G,curr_cyc-n_inact) = &
+            betad(fission_bank(i)%G,curr_cyc-n_inact) + fission_bank(i)%wgt
+        enddo
+        betad(0,curr_cyc-n_inact) = sum(betad(1:8,curr_cyc-n_inact))
+        betad(:,curr_cyc-n_inact) = betad(:,curr_cyc-n_inact)/totwgt
+        !print *, curr_cyc-n_inact, totwgt, betad(0:6,curr_cyc-n_inact)
+    endif
 	
 	
     !> Calculate k_eff ==========================================================
@@ -240,6 +277,36 @@ subroutine simulate_history(bat,cyc)
     call MPI_BCAST(keff, 1, MPI_DOUBLE_PRECISION, score, MPI_COMM_WORLD, ierr) 
     
 	
+    if (do_ifp .and. curr_cyc > n_inact+latent .and. icore == score) then
+        do i = 1,8
+            betaarr(curr_cyc-n_inact-latent,i) = beta_numer(i)/denom
+            if(lam_denom(i)>0) then
+                lamarr(curr_cyc-n_inact-latent,i)  = beta_numer(i)/lam_denom(i)
+            else
+                lamarr(curr_cyc-n_inact-latent,i)  = 0.d0
+            endif
+        enddo
+        
+        betaarr(curr_cyc-n_inact-latent,0) = sum(beta_numer)/denom
+        if(sum(lam_denom)>0) then
+            lamarr(curr_cyc-n_inact-latent,0)  = sum(beta_numer)/sum(lam_denom)
+        else
+            lamarr(curr_cyc-n_inact-latent,0)  = 0.d0
+        endif
+
+        genarr(curr_cyc-n_inact-latent)  = gen_numer /denom
+        !alphaarr(curr_cyc-n_inact-latent)= -(denom*sum(beta_numer(1:8)))/gen_numer 
+        alphaarr(curr_cyc-n_inact-latent) = &
+                -betaarr(curr_cyc-n_inact-latent,0)/genarr(curr_cyc-n_inact-latent)
+        !alphaarr(curr_cyc-n_inact-latent)= -sum(betaarr(curr_cyc-n_inact-latent,1:8))/gen_prompt*denom_prompt
+        write(prt_adjoint,*) 'GENAlpha', genarr(curr_cyc-n_inact-latent), alphaarr(curr_cyc-n_inact-latent)
+        write(prt_adjoint,*) 'TOTAL', (betaarr(curr_cyc-n_inact-latent,0)), (lamarr(curr_cyc-n_inact-latent,0))
+        do i = 1,8
+            write(prt_adjoint,*) i,betaarr(curr_cyc-n_inact-latent,i), lamarr(curr_cyc-n_inact-latent,i)
+        enddo
+        writE(prt_adjoint,*) ' '
+
+    endif
     !> Gather fission_bank from the slave nodes =================================        
     ndata = size(fission_bank)
     allocate(ircnt(1:ncore))

@@ -1,6 +1,7 @@
 module particle_header
 
     use constants
+    use variables
     use geometry_header,     only: base_univ, universe
     use bank_header
     use ace_header,          only: n_unr
@@ -123,6 +124,11 @@ module particle_header
         !integer, allocatable :: urn(:)
         real(8), allocatable :: urn(:)
         
+        ! ADJOINT : IFP related
+        integer :: delayedarr(1:latent)
+        real(8) :: delayedlam(1:latent)
+        real(8) :: nlifearr(1:latent)
+        real(8) :: trvltime ! Traveled distance of the neutron from its born:  Modified to time
     contains
         procedure :: clear
         procedure :: initialize
@@ -181,7 +187,7 @@ contains
         !this % fission           = .false.
         !this % delayed_group     = 0
         !this % n_delayed_bank(:) = 0
-        this % g = NONE
+        this % g = 1
         
         ! Set up base level coordinates
         this % coord(1) % universe = base_univ
@@ -195,6 +201,10 @@ contains
 		this % tet = 0 
 		this % tet_prev = 0
 
+        this % delayedarr(1:latent) = 0
+        this % delayedlam(1:latent) = ZERO
+        this % nlifearr(1:latent)   = ZERO
+        this % trvltime             = ZERO
         if(.not. allocated(this%urn)) then
             allocate(this % urn(1:n_unr)); this % urn = 0D0
 !            do i = 1, n_unr
@@ -225,6 +235,7 @@ contains
     subroutine SET_PARTICLE(this, source)
         class(Particle) :: this
         type(bank)        :: source
+        integer :: zidx,ridx
         
         this % coord(1) % xyz(:) = source % xyz(:)
         this % coord(1) % uvw(:) = source % uvw(:)
@@ -234,6 +245,19 @@ contains
         this % time              = source % time
         !this % ep                = source % ep
 		
+        this % delayedarr  = source % delayedarr
+        this % delayedlam  = source % delayedlam
+        this % nlifearr    = source % nlifearr
+        this % trvltime          = 0.D0
+
+        ! MSR
+        !if(source%delayed) print *, 'PREC', source%xyz(1:3), source%G, this%wgt
+        if(do_fuel_mv .and. source % delayed .and. curr_cyc > n_inact ) then
+            zidx = floor((this%coord(1)%xyz(3)-core_base)/(core_height/real(N_core_axial,8)))+1
+            !ridx = floor((this%coord(1)%xyz(1)**2+this%coord(1)%xyz(2)**2)/core_radius**2*real(n_core_radial,8))+1
+            !print *, 'prec', this%coord(1)%xyz(3)-core_base, zidx, source%G
+            core_prec(source%G,zidx,1) = core_prec(source%G,zidx,1) + this % wgt
+        endif
     end subroutine SET_PARTICLE
     
     

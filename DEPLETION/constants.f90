@@ -32,6 +32,8 @@ module constants
     integer, parameter :: prt_tet_vrc     = 20  !I/O unit for burned materials
     
     integer, parameter :: bumat_test      = 21    
+    integer, parameter :: prt_adjoint     = 22
+    integer, parameter :: prt_fuel_mv     = 23
     !integer, parameter :: prt_assflux      = 10 !I/O unit for flux
     !integer, parameter :: prt_asspowr      = 11 !I/O unit for power
     !integer, parameter :: prt_3Dflux      = 12 !I/O unit for flux

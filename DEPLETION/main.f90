@@ -115,6 +115,7 @@ BURNUP : do
 			close(prt_powr)
 		enddo 
 	endif
+    if(do_fuel_mv) open(prt_fuel_mv,file='MSR_prec',action='write',status='replace')	
 	
 TH : do
 	
@@ -159,6 +160,8 @@ TH : do
 		close(prt_dynamic)
 		!close(prt_wgt)
 	endif 
+
+    if(do_fuel_mv) close(prt_fuel_mv)	
 
     if (do_mgtally) then
         do i = 1, n_mg
@@ -369,9 +372,7 @@ if ( tally_switch > 0 .and. icore == score .and. do_transient) then
 	
 endif 
 
-
-
-
+call process_MSR_prec()
 
 call MPI_FINALIZE(ierr)
 
@@ -699,9 +700,24 @@ if ( icore == score ) then
         PCM(STD_M(k_eff(bat,n_inact+1:n_totcyc)))
     write(*,*)
 
+    write(prt_adjoint,*)
+    ! ADJOINT
+    write(prt_adjoint,13), '    GENT',AVG(genarr)*1E9,'+/-',STD_M(genarr)*1E9,' scale:1E-9'
+    write(prt_adjoint,22), ' BETASUM',PCM(AVG(betaarr(1:n_act-latent,0))),'+/-',PCM(STD_M(betaarr(1:n_act-latent,0))),' scale:1E-5'
+    write(prt_adjoint,22), 'BETASUMO',PCM(AVG(betad(0,1:n_act))), '+/-', PCM(STD_M(betad(0,1:n_act))), ' scale:1E-5'
+    do i = 1,8
+        write(prt_adjoint,12), '  BETA',i,PCM(AVG(betaarr(1:n_act-latent,i))),'+/-',PCM(STD_M(betaarr(1:n_act-latent,i))),' scale:1E-5'
+        write(prt_adjoint,12), 'BETAOG',i,PCM(AVG(betad(i,1:n_act))),'+/-',PCM(STD_M(betad(i,1:n_act))),' scale:1E-5'
+    enddo
     10 format(A,F10.3,A4,F8.2,A4)
     11 format(A,F10.6,A4,F8.3)
 
+    12 format(A,i1,F10.3,A4,F8.5,A) !GROUPWISE BETA
+    15 format(A,i1,F10.5,A4,F8.5,A) !GROUPWISE LAMBDA
+
+    22 format(A,F10.3,A4,F8.5,A) !
+    13 format(A,F10.5,A4,F8.5,A) !Generation time
+    14 format(A,F10.5,A4,F8.5,A) !Rossi-Alpha
 end if
 
 end subroutine
@@ -1086,4 +1102,49 @@ subroutine HY
 
 end subroutine
 
+subroutine process_MSR_prec()
+    integer :: i,j,k
+    real(8), allocatable :: MSR_data(:,:,:,:)
+    real(8), allocatable :: MSR_prec(:,:,:,:)
+
+    if(icore /= score) return
+    if(.not. do_fuel_mv) return
+
+    allocate(MSR_data(8,n_core_axial,n_core_radial,n_act))
+    allocate(MSR_prec(8,n_core_axial,n_core_radial,2))
+
+    open(prt_fuel_mv, file='MSR_prec',action='read',status='replace')
+    do i = 1,n_act
+        do j = 1,8
+            do k = 1,n_core_radial
+            read(prt_fuel_mv,*) MSR_data(j,:,k,i)
+            enddo
+        enddo
+    enddo
+    close(prt_fuel_mv)
+
+    open(prt_fuel_mv,file='MSR_prec', action='write',status='replace')
+    do i = 1,8
+        do j = 1,n_core_axial
+            do k = 1,n_core_radial
+                MSR_prec(i,j,k,1) = avg(MSR_data(i,j,k,:))
+                MSR_prec(i,j,k,2) = std_m(MSR_data(i,j,k,:))
+            enddo
+        enddo
+        !write (prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') MSR_prec(i,:,1)
+        !write (prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') MSR_prec(i,:,2)
+    enddo
+    do i = 1,n_act
+        !print *, 'cycle',i,'1stgroup', MSR_prec(1,1:N_CORE_AXIAL,1,1)
+    enddo
+
+    do i = 1,8
+        do j = 1,n_core_radial
+            write(prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') MSR_prec(i,1:N_CORE_AXIAL,j,1)
+            write(prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') MSR_prec(i,1:N_CORE_AXIAL,j,2)
+        enddo
+    enddo
+    close(prt_fuel_mv)
+    deallocate(MSR_data, MSR_prec)
+end subroutine
 end program 

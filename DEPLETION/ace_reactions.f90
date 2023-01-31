@@ -662,6 +662,7 @@ subroutine fissionSite_CE (p, iso, micro_xs)
     integer :: id(3)
     logical :: delayed
 	real(8) :: pdf
+    real(8) :: trvl, lambda
 	
 	
 	delayed = .false. 
@@ -789,6 +790,29 @@ subroutine fissionSite_CE (p, iso, micro_xs)
         thread_bank(bank_idx)%G = iso
         thread_bank(bank_idx)%time = 0
 		
+        if(do_ifp) then
+        ! ADJOINT : pass particle's IFP related info. to bank
+        if(latent>1) thread_bank(bank_idx)%delayedarr(1:latent-1) = p%delayedarr(2:latent)
+        if(latent>1) thread_bank(bank_idx)%delayedlam(1:latent-1) = p%delayedlam(2:latent)
+        if(latent>1) thread_bank(bank_idx)%nlifearr(1:latent-1)   = p%nlifearr(2:latent)
+        thread_bank(bank_idx)%nlifearr(latent)    = p%trvltime
+        if(delayed) then
+            thread_bank(bank_idx)%delayedarr(latent) = iMT
+            thread_bank(bank_idx)%delayedlam(latent) = ace(iso) % prcr(iMT) % decay_const
+            thread_bank(bank_idx)%G   = iMT
+            if(do_fuel_mv) then
+                lambda = ace(iso)%prcr(iMT)%decay_const
+                thread_bank(bank_idx)%time= -log(rang())/lambda
+                call MSR_treatment(thread_bank(bank_idx)%xyz, thread_bank(bank_idx)%time)
+            endif
+        else !prompt
+            thread_bank(bank_idx)%delayedarr(latent) = 0
+            thread_bank(bank_idx)%delayedlam(latent) = 0
+        endif
+
+        endif
+        !print *, 'beta', getnudel(iso,p%E)/getnu(iso,p%E)
+        !if(icore==score) print *, p%trvltime, thread_bank(bank_idx)%nlifearr(1:latent)
 		!if (erg_out > 20) then 
 		!	print *, erg_out 
 		!	print *, p%E, iso, iMT, law
@@ -796,12 +820,46 @@ subroutine fissionSite_CE (p, iso, micro_xs)
 		!	print *, ace(iso)%TY(iMT)
 		!	print *, 'Emax ', ace(iso)%E(size( ace(iso)%E ))
 		!endif 
+
     enddo 
 
         
 end subroutine
 
 
+subroutine MSR_treatment(xyz, t_emit)
+    use variables, only: core_radius, core_height, fuel_speed, core_base, t_rc
+    implicit none
+    real(8), intent(inout) :: xyz(3)
+    real(8), intent(in)    :: t_emit
+    integer :: n_recirc
+    real(8) :: t_end, t_res
+    real(8) :: rn1, rn2
+    integer :: zidx
+
+    if(.not. do_fuel_mv) return
+    if(fuel_speed <= 0.d0) return
+    t_end   = (core_height-(xyz(3)-core_base)) / fuel_speed
+    n_recirc= max(0,floor((t_emit-t_end)/(t_rc + (core_height/fuel_speed))))
+    t_res   = t_emit - t_end - n_recirc * (t_rc + core_height/fuel_speed)
+
+    if(t_emit < t_end) then ! decays before hits top
+        xyz(3) = xyz(3) + fuel_speed * t_emit
+    elseif(t_res<=t_rc) then ! decays out of the core: exterminates
+        bank_idx = bank_idx - 1
+        !print *, 'DEAD', t_emit, t_end, t_res, t_rc
+        MSR_leak = MSR_leak + 1
+        !print *, MSR_leak
+    elseif(t_res>t_rc) then ! recirculate and decayed
+        rn1 = rang(); rn2 = rang()
+        xyz(1) = rn1 * core_radius * cos(2*pi*rn2)
+        xyz(2) = rn1 * core_radius * sin(2*pi*rn2)
+        xyz(3) = core_base + fuel_speed * (t_res-t_rc)
+        !print *, 'RECIRC', t_emit, t_end, t_res, t_rc, xyz(1:3)
+    else
+        bank_idx = bank_idx - 1
+    endif
+end subroutine
 
 ! ================================================== !
 !    fission_E() samples the fission neutron Energy. 

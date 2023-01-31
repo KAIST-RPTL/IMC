@@ -66,6 +66,7 @@ subroutine transport(p)
 	integer :: tet_prev, tet_face
     integer :: pt1, pt2, pt3
     real(8) :: tmp_power
+    real(8) :: speedn
 
 	
 	xyz = p%coord(1)%xyz
@@ -125,6 +126,7 @@ subroutine transport(p)
             macro_xs = getMacroXS(materials(p%material), p%E,p%kT,p%urn)
         endif
 	    d_collision = -log(rang())/macro_xs(1)
+        speedn = sqrt(2.d0*p%E*mevj/(m_u*m_n))*1.0d2
     endif 
     
     ! ===================================================
@@ -189,6 +191,7 @@ subroutine transport(p)
 		!endif 
 	endif
     distance = min(d_boundary, d_collision, d_mesh, d_gmsh)
+    p % trvltime = p % trvltime + distance / speedn 
     if(distance>TOOLONG) then
         print *, 'ESCAPED',distance,p%coord(1)%xyz(1:2),p%coord(1)%uvw(1:2)
         p%alive = .false.
@@ -245,6 +248,20 @@ subroutine transport(p)
             enddo
             !$omp atomic
             micro_flux(pt1) = micro_flux(pt1) + distance * p % wgt
+            endif
+        endif
+        if(do_ifp)then
+            ! ADJOINT related
+            ! Effective beta calc.
+            !$omp atomic
+            denom= denom + distance*p%wgt*macro_xs(4)
+            !$omp atomic
+            gen_numer = gen_numer + distance*p%wgt*p%nlifearr(1)*macro_xs(4)
+            if(p%delayedarr(1)>0) then
+                !$omp atomic
+                beta_numer(p%delayedarr(1)) = beta_numer(p%delayedarr(1)) + distance*p%wgt*macro_xs(4)
+                !$omp atomic
+                lam_denom(p%delayedarr(1))  = lam_denom(p%delayedarr(1)) + distance*p%wgt*macro_xs(4)/p%delayedlam(1)
             endif
         endif
     endif 
