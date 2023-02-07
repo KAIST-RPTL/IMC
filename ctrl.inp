@@ -1,0 +1,25 @@
+CARD A : Control_Card 
+	Energy_mode   			= 1
+	Nominal_Power			= 0.01  % MWth
+	nugrid					= 8192
+	
+	history_per_cycle		= 2E4
+	Number_inactive			= 100
+	Number_active			= 300
+
+	lib_path =
+/home/codes/serpent_data/sss_endf71.xsdata
+
+	ures = F
+	uegrid = T 8192
+    do_ifp = T
+    
+    fuel_speed_axial = 20.0
+    recirculation_time = 10.0
+    core_base   = 0.0 
+    core_height = 102.0
+    core_radius = 51.0
+    n_core_mesh = 1 102
+ENDA
+
+
