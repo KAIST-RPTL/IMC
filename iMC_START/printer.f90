@@ -409,10 +409,6 @@ subroutine CYCLE_TALLY_MSG(bat)
     if (perton) then
     write(*,*) 'PERTURBED AVG'
     do jj = nfm(2), 1, -1
-    write(46,1), (AVG(p_dep_dt_pert(1,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
-    end do
-    write(46,*)
-    do jj = nfm(2), 1, -1
     write(46,1), (AVG(p_dep_dt_pert(n_act,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
     end do
     write(46,*)
@@ -428,11 +424,6 @@ subroutine CYCLE_TALLY_MSG(bat)
     
     if (perton) then
     write(*,*) 'PERTURBED SD'
-    do jj = nfm(2), 1, -1
-    write(46,1), (STD_S(p_dep_dt_pert(1,1:n_pert,ii,jj,1)) &
-        /AVG(p_dep_dt_pert(1,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
-    end do
-    write(46,*)
     do jj = nfm(2), 1, -1
     write(46,1), (STD_S(p_dep_dt_pert(n_act,1:n_pert,ii,jj,1)) &
         /AVG(p_dep_dt_pert(n_act,1:n_pert,ii,jj,1)), ii = 1, nfm(1))

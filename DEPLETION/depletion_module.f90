@@ -1148,7 +1148,6 @@ module depletion_module
             do i = 1, nueg
                 if( ace(iso) % UEG % Egrid(i) > ace(iso) % NXS(3) ) then
                     flux(n) = flux(n) + sum(eflux(i:nueg))
-                    
                     exit
                 elseif( ace(iso) % UEG % Egrid(i) == 0) then
                     cycle
@@ -1771,7 +1770,7 @@ module depletion_module
                                 do i_rx = 1, 7
                                     if(RXMT(i_rx)==mt) then
                                         ogxs = mat % ogxs(iso, i_rx) * real_flux
-                                        if(ace(iso)%zaid==92235) write(*,'(A,A,I6, I3,E15.5,E15.5,E15.5)') 'BIAS ', trim(materials(imat)%mat_name), ace(iso)%zaid, mt, ogxs, ogxs1, (ogxs1-ogxs)/ogxs*1E2
+                                        if(ace(iso)%zaid==92235 .or. ace(iso)%zaid==92238) write(*,'(A,A,I6, I3,E15.5,E15.5,E15.5)') 'BIAS ', trim(materials(imat)%mat_name), ace(iso)%zaid, mt, ogxs, ogxs1, (ogxs1-ogxs)/ogxs*1E2
                                         exit
                                     endif
                                 enddo

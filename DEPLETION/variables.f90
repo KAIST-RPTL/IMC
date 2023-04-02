@@ -70,7 +70,7 @@ implicit none
     real(8) :: u238cap, u238flx 
 
     ! UNIONIZED GRID
-    logical :: do_ueg = .true.
+    logical :: do_ueg = .false.
 
     ! OGXS DIRECT TALLY
     logical :: do_rx_tally = .false.

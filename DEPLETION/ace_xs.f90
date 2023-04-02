@@ -629,6 +629,7 @@ subroutine setuegrid
             idx = idx + 1
         enddo
 22      unigrid(i) = idx - 1
+        if(icore==score) print *, 'hash', i, unigrid(i), Etmp
     enddo
 
     if(icore==score) print *, 'NUNI:',nuni,'UNIDEL:',unidel,Emin,Emax

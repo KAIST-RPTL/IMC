@@ -15,7 +15,7 @@ subroutine premc
     !use TALLY, only: p_MC, e_MC
     
     implicit none
-    integer :: iwork1, iwork2, mm
+    integer :: iwork1, iwork2, mm, i
     
     !===========================================================================
     !Read input geometry and cross section data
@@ -152,6 +152,13 @@ subroutine premc
     !===========================================================================
     !Draw geometry 
 	call draw_geometry()
+
+    ! TMP
+    !if(icore==score)then
+    !do i = 1,size(ace(1)%E) 
+    !write(*,'(I6, F17.7,F12.5,F12.5,F12.5)') ace(1)%zaid, ace(1)%E(i)*1E6, ace(1)%sigt(i), ace(1)%sigd(i), ace(1)%sigf(i)
+    !enddo
+    !endif
 	
 	
 end subroutine
