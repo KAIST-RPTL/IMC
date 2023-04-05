@@ -12,7 +12,7 @@ implicit none
 
 contains
 
-function getMacroXS (mat, erg,kT) result (macro_xs)
+function getMacroXS (mat, erg, kT, ratio) result (macro_xs)
     use CONSTANTS, only: K_B
     implicit none
     type(Material_CE), intent(in) :: mat

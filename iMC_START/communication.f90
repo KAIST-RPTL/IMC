@@ -1,11 +1,12 @@
 module communication
 use VARIABLES
+use TH_HEADER
 use mpi
 implicit none
-logical :: do_child = .false.   ! Existence of child process
 
 ! MPI parameters
 !integer :: max_proc     = 4 ! Maximum processes for Child
+integer :: child_process    ! CHILD PROCESS
 integer :: intercomm        ! Intercommunication
 integer :: c_icore          ! MPI rank for child
 integer :: c_ncore          ! MPI_number of cores of child
@@ -13,7 +14,7 @@ integer :: c_info           ! MPI info for child; input directory
 character(50) :: comm_child ! Command to run child
 
 integer, dimension(1) :: errcodes
-integer :: snd, rcv
+real(8) :: snd, rcv
 
 contains
 
@@ -28,23 +29,42 @@ character(len=50), dimension(2) :: arg
     arg(2) = " "
     c_info = MPI_INFO_NULL
     call MPI_COMM_SPAWN(comm_child, arg, 1, c_info, 0, MPI_COMM_SELF, intercomm, errcodes, ierr)
-    call SND_RCV_CHILD
-    write(*,*) 'DONE', intercomm
-    call MPI_COMM_RANK(intercomm, c_icore, ierr)
-    call MPI_COMM_SIZE(intercomm, c_ncore, ierr)
-    write(*,*) c_icore, c_ncore
-
+    call COMM_WITH_CHILD
 end subroutine
 
-subroutine SND_RCV_CHILD
-    snd = 12345
-    write(*,*) 'SENDING...', snd, intercomm, MPI_COMM_SELF
-    call MPI_SEND(snd, 1, MPI_INTEGER, 0, 0, intercomm, ierr)
-    !call MPI_COMM_JOIN(intercomm, ierr)
-    call MPI_RECV(rcv, 1, MPI_INTEGER, 0, 0, intercomm, MPI_STATUS_IGNORE, ierr)
+subroutine COMM_WITH_CHILD
+integer :: iz, idx
+    call MPI_SEND(nth, 3, MPI_INTEGER, 0, 0, intercomm, ierr)
+    call MPI_SEND(power_th, nth(1)*nth(2)*nth(3), MPI_REAL8, 0, 0, intercomm, ierr)
+    call MPI_RECV(t_comm_cool, (nth(1)+1)*(nth(2)+1)*(nth(3)+1), MPI_REAL8, 0, 0, intercomm, MPI_STATUS_IGNORE, ierr)
+    call MPI_RECV(rho_comm_cool, (nth(1)+1)*(nth(2)+1)*(nth(3)+1), MPI_REAL8, 0, 0, intercomm, MPI_STATUS_IGNORE, ierr)
 
-    write(*,*) 'RECEIVED', snd, rcv
+    write(*,*) 'CHANNEL_TEMPERATURE'
+    do iz = 1, nth(3)+1
+        write(*,'(I3, <(nth(1)+1)*(nth(2)+1)>E10.3)') iz, (t_comm_cool(iz, idx), idx = 1, (nth(1)+1)*(nth(2)+1))
+    enddo
+
+    write(*,*) 'CHANNEL_DENSITY'
+    do iz = 1, nth(3)+1
+        write(*,'(I3, <(nth(1)+1)*(nth(2)+1)>E10.3)') iz, (rho_comm_cool(iz, idx), idx = 1, (nth(1)+1)*(nth(2)+1))
+    enddo
 end subroutine
 
+subroutine END_CHILD(comm)
+    integer :: comm
+    call MPI_COMM_FREE(comm, ierr)
+end subroutine
+
+subroutine TH_ASSIGN_GRID
+    t_bulk = t_comm_cool
+    rho_cool = rho_comm_cool
+    t_fuel = 0d0
+    t_clad = 0d0 ! TODO
+
+subroutine INPUT_START
+implicit none
+
+
+end subroutine
 
 end module communication

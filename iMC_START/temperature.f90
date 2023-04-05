@@ -83,7 +83,10 @@ subroutine TH_INSIDE(xyz,j_xyz,inside_th)
     integer, intent(out):: j_xyz(3)
     logical:: inside_th
     integer:: ij
+        
 
+    ! TODO: SEPARATE BULK GRID from FUEL GRID
+    ! TODO: IRREGULAR RECTANGULAR MESH
     inside_th = .true.
     j_xyz  = TH_ID(xyz(:))
     do ij = 1, 3
@@ -104,6 +107,62 @@ function TH_ID(xyz) result(id)
 
     id(:) = floor((xyz(:)-th0(:))/dth(:))+1
 
+end function
+
+
+subroutine START_FUEL(xyz, j_xyz, inside_th)
+    real(8), intent(in)  :: xyz(3)
+    integer, intent(out) :: j_xyz(3)
+    integer :: ii
+    logical :: inside_th
+
+    inside_th = .true.
+    j_xyz     = START_FUEL_ID(xyz)
+    do ii = 1,3
+        if ( j_xyz(ii) < 1 .or. j_xyz(ii) > nth(ii)) inside_th = .false.
+    enddo
+end subroutine
+
+subroutine START_COOL(xyz, j_xyz, inside_th)
+    real(8), intent(in)  :: xyz(3)
+    integer, intent(out) :: j_xyz(3)
+    integer :: ii
+    logical :: inside_th
+
+    inside_th = .true.
+    j_xyz     = START_COOL_ID(xyz)
+    do ii = 1,3
+        if ( j_xyz(ii) < 1 .or. j_xyz(ii) > nth(ii)) inside_th = .false.
+    enddo
+end subroutine
+
+function START_FUEL_ID(xyz) result(id)
+    integer :: id(3)
+    real(8), intent(in) :: xyz(:)
+    integer :: ii
+
+    id(:) = floor((xyz-th0)/dth)+1
+    
+    do ii = 1, 3
+        if((id(ii) < 1) .and. (xyz(ii)-th0(ii)>=-margin(ii))) then
+            id(ii)=1
+        elseif((id(ii) > nth(ii)) .and. (xyz(ii)-th1(ii)<= margin(ii))) then
+            id(ii)=nth(ii)
+        endif
+    enddo
+end function
+
+function START_COOL_ID(xyz) result(id)
+    integer :: id(3)
+    real(8), intent(in) :: xyz(:)
+    integer :: ii
+
+    id(:) = floor((xyz-th0+0.5d0*dth)/dth)+1
+    
+    do ii = 1,3
+        if((id(ii) < 0) .and. (xyz(ii)-th0(ii)>=-margin(ii))) id(ii)=1
+        if((id(ii) > nth(ii)+1) .and. (xyz(ii)-th1(ii)<= margin(ii))) id(ii)=nth(ii)+1
+    enddo
 end function
 
 ! =============================================================================

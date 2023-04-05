@@ -20,6 +20,8 @@ module material_header
         ! Does this material contain fissionable nuclides? Is it depletable?
         logical :: fissionable = .false.
         logical :: depletable = .false.
+        logical :: duplicable = .false.         ! Utilized for Depletion Zone generation
+        integer :: geom_count = 0
         real(8) :: flux = 0.0d0
         real(8) :: flux0                       ! data stoage for pre-cor
         real(8) :: flux1                       ! data stoage for pre-cor

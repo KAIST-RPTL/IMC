@@ -49,6 +49,7 @@ subroutine collision_CE (p)
     !===============================================
     ! Sample a target isotope in the mixture
     call WHAT_TEMPERATURE(p)
+    call WHAT_DENSITY_RATIO(p) 
     macro_xs = getMacroXS(materials(p%material), p%E,p%kT)
     rn = rang(); temp = 0; n_iso = materials(p%material)%n_iso
     do i = 1, n_iso
@@ -135,7 +136,7 @@ end subroutine
 ! =============================================================================
 subroutine WHAT_TEMPERATURE(p)
     use TH_HEADER, only: t_fuel, t_clad, t_bulk, th_on
-    use TEMPERATURE, only: TH_INSIDE
+    use TEMPERATURE, only: TH_INSIDE, START_FUEL, START_COOL
     use CONSTANTS, only: k_b
     implicit none
     type(Particle), intent(inout):: p
@@ -147,6 +148,18 @@ subroutine WHAT_TEMPERATURE(p)
         call TH_INSIDE(p%coord(1)%xyz(:),ixyz,inside)
     end if
 
+    if ( do_child ) then ! START COUPLING
+        if( materials(p%material)%mat_type == 1 ) then
+            call START_FUEL(p%coord(1)%xyz(:), ixyz, inside)
+
+        elseif( materials(p%material)%mat_type == 2 ) then
+            call START_FUEL(p%coord(1)%xyz(:), ixyz, inside)
+        
+        elseif( materials(p%material)%mat_type == 3 ) then
+            call START_COOL(p%coord(1)%xyz(:), ixyz, inside)
+
+        endif
+    endif
     if ( inside ) then
         select case(materials(p%material)%mat_type)
         case(1); p%kT = t_fuel(ixyz(1),ixyz(2),ixyz(3))
@@ -159,6 +172,27 @@ subroutine WHAT_TEMPERATURE(p)
 
 end subroutine
 
+double precision function WHAT_DENSITY_RATIO(p)
+    use TH_HEADER, only: t_bulk
+    use TEMPERATURE, only: START_COOL
+    implicit none
+    type(Particle), intent(in) :: p
+    integer :: ixyz(3)
+    logical :: inside
+    if(.not. do_child) then
+        WHAT_DENSITY_RATIO = 1d0; return
+    else
+        inside = .false.
+        if(materials(p%material)%mat_type==3) then
+            call START_COOL(p%coord(1)%xyz(:), ixyz, inside)
+            if(inside) WHAT_DENSITY_RATIO = &
+                rho_bulk(ixyz(1), ixyz(2), ixyz(3))/rho_init
+        endif
+    endif
+end function
+
+    
+end subroutine
 
 ! =============================================================================
 ! SAB_CE

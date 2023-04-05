@@ -43,6 +43,7 @@ implicit none
 	logical :: do_PCQS = .false. 
 	logical :: do_DMC = .false. 
 	real(8) :: k_steady = 1.0d0 
+    logical :: do_child = .false.   ! Existence of child process
 
 
 

@@ -1,7 +1,7 @@
 program main
 use CONSTANTS, only: prt_dynamic, prt_tet_vrc, prt_prec, prt_delayed, prt_keff
 use ENTROPY,    only : mprupon, bprupon, entrp0, ENTRP_INIT2
-use TH_HEADER, only: th_on
+use TH_HEADER
 use simulation 
 use DEPLETION_MODULE, only: nstep_burnup, MPI_REDUCE_BURNUP, INIT_BURNUP, &
                         DEPLETION
@@ -41,10 +41,22 @@ call MPI_COMM_SIZE(core,ncore,ierr)
 
 !> PreMC : Read input / Initialize / Set Random Seed etc. ========================
 call premc
-if(icore==score .and. do_child) then
-    call INIT_CHILD
-    !call SND_RCV_CHILD
-endif
+if(do_child) then
+
+    call read_coupling
+
+    if(icore==score) call INIT_CHILD
+
+    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+    
+    call MPI_BCAST(t_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(rho_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
+    print *, 'TESTING', icore, t_comm_cool(1,1), t_comm_cool(nth(3)+1,1) , MPI_COMM_WORLD
+
+    call TH_ASSIGN_GRID
+
+end if
+
 if ( icore == score ) call TIME_MEASURE
 
 !> Stead-state Simlulation Start =================================================
@@ -172,6 +184,19 @@ TH : do
         !close(prt_wgt)
     endif 
     
+    if(icore==score) write(*,*) 'FINALIZE; TESTING FOR TH' 
+
+    if( do_child) then
+        if(icore==score) call INIT_CHILD
+    endif
+    
+    call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+    
+    call MPI_BCAST(t_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(rho_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
+    print *, 'TESTING', icore, t_comm_cool(1,1), t_comm_cool(nth(3)+1,1) , MPI_COMM_WORLD
+
+    if(do_child .and. icore==score) call END_CHILD(intercomm)
     
     !> PCQS Transient MC =============================================================================
     if (.not. do_PCQS) goto 99
@@ -242,7 +267,6 @@ TH : do
     !> End of PCQS 
     ! ===============================================================================================
     
-    
 99  if (do_gmsh_vrc) close(prt_tet_vrc)
 
     call CYCLE_TALLY_MSG(curr_bat)
@@ -266,6 +290,8 @@ TH : do
     else
         exit
     end if
+
+
 
 end do TH
 
@@ -319,6 +345,8 @@ inquire(unit=prt_powr, opened=isopened)
 if ( isopened ) close(prt_powr)
 close(prt_keff)
 
+print *, 'LINE328'
+
 if ( tally_switch > 0 .and. icore == score .and. .not. do_transient) then
     nsize = size(TallyFlux)
     allocate(tally_val(1:nsize, 1:n_act))
@@ -349,6 +377,7 @@ if ( tally_switch > 0 .and. icore == score .and. .not. do_transient) then
 endif 
 
 
+print *, 'LINE360'
 
 if ( tally_switch > 0 .and. icore == score .and. do_transient) then
 
@@ -379,8 +408,10 @@ if ( tally_switch > 0 .and. icore == score .and. do_transient) then
     deallocate(tally_val)
     
 endif 
-
+call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+print *, 'LINE392', icore
 call MPI_FINALIZE(ierr)
+print *, 'WHY?'
 
 contains
 
