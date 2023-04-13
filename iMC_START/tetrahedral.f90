@@ -87,7 +87,7 @@ contains
             !if (p%last_material /= p%material)  p%macro_xs = getMacroXS(materials(p%material), p%E)
             !p%macro_xs = getMacroXS(materials(p%material), p%E)
             !macro_xs = p%macro_xs
-            macro_xs = getMacroXS(materials(p%material), p%E, p%kT)
+            macro_xs = getMacroXS(materials(p%material), p%E, p%kT, 1d0)
             
             ! Leakage free collision distance estimator 
             if (bc == 1) then 

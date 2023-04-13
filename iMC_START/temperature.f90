@@ -271,6 +271,38 @@ end subroutine
 ! =============================================================================
 ! 
 ! =============================================================================
+subroutine POWER_NORM_START
+    use FMFD_HEADER, only: FSD_FM, fmfdon
+    implicit none
+
+    ! normalization
+    pp = pp / sum(pp)
+    pp = pp * Nominal_Power*1D6/dth(3) * 1D2 ! [W/m]
+
+end subroutine
+
+! =============================================================================
+! 
+! =============================================================================
+subroutine POWER_IMC_TO_START
+    implicit none
+    integer :: ix, iy, iz
+
+    power_th = 0d0
+    do iz = 1, nth(3)
+    do iy = 1, nth(2)
+    do ix = 1, nth(1)
+    power_th(iz, (ix+(iy-1)*nth(1))) = pp(ix, iy, iz)
+    enddo
+    enddo
+    enddo
+
+
+end subroutine
+
+! =============================================================================
+! 
+! =============================================================================
 subroutine T_BULK_CALC
     implicit none
     real(8):: h_in
@@ -472,11 +504,11 @@ end subroutine
 ! =============================================================================
 ! 
 ! =============================================================================
-subroutine TEMP_CONVERGE
+subroutine TEMP_CONVERGE(err)
     real(8):: err
     
     if ( icore /= score ) return
-
+    print *, t_fuel
     err = norm2(t_fuel-t_save)/norm2(t_fuel)
     t_save = t_fuel
 

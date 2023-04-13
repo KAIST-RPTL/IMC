@@ -15,7 +15,7 @@ module tracking
                                   MC_TRK, TALLY_SURF, MC_TRK_S, meshon_tet_vrc, mesh_power
     use ace_xs,             only: getMacroXS
     use material_header,    only: materials
-    use ace_reactions,      only: collision_CE
+    use ace_reactions,      only: collision_CE, WHAT_DENSITY_RATIO
     use FMFD,               only: FMFD_TRK, FMFD_COL, FMFD_SURF, fmfdon, &
                                   DTMCBU, DTMC_BU_COL, DTMC_BU_TRK, cede
     use DEPLETION_MODULE,   only: tally_burnup, istep_burnup
@@ -59,7 +59,7 @@ subroutine transport(p)
     integer :: i_xyz(3), idx_xyz, j_xyz(3)
     logical :: inside_mesh
     integer :: income_mesh
-!    logical :: inside_th
+    logical :: inside_th
     real(8) :: ddiff
     logical :: fm_crossed
     real(8) :: d_s, val 
@@ -69,6 +69,7 @@ subroutine transport(p)
     integer :: tet_prev, tet_face
     real(8) :: t_fm1, t_fm2
     integer:: i_last
+    real(8) :: rho_ratio
     
     !found_cell = .false.   ***
     if (p%n_coord == 1) call find_cell(p, found_cell, i_cell)
@@ -176,7 +177,8 @@ subroutine transport(p)
 !        macro_xs(5) = XS_MG(p%material)%sig_fis(p%g)
 !        d_collision = -log(rang())/macro_xs(1)
 !    elseif (E_mode == 1) then 
-        macro_xs = getMacroXS(materials(p%material), p%E,p%kT)
+        rho_ratio = WHAT_DENSITY_RATIO(p)
+        macro_xs = getMacroXS(materials(p%material), p%E,p%kT,rho_ratio)
         
         !if (d_s == d_boundary ) then 
         !    val = 1-exp(-macro_xs(1)*d_s)
@@ -370,10 +372,11 @@ subroutine transport(p)
         if ( DTMCBU .and. curr_cyc > acc_skip ) &
         call DTMC_BU_COL(i_xyz,cells(i_cell)%dtmc,p%wgt/macro_xs(1),macro_xs(5))
         end if
-!        if ( th_on .and. .not. fmfdon ) then
-!            call TH_INSIDE(p%coord(1)%xyz(:),j_xyz(:),inside_th)
-!            if ( inside_th ) call TH_COL(p%wgt,macro_xs(1),macro_xs(4),j_xyz(:))
-!        end if
+        if ( (th_on .or. do_child) .and. .not. fmfdon ) then
+            if(th_on) call TH_INSIDE(p%coord(1)%xyz(:),j_xyz(:),inside_th)
+            if(do_child) call TH_INSIDE(p%coord(1)%xyz, j_xyz, inside_th)
+            if ( inside_th ) call TH_COL(p%wgt,macro_xs(1),macro_xs(4),j_xyz(:))
+        end if
 
         if (E_mode == 0) then 
             call collision_MG(p)
@@ -547,7 +550,7 @@ subroutine transport_DT(p)
         n_mat = size( materials ) 
         allocate(macro_tot(n_mat))
         do i = 1, n_mat 
-            macro_xs = getMacroXS(materials(i), p%E,p%kT)
+            macro_xs = getMacroXS(materials(i), p%E,p%kT,1d0)
             macro_tot(i) = macro_xs(1) 
         enddo 
     endif 
@@ -574,7 +577,7 @@ subroutine transport_DT(p)
         if (E_mode == 0) then 
             macro_xs(1) = (sum(XS_MG(p%material)%sig_scat(p%g,:)) + XS_MG(p%material)%sig_abs(p%g))
         elseif (E_mode == 1) then 
-            macro_xs = getMacroXS(materials(p%material), p%E,p%kT)
+            macro_xs = getMacroXS(materials(p%material), p%E,p%kT,1d0)
         endif 
         
         ! Reject? 
@@ -639,7 +642,7 @@ subroutine transport_VRC(p)
         macro_xs(4) = XS_MG(p%material)%sig_fis(p%g)*XS_MG(p%material)%nu(p%g)
         
     elseif (E_mode == 1) then 
-        macro_xs = getMacroXS(materials(p%material), p%E,p%kT)
+        macro_xs = getMacroXS(materials(p%material), p%E,p%kT,1d0)
         d_collision = -log(rang())/macro_xs(1)
     endif 
             
@@ -768,7 +771,7 @@ subroutine transport_dynamic(p)
         speedn = MGD(p%material)%vel(p%g)*1.0d-2
         
     elseif (E_mode == 1) then 
-        macro_xs = getMacroXS(materials(p%material), p%E, p%kT)
+        macro_xs = getMacroXS(materials(p%material), p%E, p%kT,1d0)
         speedn = sqrt(2.0d0*p%E*mevj/(m_u*m_n))   ! m/s
     endif
     
@@ -1068,7 +1071,7 @@ subroutine transport_pcqs(p)
         speedn = MGD(p%material)%vel(p%g)
         
     elseif (E_mode == 1) then 
-        macro_xs = getMacroXS(materials(p%material), p%E, p%kT)
+        macro_xs = getMacroXS(materials(p%material), p%E, p%kT,1d0)
         speedn = sqrt(2.0d0*p%E*mevj/(m_u*m_n))*1.0d2   ! cm/s
     endif
     
@@ -1307,7 +1310,7 @@ subroutine transport_pcqs_init(p)
         macro_xs(4) = XS_MG(p%material)%sig_fis(p%g)*XS_MG(p%material)%nu(p%g)
         speedn = MGD(p%material)%vel(p%g)
     elseif (E_mode == 1) then 
-        macro_xs = getMacroXS(materials(p%material), p%E, p%kT)
+        macro_xs = getMacroXS(materials(p%material), p%E, p%kT,1d0)
         speedn = sqrt(2.0d0*p%E*mevj/(m_u*m_n))*1.0d2   ! cm/s
     endif
     

@@ -251,7 +251,7 @@ subroutine simulate_history(bat,cyc)
     endif
         
         !if(icore == score) print *, curr_cyc, isize, n_col	
-    if(icore==score .and. curr_cyc>n_inact) then 
+    if(do_ifp .and. icore==score .and. curr_cyc>n_inact) then 
         betad(:,curr_cyc-n_inact) = 0.d0
         isize = size(fission_bank)
         totwgt = 0.d0

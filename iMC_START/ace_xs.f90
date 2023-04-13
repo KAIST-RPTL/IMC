@@ -18,6 +18,7 @@ function getMacroXS (mat, erg, kT, ratio) result (macro_xs)
     type(Material_CE), intent(in) :: mat
     real(8), intent(in) :: erg
     real(8), intent(in) :: kT
+    real(8), intent(in) :: ratio
     real(8) :: macro_xs(5)
     
     integer :: i 
@@ -45,7 +46,7 @@ function getMacroXS (mat, erg, kT, ratio) result (macro_xs)
         ! S(a,b) treatment
         isab = ace(iso_)%sab_iso    ! isotope number for S(a,b)
         if ( mat%sab .and. isab /= 0 .and. erg < 4D-6 ) then
-            call GET_SAB_MAC(mat%numden(i_iso),iso_,isab,erg,macro_t,macro_a)
+            call GET_SAB_MAC(ratio*mat%numden(i_iso),iso_,isab,erg,macro_t,macro_a)
             cycle
         end if
 
@@ -53,7 +54,7 @@ function getMacroXS (mat, erg, kT, ratio) result (macro_xs)
         ! On-the-fly Doppler broadening
         dtemp = abs(ace(iso_)%temp-kT)
         if ( mat%db .and. ( dtemp > K_B .and. erg < 1d0 ) ) then
-            call GET_OTF_DB_MAC(mat%numden(i_iso),i_iso,iso_,erg,xs,dtemp)
+            call GET_OTF_DB_MAC(ratio*mat%numden(i_iso),i_iso,iso_,erg,xs,dtemp)
             macro_t   = macro_t   + xs(1)
             macro_a   = macro_a   + xs(2)
             macro_f   = macro_f   + xs(3)
@@ -86,11 +87,11 @@ function getMacroXS (mat, erg, kT, ratio) result (macro_xs)
         !micro_el = ace(iso_)%sigel(ierg_) + ipfac*(ace(iso_)%sigel(ierg_+1)-ace(iso_)%sigel(ierg_))
         
         !>Summation for macroscopic cross sections
-        macro_t   = macro_t   + mat%numden(i_iso) * micro_t   * barn
-        macro_a   = macro_a   + mat%numden(i_iso) * micro_a   * barn
-        macro_f   = macro_f   + mat%numden(i_iso) * micro_f   * barn
-        macro_nuf = macro_nuf + mat%numden(i_iso) * micro_nuf * barn
-        macro_qf  = macro_qf  + mat%numden(i_iso) * micro_f   * barn * ace(iso_)%qval
+        macro_t   = macro_t   + ratio * mat%numden(i_iso) * micro_t   * barn
+        macro_a   = macro_a   + ratio * mat%numden(i_iso) * micro_a   * barn
+        macro_f   = macro_f   + ratio * mat%numden(i_iso) * micro_f   * barn
+        macro_nuf = macro_nuf + ratio * mat%numden(i_iso) * micro_nuf * barn
+        macro_qf  = macro_qf  + ratio * mat%numden(i_iso) * micro_f   * barn * ace(iso_)%qval
 
         !> Macro_xs of Sig_abs is only used for FMFD, (n,xn) XS is subtracted.
         do i = 1, ace(iso_)%NXS(5) !> through the reaction types...
@@ -98,7 +99,7 @@ function getMacroXS (mat, erg, kT, ratio) result (macro_xs)
             if (pt1 > 1 .and. pt1 < 5) then 
                 micro_xn   = ace(iso_)%sig_MT(i)%cx(ierg_) & 
                             + ipfac*(ace(iso_)%sig_MT(i)%cx(ierg_+1) - ace(iso_)%sig_MT(i)%cx(ierg_))
-                xn_xs(pt1) = xn_xs(pt1) + mat%numden(i_iso) * micro_xn * barn
+                xn_xs(pt1) = xn_xs(pt1) + ratio * mat%numden(i_iso) * micro_xn * barn
             endif
         enddo
 

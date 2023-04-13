@@ -52,7 +52,7 @@ subroutine simulate_history(bat,cyc)
     integer:: bank_all, dsize, bank_size0
     integer:: i_bin(4)
     integer:: icore0(1), icore1(1)
-    real(8) :: t_fm1, t_fm2
+    real(8) :: t_fm1, t_fm2, err
 
     if (allocated(fission_bank)) call move_alloc(fission_bank, source_bank)
     if ( entrpon ) call SHENTROPY(source_bank,cyc) ! need to be revised
@@ -137,7 +137,7 @@ subroutine simulate_history(bat,cyc)
         !> normalize thread tally parameters (can be done outside critical)
         if ( tallyon .and. .not. fmfdon ) call NORM_TALLY(bat,cyc)
         if ( fmfdon ) call NORM_FMFD(cyc)
-        if ( th_on .and. .not. fmfdon ) call NORM_TH()
+        if ( (do_child .or. th_on) .and. .not. fmfdon ) call NORM_TH()
         
       !$omp end critical
       
@@ -156,7 +156,7 @@ subroutine simulate_history(bat,cyc)
     !> Process tallied FMFD parameters ==========================================
     if ( tallyon .and. .not. fmfdon ) call PROCESS_TALLY(bat,cyc)
     if ( fmfdon .and. cyc > n_skip ) call PROCESS_FMFD(bat,cyc)
-    if ( th_on .and. .not. fmfdon ) call PROCESS_TH()
+    if ( (do_child .or. th_on) .and. .not. fmfdon ) call PROCESS_TH()
     
     !> Gather keff from the slave nodes =========================================
     call MPI_REDUCE(k_col,rcv_buf,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
@@ -338,7 +338,7 @@ subroutine simulate_history(bat,cyc)
         call TEMP_SOLVE
         call TEMP_DISTRIBUTE
     end if
-    if ( th_on .and. cyc >= n_act  ) call TEMP_CONVERGE
+    if ( th_on .and. cyc >= n_act  ) call TEMP_CONVERGE(err)
 
 
     !> Inline Equilibrium Xe-135 
@@ -1229,6 +1229,7 @@ subroutine bank_initialize(this)
                 
             else 
                 if ( fmfdon ) then
+                print *, 'FMFD INIT'
                 search_CMFD: do while ( found == .false. ) 
                     do j0 = 1, 3
                         this(i0) % xyz(j0) = rang()*(max(j0)-min(j0)) + min(j0)
@@ -1240,6 +1241,8 @@ subroutine bank_initialize(this)
                     !if ( id(1) == 0 ) print*, OUT_OF_ZZ(id(1),id(2))
                     if ( .not. OUT_OF_ZZ(id(1),id(2)) &
                         .and. id(1) > 0 .and. id(1) <= ncm(1) ) exit
+                    else ! NO ZIGZAG EXIST
+                        exit
                     end if
                     
                 enddo search_CMFD

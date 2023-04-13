@@ -10,7 +10,7 @@ subroutine premc
     use ENTROPY
     use DEPLETION_MODULE
     use transient, only: set_transient
-    use TH_HEADER, only: th_on
+    use TH_HEADER, only: th_on, th_iter
     use TEMPERATURE, only: TH_INITIAL
     use TALLY, only: SET_MC_TALLY
     use SIMULATION_HEADER, only: source_read
@@ -96,6 +96,9 @@ subroutine premc
     call para_range2(1,ngen,ncore,icore,bank_size)
     allocate(source_bank(bank_size))
     call bank_initialize(source_bank)
+
+    if(icore==score) write(*,*) '  SOURCE INITIALIZED'
+
     call MPI_banktype()
     call MPI_precbanktype()
 
@@ -110,5 +113,8 @@ subroutine premc
     !===========================================================================
     !Draw geometry
     call draw_geometry()
+
+    ! START COUPLING INIT
+    if(do_child .and. th_iter == 0) call read_coupling
 
 end subroutine

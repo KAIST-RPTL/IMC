@@ -7,7 +7,7 @@ use DEPLETION_MODULE, only: nstep_burnup, MPI_REDUCE_BURNUP, INIT_BURNUP, &
                         DEPLETION
 use mpi
 use transient
-use TEMPERATURE, only: TEMP_DISTRIBUTE
+use TEMPERATURE, only: TEMP_DISTRIBUTE, POWER_NORM_START, POWER_IMC_TO_START
 use TALLY, only: k_eff, TallyFlux
 use STATISTICS
 use PRINTER
@@ -29,6 +29,8 @@ real(8), allocatable :: ttemp(:,:,:)
 character(100) :: filename
 real(8) :: kavg, kstd
 real(8) :: time1, time2, time3, time4
+real(8) :: err
+integer :: ix, iy, iz
 
 !> Preparation for parallelization ===============================================
 !call omp_set_num_threads(13)
@@ -42,16 +44,12 @@ call MPI_COMM_SIZE(core,ncore,ierr)
 !> PreMC : Read input / Initialize / Set Random Seed etc. ========================
 call premc
 if(do_child) then
-
-    call read_coupling
-
     if(icore==score) call INIT_CHILD
 
     call MPI_BARRIER(MPI_COMM_WORLD, ierr)
     
     call MPI_BCAST(t_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
     call MPI_BCAST(rho_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
-    print *, 'TESTING', icore, t_comm_cool(1,1), t_comm_cool(nth(3)+1,1) , MPI_COMM_WORLD
 
     call TH_ASSIGN_GRID
 
@@ -184,8 +182,6 @@ TH : do
         !close(prt_wgt)
     endif 
     
-    if(icore==score) write(*,*) 'FINALIZE; TESTING FOR TH' 
-
     if( do_child) then
         if(icore==score) call INIT_CHILD
     endif
@@ -194,7 +190,6 @@ TH : do
     
     call MPI_BCAST(t_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
     call MPI_BCAST(rho_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
-    print *, 'TESTING', icore, t_comm_cool(1,1), t_comm_cool(nth(3)+1,1) , MPI_COMM_WORLD
 
     if(do_child .and. icore==score) call END_CHILD(intercomm)
     
@@ -284,9 +279,44 @@ TH : do
         call DET_POWER(ttemp(:,:,:))
         call TEMP_SOLVE
         call TEMP_DISTRIBUTE
-        call TEMP_CONVERGE
+        call TEMP_CONVERGE(err)
         deallocate(ttemp)
         end if
+
+    elseif(do_child .and. th_iter < th_iter_max) then !START OPTION
+        th_iter = th_iter + 1
+        
+        t_save  = t_fuel
+        ! ASSIGN POWER
+        call TEMP_CONVERGE(err)
+
+        call MPI_BCAST(err, 1, MPI_REAL8, score, MPI_COMM_WORLD, ierr)
+        if(icore==score) print *, 'ERROR', th_iter, err
+        if(err < th_cvg_crit) exit TH
+        
+        call POWER_NORM_START
+        if(icore==score) then
+            do iz = 1, nth(3)
+                print *, 'POWERZ', iz, th_iter
+                do iy = 1, nth(2)
+                    write(*,'(<nth(1)>F10.3)') (pp(ix, iy, iz), ix = 1,nth(1))
+                enddo
+            enddo
+        endif
+        call POWER_IMC_TO_START
+
+        pp = 0d0 ; pp_thread = 0d0
+    
+
+        if(icore==score) call INIT_CHILD
+    
+        call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+        
+        call MPI_BCAST(t_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
+        call MPI_BCAST(rho_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
+    
+        call TH_ASSIGN_GRID
+
     else
         exit
     end if
@@ -345,7 +375,6 @@ inquire(unit=prt_powr, opened=isopened)
 if ( isopened ) close(prt_powr)
 close(prt_keff)
 
-print *, 'LINE328'
 
 if ( tally_switch > 0 .and. icore == score .and. .not. do_transient) then
     nsize = size(TallyFlux)
@@ -376,9 +405,6 @@ if ( tally_switch > 0 .and. icore == score .and. .not. do_transient) then
     deallocate(tally_val)
 endif 
 
-
-print *, 'LINE360'
-
 if ( tally_switch > 0 .and. icore == score .and. do_transient) then
 
 
@@ -408,10 +434,12 @@ if ( tally_switch > 0 .and. icore == score .and. do_transient) then
     deallocate(tally_val)
     
 endif 
-call MPI_BARRIER(MPI_COMM_WORLD, ierr)
-print *, 'LINE392', icore
+
+call MPI_BCAST(err, 1, MPI_REAL8, score, MPI_COMM_WORLD, ierr)
+
+print *, 'WTF...', icore
+
 call MPI_FINALIZE(ierr)
-print *, 'WHY?'
 
 contains
 

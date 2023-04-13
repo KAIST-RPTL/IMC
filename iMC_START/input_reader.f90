@@ -626,6 +626,7 @@ subroutine read_lat (Latobj, args, nargs)
 
     if (nargs /= 12) then
         write (*,'(a,i7,a)') "geom.inp (Line ",curr_line ,") Wrong lattice parameters"
+        print *, nargs, args
         stop
     endif
 
@@ -1312,6 +1313,7 @@ end subroutine READ_CTRL
                 a_fm(6) = a_fm(5)
                 v_fm    = dfm(1)*dfm(2)*dfm(3)
                 n_nodes = nfm(1)*nfm(2)*nfm(3)
+                print *, fm0(:), fm1(:), dfm(:)
 
             case("MESH_GRID_TET_VRC")
                 do_gmsh_vrc = .true.
@@ -1527,7 +1529,6 @@ end subroutine READ_CTRL
                 backspace(File_Number)
                 read(File_Number, *, iostat=File_Error) Char_Temp, Equal, do_child
                 if(Equal/="=") call Card_Error(Card_Type, Char_Temp)
-                call read_coupling
             end select Card_A_Inp
             if (Char_Temp=="ENDA") Exit Read_Card_A
         end do Read_Card_A
@@ -2617,14 +2618,17 @@ end function
 
     subroutine read_coupling
         use TH_HEADER
+        use TEMPERATURE, only: POWER_NORM_START, POWER_IMC_TO_START
+        use constants
         implicit none
         integer :: File_Error
         integer :: i, j, k, ix, iy, ierr
-        integer :: n_rod
         character(30) :: Char_Temp, Char_Temp1, Equal
 
+        if(icore==score) print *, 'READING START.inp'
         filename = trim(directory)//'START.inp'
         open(rd_coup, file=trim(filename), action="read", status="old")
+        ierr = 0
         do while(ierr==0)
         read(rd_coup, *, iostat=ierr) Char_Temp
         call Small_to_Capital(Char_Temp)
@@ -2632,6 +2636,14 @@ end function
             case("COMMAND")
                 backspace(rd_coup)
                 read(rd_coup, *, iostat=File_Error) Char_Temp, Equal, comm_child
+            
+            case("MAXITER")
+                backspace(rd_coup)
+                read(rd_coup, *, iostat=File_Error) Char_Temp, Equal, th_iter_max
+
+            case("CRITERION")
+                backspace(rd_coup)
+                read(rd_coup, *, iostat=File_Error) Char_Temp, Equal, th_cvg_crit
 
             case("FMFD") ! Option to take grid from FMFD
                 backspace(rd_coup)
@@ -2642,6 +2654,8 @@ end function
                 endif    
                 ! ALLOCATE for RADIUS/THICKNESS of PIN
                 allocate(rad_th(nth(1), nth(2))); rad_th = 0d0
+
+                allocate(fuel_th(nth(1), nth(2))); fuel_th = 0d0
                 allocate(cld_th(nth(1), nth(2))); cld_th = 0d0
                 allocate(gap_th(nth(1), nth(2))); gap_th = 0d0
             case("GRID")
@@ -2656,19 +2670,20 @@ end function
 
                 ! ALLOCATE for RADIUS/THICKNESS of PIN
                 allocate(rad_th(nth(1), nth(2))); rad_th = 0d0
+                allocate(fuel_th(nth(1),nth(2))); fuel_th= 0d0
                 allocate(cld_th(nth(1), nth(2))); cld_th = 0d0
                 allocate(gap_th(nth(1), nth(2))); gap_th = 0d0
-            case("ROD")
-                do iy = nth(2)-1, 1, -1
-                    read(rd_coup,*,iostat=File_Error) (rad_th(ix, iy), ix = 1, nth(1)-1)
+            case("FUEL")
+                do iy = nth(2), 1, -1
+                    read(rd_coup,*,iostat=File_Error) (fuel_th(ix, iy), ix = 1, nth(1))
                 enddo
             case("CLAD")
-                do iy = nth(2)-1, 1, -1
-                    read(rd_coup,*,iostat=File_Error) (cld_th(ix, iy), ix = 1, nth(1)-1)
+                do iy = nth(2), 1, -1
+                    read(rd_coup,*,iostat=File_Error) (cld_th(ix, iy), ix = 1, nth(1))
                 enddo
             case("GAP")
-                do iy = nth(2)-1, 1, -1
-                    read(rd_coup,*,iostat=File_Error) (gap_th(ix, iy), ix = 1, nth(1)-1)
+                do iy = nth(2), 1, -1
+                    read(rd_coup,*,iostat=File_Error) (gap_th(ix, iy), ix = 1, nth(1))
                 enddo
             case("TEMPERATURE_INLET")
                 backspace(rd_coup)
@@ -2686,18 +2701,32 @@ end function
                 backspace(rd_coup)
                 read(rd_coup, *, iostat=File_Error) Char_Temp, Equal, rho_init
 
+            case("MASS_FLUX") ! kg/s
+                backspace(rd_coup)
+                read(rd_coup, *, iostat=File_Error) Char_Temp, Equal, mflux
+            case("REFLECTIVE")
+                read(rd_coup, *, iostat=File_Error) refl_th_n
+                read(rd_coup, *, iostat=File_Error) refl_th_w, refl_th_e
+                read(rd_coup, *, iostat=File_Error) refl_th_s
+
         end select
         enddo
+        
+        !mflux = mflux / ((th2(1)+margin(1)*2d0) * (th2(2)+margin(2)*2d0)) * 1E4
 
         ! MATCH variables with START
         n_channels = (nth(1)+1)*(nth(2)+1)
 
+        ! SUM-UP Radius of Pin
+        rad_th = fuel_th + cld_th + gap_th
+
         ! CONSTRUCT Temperature Mesh
         allocate(t_fuel(nth(1)  ,nth(2)  ,nth(3)))
+        allocate(t_save(nth(1)  ,nth(2)  ,nth(3)))
         allocate(t_clad(nth(1)  ,nth(2)  ,nth(3)))
-        allocate(t_bulk(nth(1)+1,nth(2)+1,nth(3)))
+        allocate(t_bulk(nth(1)+1,nth(2)+1,nth(3)+1))
 
-        allocate(rho_bulk(nth(1)+1, nth(2)+1, nth(3)))
+        allocate(rho_bulk(nth(1)+1, nth(2)+1, nth(3)+1))
         rho_bulk = 1d0 ! RATIO BETWEEN ASSIGNED DENSITY
 
         ! CONSTRUCT TH qty. from START
@@ -2707,22 +2736,25 @@ end function
         allocate(rho_comm_fuel(nth(3), (nth(1)*nth(2))))
         
         ! CONSTRUCT POWER MESH
-        allocate(power_th(nth(1), nth(2), nth(3)))
         
+        allocate(power_th(nth(3), nth(1)*nth(2)))
+        
+        ! Thread-wise POWER GRID
+        allocate(pp(nth(1), nth(2), nth(3)));        pp = 0d0
+        allocate(pp_thread(nth(1), nth(2), nth(3))); pp_thread = 0d0
+
         ! Assign UNIFORM POWER
-        power_th = 0d0; n_rod = 0
         do i = 1, nth(1)
             do j = 1, nth(2)
-                if(rad_th(i,j)>0d0) then
-                    power_th(i,j,1:nth(3)) = 1d0
+                if(fuel_th(i,j)>0d0) then
+                    pp(i,j,1:nth(3)) = 1d0
                     n_rod = n_rod + 1
                 endif
             enddo
         enddo
-
-        if(icore==score) print *, 'POWER', n_rod, Nominal_Power / dble(n_rod) 
-        power_th = power_th * Nominal_Power / dble(n_rod)
-
+        call POWER_NORM_START
+        call POWER_IMC_TO_START
+        pp = 0d0
         ! CONSTRUCT 'subdata.data' file for START
         call START_SUBDATA 
 
@@ -2911,45 +2943,64 @@ end function
         !  (x,y)        (x-1,y)     (x,y)
         !               (x-1,y-1) (x,y-1)
 
+        ! CORNERS
         if(xx==1 .and. yy==1) then ! Southwest
-            flow_area = (dth(1)*0.5d0+margin(1))*(dth(2)*0.5d0+margin(2)) - 0.25d0 * pi * (rad_th(xx,yy)**2)
-            wet_peri  = 5d-1 * pi * rad_th(xx,yy) + (1d0-refl_th_w) * (dth(2)*0.5d0+margin(2)) + (1d0-refl_th_s) * (dth(1)*0.5d0+margin(1))
+            flow_area = ((dth(1)*0.5d0+margin(1))*(dth(2)*0.5d0+margin(2)) - 0.25d0 * pi * (rad_th(xx,yy)**2))
+                !* (1d0+refl_th_s) * (1d0+refl_th_w)
+            wet_peri  = (5d-1 * pi * rad_th(xx,yy) + (1d0-refl_th_w) * (dth(2)*0.5d0+margin(2)) + (1d0-refl_th_s) * (dth(1)*0.5d0+margin(1)))
+                !* (1d0+refl_th_s) * (1d0+refl_th_w)
             ch_neighbor  = 2
             rod_neighbor = 1
         elseif(xx==1 .and. yy==nth(2)+1) then ! Northwest
-            flow_area = (dth(1)*0.5d0+margin(1))*(dth(2)*0.5d0+margin(2)) - 0.25d0 * pi * (rad_th(xx,yy-1)**2)
-            wet_peri  = 5d-1 * pi * rad_th(xx,yy-1) + (1d0-refl_th_w) * (dth(2)*0.5d0+margin(2)) + (1d0-refl_th_n) * (dth(1)*0.5d0+margin(1))
+            flow_area = ((dth(1)*0.5d0+margin(1))*(dth(2)*0.5d0+margin(2)) - 0.25d0 * pi * (rad_th(xx,yy-1)**2)) 
+                !* (1d0+refl_th_w) * (1d0+refl_th_n)
+            wet_peri  = (5d-1 * pi * rad_th(xx,yy-1) + (1d0-refl_th_w) * (dth(2)*0.5d0+margin(2)) + (1d0-refl_th_n) * (dth(1)*0.5d0+margin(1))) 
+                !* (1d0+refl_th_w) * (1d0+refl_th_n)
             ch_neighbor  = 2
             rod_neighbor = 1
+            if(wet_peri==0d0) print *, 'WTF?', rad_th(xx,yy-1), fuel_th(xx,yy-1), cld_th(xx,yy-1), gap_th(xx,yy-1), refl_th_w, refl_th_n
         elseif(xx==nth(1)+1 .and. yy==1) then ! Southeast
-            flow_area = (dth(1)*0.5d0+margin(1))*(dth(2)*0.5d0+margin(2)) - 0.25d0 * pi * (rad_th(xx-1,yy)**2)
-            wet_peri  = 5d-1 * pi * rad_th(xx-1,yy) + (1d0-refl_th_e) * (dth(2)*0.5d0+margin(2)) + (1d0-refl_th_s) * (dth(1)*0.5d0+margin(1))
+            flow_area = ((dth(1)*0.5d0+margin(1))*(dth(2)*0.5d0+margin(2)) - 0.25d0 * pi * (rad_th(xx-1,yy)**2)) 
+                !* (1d0+refl_th_s) * (1d0+refl_th_e)
+            wet_peri  = (5d-1 * pi * rad_th(xx-1,yy) + (1d0-refl_th_e) * (dth(2)*0.5d0+margin(2)) + (1d0-refl_th_s) * (dth(1)*0.5d0+margin(1))) 
+                !* (1d0+refl_th_s) * (1d0+refl_th_e)
             ch_neighbor  = 2
             rod_neighbor = 1
         elseif(xx==nth(1)+1 .and. yy==nth(2)+1) then ! Northeast
-            flow_area = (dth(1)*0.5d0+margin(1))*(dth(2)*0.5d0+margin(2)) - 0.25d0 * pi * (rad_th(xx-1,yy-1)**2)
-            wet_peri  = 5d-1 * pi * rad_th(xx-1,yy-1) + (1d0-refl_th_e) * (dth(2)*0.5d0+margin(2)) + (1d0-refl_th_n) * (dth(1)*0.5d0+margin(1))
+            flow_area = ((dth(1)*0.5d0+margin(1))*(dth(2)*0.5d0+margin(2)) - 0.25d0 * pi * (rad_th(xx-1,yy-1)**2))
+                !* (1d0+refl_th_n) * (1d0+refl_th_e)
+            wet_peri  = (5d-1 * pi * rad_th(xx-1,yy-1) + (1d0-refl_th_e) * (dth(2)*0.5d0+margin(2)) + (1d0-refl_th_n) * (dth(1)*0.5d0+margin(1)))
+                !* (1d0+refl_th_n) * (1d0+refl_th_e)
             ch_neighbor  = 2
             rod_neighbor = 1
 
+        ! EDGES
         elseif(xx==1) then ! West
-            flow_area = (dth(1)*0.5d0+margin(1))*dth(2) - 0.25d0 * pi * (rad_th(xx,yy)**2+rad_th(xx,yy-1)**2)
-            wet_peri = 5d-1 * pi * (rad_th(xx,yy)+rad_th(xx,yy-1)) + (1d0-refl_th_w) * dth(2)
+            flow_area = ((dth(1)*0.5d0+margin(1))*dth(2) - 0.25d0 * pi * (rad_th(xx,yy)**2+rad_th(xx,yy-1)**2)) 
+                !* (1d0 + refl_th_w)
+            wet_peri = (5d-1 * pi * (rad_th(xx,yy)+rad_th(xx,yy-1)) + (1d0-refl_th_w) * dth(2)) 
+                !* (1d0 + refl_th_w)
             ch_neighbor  = 3
             rod_neighbor = 2
         elseif(xx==nth(1)+1) then ! East
-            flow_area = (dth(1)*0.5d0+margin(1))*dth(2) - 0.25d0 * pi * (rad_th(xx-1,yy)**2+rad_th(xx-1,yy-1)**2)
-            wet_peri = 5d-1 * pi * (rad_th(xx-1,yy)+rad_th(xx-1,yy-1)) + (1d0-refl_th_e) * dth(2)
+            flow_area = ((dth(1)*0.5d0+margin(1))*dth(2) - 0.25d0 * pi * (rad_th(xx-1,yy)**2+rad_th(xx-1,yy-1)**2)) 
+                !* (1d0 + refl_th_e)
+            wet_peri = (5d-1 * pi * (rad_th(xx-1,yy)+rad_th(xx-1,yy-1)) + (1d0-refl_th_e) * dth(2)) 
+                !* (1d0 + refl_th_e)
             ch_neighbor  = 3
             rod_neighbor = 2
         elseif(yy==1) then ! South
-            flow_area = (dth(2)*0.5d0+margin(2))*dth(1) - 0.25d0 * pi * (rad_th(xx-1,yy)**2+rad_th(xx,yy)**2)
-            wet_peri = 5d-1 * pi * (rad_th(xx-1,yy)+rad_th(xx,yy)) + (1d0-refl_th_s) * dth(1)
+            flow_area = ((dth(2)*0.5d0+margin(2))*dth(1) - 0.25d0 * pi * (rad_th(xx-1,yy)**2+rad_th(xx,yy)**2)) 
+                !* (1d0 + refl_th_s)
+            wet_peri = (5d-1 * pi * (rad_th(xx-1,yy)+rad_th(xx,yy)) + (1d0-refl_th_s) * dth(1)) 
+                !* (1d0 + refl_th_s)
             ch_neighbor  = 3
             rod_neighbor = 2
         elseif(yy==nth(2)+1) then ! North
-            flow_area = (dth(2)*0.5d0+margin(2))*dth(1) - 0.25d0 * pi * (rad_th(xx-1,yy-1)**2+rad_th(xx,yy-1)**2)
-            wet_peri = 5d-1 * pi * (rad_th(xx-1,yy-1)+rad_th(xx,yy-1)) + (1d0-refl_th_s) * dth(1)
+            flow_area = ((dth(2)*0.5d0+margin(2))*dth(1) - 0.25d0 * pi * (rad_th(xx-1,yy-1)**2+rad_th(xx,yy-1)**2)) 
+                !* (1d0 + refl_th_n)
+            wet_peri = (5d-1 * pi * (rad_th(xx-1,yy-1)+rad_th(xx,yy-1)) + (1d0-refl_th_s) * dth(1)) 
+                !* (1d0 + refl_th_n)
             ch_neighbor  = 3
             rod_neighbor = 2
         else ! Not boundary
@@ -2962,6 +3013,7 @@ end function
         ch_num = IDX_SUBDATA(xx, yy, nth(1)+1)
         flow_area = flow_area * 1E-4 ! cm^2 -> m^2
         wet_peri  = wet_peri  * 1E-2 ! cm -> m
+        if(wet_peri==0d0) print *, 'NONZERO', xx, yy, ch_num, ch_neighbor, nth(1), nth(2) 
         write(99 , 420) ch_num, flow_area, wet_peri, ch_neighbor, rod_neighbor
         420 format(I8,8x, 2(E13.5E2,2X), 2(I4,2x))
     end subroutine ap
@@ -2981,36 +3033,44 @@ end function
         select case(direc)
             case('w') ! West
                 if(y==1) then
-                    GAP_SUBCHAN = dth(2)*0.5d0-rad_th(x-1,y)+margin(2)
+                    GAP_SUBCHAN = (dth(2)*0.5d0-rad_th(x-1,y)+margin(2)) 
+                        !* (1d0 + refl_th_s)
                 elseif(y==nth(2)+1) then
-                    GAP_SUBCHAN = dth(2)*0.5d0-rad_th(x-1,y-1)+margin(2)
+                    GAP_SUBCHAN = (dth(2)*0.5d0-rad_th(x-1,y-1)+margin(2)) 
+                        !* (1d0 + refl_th_n)
                 else ! Not boundary regarding Y
                     GAP_SUBCHAN = dth(2)-rad_th(x-1,y)-rad_th(x-1,y-1)
                 endif
 
             case('e') ! East
                 if(y==1) then
-                    GAP_SUBCHAN = dth(2)*0.5d0-rad_th(x,y)+margin(2)
+                    GAP_SUBCHAN = (dth(2)*0.5d0-rad_th(x,y)+margin(2)) 
+                        !* (1d0 + refl_th_s)
                 elseif(y==nth(2)+1) then
-                    GAP_SUBCHAN = dth(2)*0.5d0-rad_th(x,y-1)+margin(2)
+                    GAP_SUBCHAN = (dth(2)*0.5d0-rad_th(x,y-1)+margin(2)) 
+                        !* (1d0 + refl_th_n)
                 else ! Not boundary regarding Y
                     GAP_SUBCHAN = dth(2)-rad_th(x,y)-rad_th(x,y-1)
                 endif
 
             case('s') ! South
                 if(x==1) then
-                    GAP_SUBCHAN = dth(1)*0.5d0-rad_th(x,y-1)+margin(1)
+                    GAP_SUBCHAN = (dth(1)*0.5d0-rad_th(x,y-1)+margin(1)) 
+                        !* (1d0 + refl_th_w)
                 elseif(x==nth(1)+1) then
-                    GAP_SUBCHAN = dth(1)*0.5d0-rad_th(x-1,y-1)+margin(1)
+                    GAP_SUBCHAN = (dth(1)*0.5d0-rad_th(x-1,y-1)+margin(1)) 
+                        !* (1d0 + refl_th_e)
                 else ! Not boundary regarding X
                     GAP_SUBCHAN = dth(1)-rad_th(x-1,y-1)-rad_th(x,y-1)
                 endif
             
             case('n') ! North
                 if(x==1) then
-                    GAP_SUBCHAN = dth(1)*0.5d0-rad_th(x,y)+margin(1)
+                    GAP_SUBCHAN = (dth(1)*0.5d0-rad_th(x,y)+margin(1)) 
+                        !* (1d0 + refl_th_w)
                 elseif(x==nth(1)+1) then
-                    GAP_SUBCHAN = dth(1)*0.5d0-rad_th(x-1,y)+margin(1)
+                    GAP_SUBCHAN = (dth(1)*0.5d0-rad_th(x-1,y)+margin(1)) 
+                        !* (1d0 + refl_th_e)
                 else ! Not boundary regarding X
                     GAP_SUBCHAN = dth(1)-rad_th(x-1,y)-rad_th(x,y)
                 endif

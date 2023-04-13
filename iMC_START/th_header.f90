@@ -4,6 +4,10 @@ module TH_HEADER
     logical:: th_on = .false.   ! T/H feedback on?
     logical:: th_cycle = .true.
 
+    integer :: th_iter_max = 1
+    integer :: th_iter     = 0
+    real(8) :: th_cvg_crit = 1E-2 ! TH Convergence
+
     ! material properties
     real(8), allocatable:: k_fuel(:,:), & ! thermal conductivity of fuel
                            k_clad(:,:), & ! thermal conductivity of cladding
@@ -34,6 +38,7 @@ module TH_HEADER
     real(8):: mflow ! [kg]
     real(8):: t_in  = 568.95D0      ! inlet temperature [K]
     real(8):: p_in  = 14.91336D+6   ! inlet pressure [Pa]
+    real(8):: mflux
     real(8):: t_out = 601.75D0      ! outlet temperature [K]
     integer:: ith(2)                ! index
     real(8), allocatable:: rth(:)   ! radial distance
@@ -50,9 +55,10 @@ module TH_HEADER
     real(8), allocatable :: dthx(:), dthy(:), dthz(:)
                                     ! Difference with dth: not uniform
     real(8) :: pitch(3)
-    real(8), allocatable :: rad_th(:,:), cld_th(:,:), gap_th(:,:)
-    real(8), allocatable :: power_th(:,:,:)
+    real(8), allocatable :: fuel_th(:,:), rad_th(:,:), cld_th(:,:), gap_th(:,:)
+    real(8), allocatable :: power_th(:,:)
     real(8) :: margin(3) ! Margin between boundary mesh and actual mesh
+    integer :: n_rod
     
     ! REFLECTIVE BOUNDARY if 1
     integer :: refl_th_w = 0

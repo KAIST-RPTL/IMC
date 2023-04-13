@@ -185,7 +185,7 @@ module depletion_module
     integer, allocatable :: mpigeom(:,:), tmpgeom(:)
     integer :: ngeom, totgeom
 
-    integer :: NFYtype
+    integer :: NFYtype = 3
 
     contains 
 

@@ -26,7 +26,8 @@ subroutine FMFD_ALLOCATION()
     use PRECONDITIONER, only: ILU_INITIAL
     implicit none
     integer:: num
-
+    
+    if(icore==score) write(*,*) '  ALLOCATING FMFD parameters'
     ! parameters allocation
     allocate(k_fmfd(n_batch,n_totcyc))
     if ( icore == score ) allocate(p_fmfd(n_batch,n_act,nfm(1),nfm(2),nfm(3)))
@@ -218,6 +219,7 @@ subroutine FMFD_ALLOCATION()
 !        allocate(p_dtmc(nfm(1),nfm(2),nfm(3),n_rings))
 !        allocate(f_dtmc(nfm(1),nfm(2),nfm(3),n_rings))
 !    end if
+if(icore==score) write(*,*) '  DONE ALLOCATING FMFD parameters'
 
 end subroutine
 

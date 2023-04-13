@@ -668,7 +668,7 @@ subroutine collision_PCQS_CE (p)
     !===============================================
     ! Sample a target isotope in the mixture
     call WHAT_TEMPERATURE(p)
-    macro_xs = getMacroXS(materials(p%material), p%E,p%kT)
+    macro_xs = getMacroXS(materials(p%material), p%E,p%kT,1d0)
     rn = rang(); temp = 0
     do i = 1, materials(p%material)%n_iso
         dtemp = abs(p%kT-ace(materials(p%material)%ace_idx(i))%temp)
@@ -964,7 +964,7 @@ subroutine collision_PCQS_CE_init (p)
     !===============================================
     ! Sample a target isotope in the mixture
     call WHAT_TEMPERATURE(p)
-    macro_xs = getMacroXS(materials(p%material), p%E,p%kT)
+    macro_xs = getMacroXS(materials(p%material), p%E,p%kT,1d0)
     rn = rang(); temp = 0
     do i = 1, materials(p%material)%n_iso
         dtemp = abs(p%kT-ace(materials(p%material)%ace_idx(i))%temp)

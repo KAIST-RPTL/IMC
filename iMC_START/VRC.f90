@@ -65,7 +65,7 @@ module VRC
                 macro_xs(2) = XS_MG(p%material)%sig_abs(p%g)
                 macro_xs(4) = XS_MG(p%material)%sig_fis(p%g)*XS_MG(p%material)%nu(p%g)
             elseif (E_mode == 1) then 
-                macro_xs = getMacroXS(materials(p%material), p%E,p%kT)
+                macro_xs = getMacroXS(materials(p%material), p%E,p%kT,1d0)
             endif 
             
             ! Sample a distance to boundary
@@ -130,7 +130,7 @@ module VRC
                 macro_xs(2) = XS_MG(p%material)%sig_abs(p%g)
                 macro_xs(4) = XS_MG(p%material)%sig_fis(p%g)*XS_MG(p%material)%nu(p%g)
             elseif (E_mode == 1) then 
-                macro_xs = getMacroXS(materials(p%material), p%E,p%kT)
+                macro_xs = getMacroXS(materials(p%material), p%E,p%kT,1d0)
             endif 
             
             ! Sample a distance to boundary
@@ -222,7 +222,7 @@ module VRC
         else 
             ! Sample a target isotope in the mixture
             call WHAT_TEMPERATURE(p_psudo)
-            macro_xs = getMacroXS(materials(p_psudo%material), p_psudo%E,p_psudo%kT)
+            macro_xs = getMacroXS(materials(p_psudo%material), p_psudo%E,p_psudo%kT,1d0)
             rn = rang(); temp = 0
             do i = 1, materials(p_psudo%material)%n_iso
                 dtemp = abs(p_psudo%kT-ace(materials(p_psudo%material)%ace_idx(i))%temp)

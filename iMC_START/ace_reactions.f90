@@ -40,6 +40,7 @@ subroutine collision_CE (p)
     real(8) :: xs_t(5)
 	real(8) :: E_prev 
 	logical :: elastic = .true. 
+    real(8) :: rho_ratio
 
 
     E_prev = p%E 
@@ -49,8 +50,10 @@ subroutine collision_CE (p)
     !===============================================
     ! Sample a target isotope in the mixture
     call WHAT_TEMPERATURE(p)
-    call WHAT_DENSITY_RATIO(p) 
-    macro_xs = getMacroXS(materials(p%material), p%E,p%kT)
+    rho_ratio = WHAT_DENSITY_RATIO(p) 
+
+    !if(rho_ratio .ne. 1d0) print *, 'RATIO', rho_ratio
+    macro_xs = getMacroXS(materials(p%material), p%E,p%kT,rho_ratio)
     rn = rang(); temp = 0; n_iso = materials(p%material)%n_iso
     do i = 1, n_iso
         dtemp = abs(p%kT-ace(materials(p%material)%ace_idx(i))%temp)
@@ -64,7 +67,7 @@ subroutine collision_CE (p)
         end if
         ! S(a,b)
         call GET_SAB_MIC(materials(p%material),i,p%E,micro_xs)
-        temp = temp + micro_xs(1)*materials(p%material)%numden(i)*barn
+        temp = temp + micro_xs(1)*materials(p%material)%numden(i)*barn * rho_ratio
         if ( rn < temp/macro_xs(1) ) then
             iso = materials(p%material)%ace_idx(i)
             i_iso = i
@@ -81,7 +84,7 @@ subroutine collision_CE (p)
     !> Collision estimator
     !$omp atomic
     k_col = k_col + p%wgt * macro_xs(4)/macro_xs(1)
-
+    
     call fissionSite_CE(p, iso, micro_xs)
 
     call fissionSite_dynamic(p,iso,micro_xs)
@@ -173,26 +176,27 @@ subroutine WHAT_TEMPERATURE(p)
 end subroutine
 
 double precision function WHAT_DENSITY_RATIO(p)
-    use TH_HEADER, only: t_bulk
+    use TH_HEADER, only: rho_bulk, rho_init
     use TEMPERATURE, only: START_COOL
     implicit none
     type(Particle), intent(in) :: p
     integer :: ixyz(3)
     logical :: inside
-    if(.not. do_child) then
-        WHAT_DENSITY_RATIO = 1d0; return
+    WHAT_DENSITY_RATIO = 1d0
+    if(.not. do_child) return
+    
+    inside = .false.
+    if(materials(p%material)%mat_type==3) then
+        call START_COOL(p%coord(1)%xyz(:), ixyz, inside)
+        if(inside) WHAT_DENSITY_RATIO = &
+            rho_bulk(ixyz(1), ixyz(2), ixyz(3))/rho_init
     else
-        inside = .false.
-        if(materials(p%material)%mat_type==3) then
-            call START_COOL(p%coord(1)%xyz(:), ixyz, inside)
-            if(inside) WHAT_DENSITY_RATIO = &
-                rho_bulk(ixyz(1), ixyz(2), ixyz(3))/rho_init
-        endif
+        return
     endif
+    
 end function
 
     
-end subroutine
 
 ! =============================================================================
 ! SAB_CE

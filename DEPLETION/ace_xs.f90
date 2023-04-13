@@ -480,11 +480,8 @@ subroutine getiueg(erg, ierg)
 
     pt1 = unigrid(uidx-1)
     pt2 = min(unigrid(uidx)+1,nueg)
-    if(pt1==0 .or. pt2==0) then
-        print *, 'WTF', pt1, pt2
-    endif
 
-    if(ueggrid(pt1) > erg) print *,'LO', ueggrid(pt1), erg
+    if(ueggrid(pt1) > erg) print *,'LO', ueggrid(pt1), int(log10(erg/ueggrid(1))/unidel), erg
     if(ueggrid(pt2) < erg) print *,'HI', ueggrid(pt2), erg
 
     if(pt1==pt2) then
@@ -595,8 +592,9 @@ subroutine setuegrid
     call QUICKSORT(tmpgrid,1,totngrid)
 
     ! 2. COLLECT UNIQUEs
-    allocate(ueggrid(1:totngrid))
+    allocate(ueggrid(0:totngrid))
     idx = 1
+    ueggrid(0)   = 0d0
     ueggrid(idx) = tmpgrid(1)
     do i = 2, totngrid
         if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<UEGMAX &
@@ -617,7 +615,7 @@ subroutine setuegrid
     allocate(unigrid(0:nuni))
 
     idx = 1
-    unigrid(0) = 1
+    unigrid(0) = 0
     do i = 1, nuni-1
         Etmp = Emin * 1d1 ** (dble(i) * unidel)
         if(Etmp > nueg) then

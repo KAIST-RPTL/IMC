@@ -454,7 +454,7 @@ contains
         xn = 1
         !===============================================
         ! Sample a target isotope in the mixture
-        macro_xs = getMacroXS(materials(p%material), p%E, p%kT)
+        macro_xs = getMacroXS(materials(p%material), p%E, p%kT, 1d0)
         rn = rang(); temp = 0 
         n_iso = materials(p%material)%n_iso
         iso = materials(p%material)%ace_idx(n_iso)

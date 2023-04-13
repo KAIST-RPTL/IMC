@@ -1299,7 +1299,11 @@ end subroutine READ_CTRL
 
                 case('UEGRID')
                     backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ueg, nuni
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ueg
+                    if(do_ueg) then
+                        backspace(File_Number)
+                        read(File_Number, *, iostat=File_Error) Char_Temp, Equal, do_ueg, nuni
+                    endif
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
 					
 				case("N_INTERVAL")
@@ -1730,6 +1734,7 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, NFYtype
                     if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
+                    if(NFYtype>3 .or. NFYtype<1) print *, 'NFY Interpolation should be in between 1 and 3'
                 case("DIRECT")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_rx_tally

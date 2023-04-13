@@ -23,7 +23,6 @@ contains
 ! Currently (2023/03/30) working on STARTH...
 subroutine INIT_CHILD
 character(len=50), dimension(2) :: arg
-    write(*,*) 'BEGIN'
     !arg(1) = trim(comm_child)
     arg(1) = trim(directory)//'/START'
     arg(2) = " "
@@ -36,18 +35,11 @@ subroutine COMM_WITH_CHILD
 integer :: iz, idx
     call MPI_SEND(nth, 3, MPI_INTEGER, 0, 0, intercomm, ierr)
     call MPI_SEND(power_th, nth(1)*nth(2)*nth(3), MPI_REAL8, 0, 0, intercomm, ierr)
+    call MPI_SEND(t_in, 1, MPI_REAL8, 0, 0, intercomm, ierr)
+    call MPI_SEND(p_in, 1, MPI_REAL8, 0, 0, intercomm, ierr)
+    call MPI_SEND(mflux, 1, MPI_REAL8, 0, 0, intercomm, ierr)
     call MPI_RECV(t_comm_cool, (nth(1)+1)*(nth(2)+1)*(nth(3)+1), MPI_REAL8, 0, 0, intercomm, MPI_STATUS_IGNORE, ierr)
     call MPI_RECV(rho_comm_cool, (nth(1)+1)*(nth(2)+1)*(nth(3)+1), MPI_REAL8, 0, 0, intercomm, MPI_STATUS_IGNORE, ierr)
-
-    write(*,*) 'CHANNEL_TEMPERATURE'
-    do iz = 1, nth(3)+1
-        write(*,'(I3, <(nth(1)+1)*(nth(2)+1)>E10.3)') iz, (t_comm_cool(iz, idx), idx = 1, (nth(1)+1)*(nth(2)+1))
-    enddo
-
-    write(*,*) 'CHANNEL_DENSITY'
-    do iz = 1, nth(3)+1
-        write(*,'(I3, <(nth(1)+1)*(nth(2)+1)>E10.3)') iz, (rho_comm_cool(iz, idx), idx = 1, (nth(1)+1)*(nth(2)+1))
-    enddo
 end subroutine
 
 subroutine END_CHILD(comm)
@@ -56,15 +48,35 @@ subroutine END_CHILD(comm)
 end subroutine
 
 subroutine TH_ASSIGN_GRID
-    t_bulk = t_comm_cool
-    rho_cool = rho_comm_cool
+    use constants, only : K_B
+    integer :: ix, iy, iz, idx
     t_fuel = 0d0
+    
     t_clad = 0d0 ! TODO
+    
+    do iz = 1, nth(3)+1
+        do iy = 1, nth(2)+1
+            do ix = 1, nth(1)+1
+                idx = ix + (iy-1) * (nth(1)+1)  
+                t_bulk(ix, iy, iz) = t_comm_cool(iz, idx)
+                rho_bulk(ix,iy,iz) = rho_comm_cool(iz, idx)
+            enddo
+        enddo
+        if(icore==score) then
+            print *, 'ZVAL', iz, th_iter
+            print *, 'BULKTEMP'
+            do iy = 1, nth(2)+1
+                write(*,'(<nth(1)+1>F10.3)') (t_bulk(ix, iy, iz), ix = 1, nth(1)+1)
+            enddo
+            print *, 'BULKRHO'
+            do iy = 1, nth(2)+1
+                write(*,'(<nth(1)+1>F10.3)') (rho_bulk(ix, iy, iz), ix = 1, nth(1)+1)
+            enddo
+        endif
 
-subroutine INPUT_START
-implicit none
+        t_bulk = t_bulk * K_B
 
-
+    enddo
 end subroutine
 
 end module communication
