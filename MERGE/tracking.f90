@@ -15,7 +15,9 @@ module tracking
     use ace_xs,             only: getMacroXS, getMacroXS_UEG
     use material_header,    only: materials
     use ace_reactions,      only: collision_CE
-    use FMFD,               only: FMFD_TRK, FMFD_COL, FMFD_SURF, fmfdon
+    use FMFD,               only: FMFD_TRK, FMFD_COL, FMFD_SURF, fmfdon, &
+                                  DTMCBU, DTMC_BU_COL, DTMC_BU_TRK
+    use FMFD_header,        only: acc_skip
     use DEPLETION_MODULE,   only: tally_burnup
     use VRC,                only: m_pseudo, trace_psudoray, trace_psudoray_tet_vrc, create_ray_dynamic
     use transient, 			only: del_t, curr_time, curr_timestep, n_col, n_cross
@@ -276,7 +278,13 @@ subroutine transport(p)
 
     
     !> FMFD Tally (track length) 
-    if ( fmfdon .and. inside_mesh ) call FMFD_TRK(p%wgt,distance,macro_xs,i_xyz)
+    if ( fmfdon .and. inside_mesh ) then
+        call FMFD_TRK(p%wgt,distance,macro_xs,i_xyz)
+        if(DTMCBU .and. curr_cyc > acc_skip) then    
+            i_cell = p%coord(p%n_coord)%cell
+            call DTMC_BU_TRK(i_xyz, cells(i_cell)%dtmc, p%wgt*distance, macro_xs(5))
+        endif
+    endif
 	
 	
     !> Advance particle
@@ -293,6 +301,11 @@ subroutine transport(p)
 		
 		if (do_PCQS .and. curr_cyc > n_inact) n_col = n_col + 1 
 		
+        if ( fmfdon .and. inside_mesh ) then
+        call FMFD_COL(p%wgt,macro_xs,i_xyz)
+        if ( DTMCBU .and. curr_cyc > acc_skip ) &
+        call DTMC_BU_COL(i_xyz,cells(i_cell)%dtmc,p%wgt/macro_xs(1),macro_xs(5))
+        end if
 		
 		p%tet_face = 0 
 		

@@ -35,6 +35,7 @@ module geometry_header
         
         integer         :: nsurf      !> number of surfaces of this cell
         integer         :: filltype
+        integer         :: dtmc = 0
         character(20), allocatable :: list_of_surface_IDs(:)
         integer, allocatable :: neg_surf_idx(:), pos_surf_idx(:)
         

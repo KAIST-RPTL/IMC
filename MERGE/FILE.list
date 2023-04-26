@@ -3,11 +3,13 @@ FSRCS := \
 		constants.f90\
 		variables.f90\
 		exception.f90\
+        statistics.f90\
 		randoms.f90\
 		precmod.f90\
 		stringmod.f90\
 		evalmod.f90\
 		rgbimage_m.f90\
+        bicg_header.f90\
 		XS_header.f90\
 		material_header.f90\
 		FMFD_header.f90\
@@ -23,9 +25,12 @@ FSRCS := \
 		tally.f90\
 		entropy.f90\
 		temperature.f90\
+        preconditioner.f90\
 		solver.f90\
 		pCMFD.f90\
 		CMFD.f90\
+        cosampling.f90\
+        perturbation.f90\
 		FMFD.f90\
 		HGC.f90\
 		scattering_laws.f90\

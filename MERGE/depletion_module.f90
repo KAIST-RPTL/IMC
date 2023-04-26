@@ -8,6 +8,7 @@ module depletion_module
     use ace_module, only: set_ace_iso
     use ace_xs,     only: getxs, getierg, getiueg, setueg
     use material_header
+    use FMFD_HEADER, only: DTMCBU, buflux, bukapa
     use mpi 
     
     implicit none 
@@ -186,6 +187,11 @@ module depletion_module
     integer :: ngeom, totgeom
 
     integer :: NFYtype = 3
+
+    ! P/C
+    integer :: preco = 0    ! PREC. or not
+    integer :: porc  = 0    ! Flag for Predictor/Corrector
+    real(8) :: stepsize0
 
     contains 
 
@@ -1347,7 +1353,7 @@ module depletion_module
             !         Depletion :: Make depletion matrix and solve 
             ! ===================================================================
             subroutine depletion 
-            
+            use FMFD_HEADER, only: fmfdon, nrings, nfm
             implicit none
             
             integer :: imat, jmem, jnuc, knuc, knuc1, knuc2
@@ -1406,6 +1412,9 @@ module depletion_module
             integer :: cnt, rcv, addn
 
             logical :: do_exist
+
+            ! PRECO
+            real(8) :: weight
 
             if(do_burn==.false.) return
             avg_power = avg_power / dble(n_act)
@@ -1734,14 +1743,60 @@ module depletion_module
                 deallocate(nucexist)
                 !Calculate real flux (volume-averaged)
                 real_flux = ULnorm*mat%flux
+                if(DTMCBU) real_flux = mat % flux
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
                 toteflux = sum(mat%eflux(0:nueg))
                 !Build burnup matrix with cross section obtained from MC calculation
                 bMat = bMat0*bstep_size
-                !if(icore==score) print *, 'bMat0', bMat(nnuc,:), bMat0(nnuc,:)
-                !!$omp parallel do default(private) &
-                !!$omp shared(bMat, real_flux, toteflux, bstep_size, yield_data, ZAIMT_ism, gnd_frac, ace, nuclide, fssn_zai, fp_zai, nfssn, RXMT, num_iso)
+                
+                if(preco == 1) then ! CE/LI
+                    if(porc == 1) then ! Predictor: save
+                        if(.not. allocated(mat % ogxs1)) &
+                            allocate(mat % ogxs1(num_iso, 1:7))
+                        if(.not. allocated(mat % ace_idx1)) &
+                            allocate(mat % ace_idx1(mat%n_iso))
+                        if(.not. allocated(mat % eflux1)) &
+                            allocate(mat % eflux1(nueg))
+                        mat % flux1 = real_flux
+                        mat % eflux1 = mat % eflux
+                        mat % ogxs1(:,:) = mat % ogxs(:,:)
+                        mat % ace_idx1(:) = mat % ace_idx(:)
+                        mat % full_numden1 = mat % full_numden
+
+                    elseif(porc == 2) then ! Corrector: load
+                        real_flux = (real_flux + mat % flux1) * 0.5d0
+                        mat % eflux = (mat % eflux + mat % eflux1) * 0.5d0
+                        mat % ogxs  = (mat % ogxs  + mat % ogxs1) * 0.5d0
+                        mat % full_numden = mat % full_numden1
+                    endif
+
+                elseif(preco == 2) then ! LE/LI
+                    if(.not. allocated(mat % ogxs1)) &
+                        allocate(mat % ogxs1(num_iso, 1:7))
+                    if(.not. allocated(mat % ace_idx1)) &
+                        allocate(mat % ace_idx1(mat%n_iso))
+                    if(.not. allocated(mat % eflux1)) &
+                        allocate(mat % eflux1(nueg))
+                    mat % flux1 = real_flux
+                    mat % eflux1 = mat % eflux
+                    mat % ogxs1 = mat % ogxs
+                    mat % ace_idx1 = mat % ace_idx
+                   
+                    if( istep_burnup > 0 ) then
+                       weight = bstep_size / stepsize0 * 0.5d0
+                       mat % flux = -weight * mat % flux0 + &
+                                    (1d0+weight) * mat % flux1
+                       mat % eflux = -weight * mat % eflux0 + &
+                                    (1d0+weight) * mat % eflux1
+                       mat % ogxs = -weight * mat % ogxs0 + &
+                                    (1d0+weight) * mat % ogxs1
+                    endif
+                endif
+
+
+
+
                 !$OMP PARALLEL DO &
                 !$OMP PRIVATE(iso, anum, mnum, nnum, inum, jnuc, flx, flx2, mt, ogxs, ogxs1, fy_midx, anum1, nnum1, mnum1, inum1, knuc, a1, m1, n1, ism, zai, pn, dn, tn, an, a3n, nn, addn)  
                 DO_ISO: do mt_iso = 1,num_iso
@@ -1938,17 +1993,6 @@ module depletion_module
         !directory = './BUMAT/UEG'
         call execute_command_line('mkdir -p '//adjustl(trim(directory)))
         filename = 'mat_'//trim(adjustl(mat%mat_name(:)))//'_step_'//trim(adjustl(fileid))//'.m'
-!        idx = 0
-!        do
-!            idx = idx + 1
-!            write(fileid,'(i3)') idx
-!            filename = trim(adjustl(mat%mat_name(:)))//'_trial'//trim(adjustl(fileid))//'.m'
-!            inquire(file=trim(directory)//'/'//trim(filename),exist=do_exist)
-!            if(.not. do_exist) then
-!                exit
-!            endif
-!        enddo
-
         open(bumat_test, file = trim(directory)//'/'//trim(filename),action="write",status="replace")
         write(bumat_test,*) 'FLUX=',real_flux,';'
         write(bumat_test,*) 'ZAI1=zeros(',nnuc,',1);'
@@ -1980,32 +2024,6 @@ module depletion_module
             print *, "ERROR :: No such matrix_exponential_solver option", matrix_exponential_solver
             stop 
         end select
-        !print *, 'DONE', icore, imat, totgeom
-!        if(totgeom < 10) then
-!            print *, 'DEP solved for mat:',imat,'/',totgeom, ':', icore
-!        else
-!            !$OMP ATOMIC
-!            cnt = cnt + 1
-!
-!            call MPI_ALLREDUCE(cnt,rcv,1,MPI_INTEGER,MPI_SUM,core,ierr)
-!            cnt = rcv
-!
-!            if(icore==score) then
-!
-!            if(cnt == totgeom/4) then
-!                print *, 'DEPLETION CALC ( 25%/100%)'
-!            elseif(cnt == totgeom/4*2) then
-!                print *, 'DEPLETION CALC ( 50%/100%)'
-!            elseif(cnt == totgeom/4*3) then
-!                print *, 'DEPLETION CALC ( 75%/100%)'
-!            elseif(cnt == totgeom) then
-!                print *, 'DEPLETION CALC (100%/100%)'
-!            endif
-!            
-!            endif
-!        endif
-
-        !print *, 'COUNT?', icore, imat, totgeom
         
         ! WRITE ATOMIC DENSITY IN MATLAB .m FILE (OPTIONAL)
         if(bumat_print)then
@@ -2059,33 +2077,6 @@ module depletion_module
                 !print *, mat%ace_idx(mt_iso), ace(mat%ace_idx(mt_iso))%zaid, zai_idx(iso_idx(mt_iso)), iso_idx(mt_iso), mt_iso
             endif
         end do
-
-!        do mt_iso = 1, mat%n_iso
-!            write(*,*) 'Before',imat, mt_iso, mat%numden(mt_iso), mat%ace_idx(mt_iso)
-!        enddo
-        ! SORT FOR EFFICIENCY
-!        sorted = .false.
-!        if(mat%n_iso>1) then
-!            do while ( .not. sorted )
-!                sorted = .true.
-!                do mt_iso = 1, mat%n_iso-1
-!                    if(mat%numden(mt_iso) < mat%numden(mt_iso+1)) then
-!                        if(sorted) sorted = .false.
-!                        tmpnumden = mat%numden(mt_iso+1)
-!                        tmpaceidx = mat%ace_idx(mt_iso+1)
-!
-!                        mat%numden(mt_iso+1)  = mat%numden(mt_iso)
-!                        mat%ace_idx(mt_iso+1) = mat%ace_idx(mt_iso)
-!                        mat%numden(mt_iso)    = tmpnumden
-!                        mat%ace_idx(mt_iso)   = tmpaceidx
-!                    endif
-!                enddo
-!            enddo
-!        endif
-                    
-    !print *, 'FLAG3', imat, icore
-            
-
     enddo
     !print *, 'ARRIVED', icore
     call MPI_BARRIER(MPI_COMM_WORLD, ierr)
@@ -2153,7 +2144,29 @@ module depletion_module
         write(prt_bumat,*) 'Total mass[g]:', tot_mass 
         write(prt_bumat,*) 'Fiss. mass[g]:', tot_fmass
     endif
+    
+    ! PRECO ROUTINE
     istep_burnup = istep_burnup + 1
+    if( preco == 0 ) then
+    elseif( preco == 1 ) then
+        if( porc == 1 ) then
+            if(istep_burnup < nstep_burnup) &
+                istep_burnup = istep_burnup - 1
+            porc = 2
+        elseif( porc == 2 ) then
+            porc = 1
+        endif
+    elseif( preco == 2 ) then
+        stepsize0 = bstep_size
+        mat % flux0 = mat % flux1
+        if(.not. allocated(mat % eflux0))   allocate(mat % eflux0(nueg))
+        if(.not. allocated(mat % ogxs0))    allocate(mat % ogxs0(num_iso,1:7))
+        if(.not. allocated(mat % ace_idx0)) allocate(mat % ace_idx0(size(mat%ace_idx1)))
+
+        mat % eflux0 = mat % eflux1
+        mat % ogxs0  = mat % ogxs1
+        mat % ace_idx0 = mat % ace_idx1
+    endif
      
     end subroutine depletion 
     
@@ -2435,6 +2448,7 @@ module depletion_module
             
             if (materials(imat)%depletable) then
                 allocate(materials(imat)%full_numden(1:nnuc))
+                if ( preco == 1 ) allocate(materials(imat)%full_numden1(1:nnuc))
                 materials(imat)%full_numden = 0.d0     !Initialize number density
             endif
             
@@ -2450,7 +2464,7 @@ module depletion_module
                     if(icore==score) print *, anum, mnum, inum
                 endif
                 nnum = mnum - anum
-                if(materials(imat)%depletable==.true. .and. do_burn .and. nuclide(inum,nnum,anum)%idx>0) then 
+                if(materials(imat)%depletable .and. do_burn .and. nuclide(inum,nnum,anum)%idx>0) then 
                     materials(imat)%full_numden(nuclide(inum,nnum,anum)%idx) = materials(imat)%numden(mt_iso)
                 endif 
             end do

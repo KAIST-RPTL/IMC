@@ -2,7 +2,7 @@ program main
 use constants
 use variables
 use FMFD, only: DET_POWER
-use FMFD_HEADER, only: p_fmfd, k_fmfd, e_fmfd, fmfdon, cmfdon, nfm
+use FMFD_HEADER, only: p_fmfd, k_fmfd, fmfdon, cmfdon, nfm
 use ENTROPY,    only : mprupon, entrp0
 use TH_HEADER, only: th_on
 use simulation 

@@ -25,7 +25,7 @@ module simulation
     use FMFD,               only : FMFD_initialize_thread, FMFD_initialize, &
                                    FMFD_solve, n_skip, n_acc, fsd, &
                                    process_FMFD, NORM_FMFD, fmfdon, &
-                                   nfm, k_fmfd, fake_MC
+                                   nfm, k_fmfd, fake_MC, MCBU
     use TEMPERATURE,        only : TEMP_SOLVE, NORM_TH, PROCESS_TH, &
                                    TEMP_CONVERGE, TEMP_DISTRIBUTE
     use TH_HEADER,          only : th_on
@@ -68,6 +68,7 @@ subroutine simulate_history(bat,cyc)
     real(8) :: time1, time2
 	integer :: i_bin(4)
     real(8) :: adj_sum, totwgt
+    real(8) :: t_fm1, t_fm2
 
     if (allocated(fission_bank)) call move_alloc(fission_bank, source_bank)
     if ( icore == score ) then
@@ -162,7 +163,7 @@ subroutine simulate_history(bat,cyc)
 		call gatherBank(fission_bank, thread_bank, bank_idx)
         !> normalize thread tally parameters (can be done outside critical)
         if ( tallyon .and. .not. fmfdon ) call NORM_TALLY(bat,cyc)
-        if ( fmfdon ) call NORM_FMFD()
+        if ( fmfdon ) call NORM_FMFD(cyc)
         if ( th_on .and. .not. fmfdon ) call NORM_TH()
         
       !$omp end critical
@@ -418,32 +419,13 @@ subroutine simulate_history(bat,cyc)
     endif
 	
     !> Solve FMFD and apply FSD shape feedback ==================================
-    if ( fmfdon .and. cyc > n_skip) then 
-        if (icore == score) then
-            call CPU_TIME(time1)
-            k_fmfd(bat,cyc) = keff
-        end if
-            call FMFD_SOLVE(k_fmfd(bat,cyc),fsd,bat,cyc)
-        if ( icore == score ) then
-            call CPU_TIME(time2)
-            t_det(bat,cyc) = time2-time1
-!            print*, t_det(bat,cyc)
-!            pause
-        end if
-        call MPI_BCAST(fsd, nfm(1)*nfm(2)*nfm(3), &
-            MPI_DOUBLE_PRECISION, score, MPI_COMM_WORLD, ierr) 
-        ! find fission_bank lattice index and apply shape
-        do i = 1, isize 
-            id = FM_ID(fission_bank(i)%xyz)
-            if ( id(1) < 1 .or. id(1) > nfm(1) ) cycle
-            if ( id(2) < 1 .or. id(2) > nfm(2) ) cycle
-            if ( id(3) < 1 .or. id(3) > nfm(3) ) cycle
-            fission_bank(i)%wgt = fission_bank(i)%wgt * fsd(id(1),id(2),id(3))
-        enddo
-        if ( fake_MC .and. cyc == n_fake ) then
-            fmfdon = .false.
-            fsd = 1D0
-        end if
+    if ( fmfdon .and. cyc > n_skip .and. .not. MCBU ) then 
+            t_fm1 = MPI_WTIME()
+            call FMFD_SOLVE(bat,cyc)
+            t_fm2 = MPI_WTIME()
+        if ( icore == score .and. bat > 0 ) t_det(bat,cyc) = t_fm2-t_fm1
+        if ( fake_MC .and. cyc == n_fake ) fmfdon = .false.
+        !if ( cyc == n_inact ) fmfdon = .false.
     endif 
 	
     ! =========================================================================
@@ -1250,8 +1232,12 @@ end subroutine PCQS_INIT
 ! BANK_INITIALIZE - Initialize bank for the very first simulation 
 !===============================================================================
 subroutine bank_initialize(this)
-    use FMFD_HEADER, only: fcr, zigzagon, zz_div, zzc0, zzc1, zzc2, dfm
+    use FMFD_HEADER, only: fcr, zigzagon, zz_div, zzc0, zzc1, zzc2, dfm, ncm
     use MATERIAL_HEADER, only: Material_CE
+    use GEOMETRY_HEADER, only: universes
+    use GEOMETRY, only: cell_xyz
+    use TALLY, only: CM_ID
+    use PCMFD, only: OUT_OF_ZZ
     implicit none
     class(bank)    :: this(:)
     type(surface), pointer :: surfptr
@@ -1261,20 +1247,36 @@ subroutine bank_initialize(this)
     logical        :: found
     integer        :: xy(2), m, n
     integer        :: univ_id, cell_id, mat_id
+    integer        :: id(3), m0, n0
     
     
     if(icore==score) print *, '   Initializing Source...'
     
 	
     if (.not. allocated(sgrid)) then 
-        print *, 'ERROR :: SGRID  is not allocated in geom.inp '
-		stop 
+        print *, 'not allocated'
+        do i = 1, size(cells(i_cell)%pos_surf_idx)
+            surfptr => surfaces(cells(i_cell)%pos_surf_idx(i))
+            if (surfptr%surf_type == pz) then 
+                max(3) = surfptr%parmtrs(1)
+            elseif (surfptr%surf_type == sqcz) then 
+                min(1) = -surfptr%parmtrs(3)
+                min(2) = -surfptr%parmtrs(3)
+                max(1) =  surfptr%parmtrs(3)
+                max(2) =  surfptr%parmtrs(3)
+            elseif (surfptr%surf_type == cylz) then
+                min(1) = -surfptr%parmtrs(3)
+                min(2) = -surfptr%parmtrs(3)
+                max(1) =  surfptr%parmtrs(3)
+                max(2) =  surfptr%parmtrs(3)
+            endif 
+        enddo 
     else 
         min(1:3) = sgrid(1:3)
         max(1:3) = sgrid(4:6)
     endif 
             
-    
+    univ_idx = 0
     do i = 1, size(this)
         this(i) % wgt = 1
         found         = .false.
@@ -1325,7 +1327,21 @@ subroutine bank_initialize(this)
 					found = .true.
 				enddo search_CE_tet
 				
-			else 
+			else
+                if(fmfdon) then
+                search_CMFD: do while ( found == .false. ) 
+                    do j = 1, 3
+                        this(i) % xyz(j) = rang()*(max(j)-min(j)) + min(j)
+                    enddo
+
+                    if ( zigzagon ) then
+                    id = CM_ID(this(i)%xyz(:))
+                    if ( .not. OUT_OF_ZZ(id(1),id(2)) &
+                        .and. id(1) > 0 .and. id(1) <= ncm(1) ) exit
+                    end if
+                    
+                enddo search_CMFD
+                else
 				search_CE: do while ( found == .false.) 
 					do j = 1, 3
 						this(i) % xyz(j) = rang()*(max(j)-min(j)) + min(j)
@@ -1348,6 +1364,7 @@ subroutine bank_initialize(this)
 					enddo 
 					
 				enddo search_CE 
+                endif
             endif
             
         endif

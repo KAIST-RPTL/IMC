@@ -43,6 +43,8 @@ subroutine init_var
     avg_power = 0D0
     n_batch = 1
 
+    if(icore==ncore) iscore = .true.
+
 end subroutine
     
 ! =============================================================================
@@ -863,8 +865,9 @@ end subroutine READ_CTRL
     subroutine Read_Card(File_Number,Card_Type)
 		use ENTROPY, only: en0, en1, nen, shannon
 		use TH_HEADER, only: th_on, th0, th1, th2, nth, dth, rr0, rr1, p_th, mth
-		use FMFD_HEADER, only: fake_MC, a_fm, v_fm, n_fake, zigzagon, n_zz, fmfd2mc
+		use FMFD_HEADER
 		use TALLY, only: n_type, ttally, meshon, tgroup, n_tgroup
+        use PERTURBATION, only: perton
 		implicit none
 		integer :: i, j, iso_ 
 		integer,intent(in)::File_Number
@@ -873,7 +876,7 @@ end subroutine READ_CTRL
 		character(30):: Char_Temp
 		character(80):: line, lib1,lib2
 		character(1)::Equal
-		integer :: n
+		integer :: n, nm0, nm1
 		logical :: switch
 		character(4):: mtype
         character(6):: optchar
@@ -882,10 +885,14 @@ end subroutine READ_CTRL
         real(8), allocatable :: numden(:) 
 		real(8) :: sum_den
 		character(100) :: args(100)
-		integer :: nargs
+		integer :: nargs, n_univ, univid
 		integer :: ierr, curr_line
 		character(20) :: surf_id
         integer :: rgb(3)
+        ! sorting isotopes for predictor-corrector
+        integer:: idx_temp, comp, mini
+        real(8):: den_temp
+        integer, allocatable:: mid(:)
 		
 		
         File_Error=0
@@ -1739,6 +1746,77 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_rx_tally
                     if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
+
+                case("DTMC_BU")
+                    if ( .not. fmfdon ) cycle
+                    if ( .not. do_burn ) cycle
+                    DTMCBU = .true.
+                    allocate(buuniv(nfm(1),nfm(2),nfm(3)))
+                    allocate(buring(nfm(1),nfm(2),nfm(3)))
+                    buring = 0
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error)
+                    do kk = nfm(3), 1, -1
+                    do jj = nfm(2), 1, -1
+                    read(File_Number,*,iostat=File_Error), &
+                        (buuniv(ii,jj,kk), ii = 1, nfm(1))
+                    end do
+                    end do
+    
+                    ! cell index
+                    n_univ = size(universes)-1
+                    do ii = 1, nfm(1)
+                    do jj = 1, nfm(2)
+                    do kk = 1, nfm(3)
+                        ! search universe ID
+                        if ( buuniv(ii,jj,kk) == 0 ) cycle
+                        do mm = 1, n_univ
+                        if ( buuniv(ii,jj,kk) == universes(mm)%univ_id ) then
+                            univid = mm
+                            exit
+                        end if
+                        end do
+                        ! iDTMC ID
+                        nargs = universes(univid)%ncell
+                        buring(ii,jj,kk) = nargs
+                        do mm = 1, nargs
+                        idx_temp = universes(univid)%cell(mm)
+                        cells(idx_temp)%dtmc = mm
+                        mini = cells(idx_temp)%mat_idx
+                        if ( materials(mini)%depletable ) then
+                        if ( .not. allocated(materials(mini)%dtmc) ) then
+                            allocate(materials(mini)%dtmc(200))
+                            materials(mini)%dtmc    = 0
+                            materials(mini)%dtmc(1) = ii
+                            materials(mini)%dtmc(2) = jj
+                            materials(mini)%dtmc(3) = kk
+                            materials(mini)%dtmc(4) = mm
+                        else
+                            ! non-zero elements 
+                            comp = count(materials(mini)%dtmc/=0)
+                            materials(mini)%dtmc(comp+1) = ii
+                            materials(mini)%dtmc(comp+2) = jj
+                            materials(mini)%dtmc(comp+3) = kk
+                            materials(mini)%dtmc(comp+4) = mm
+                        end if
+                        end if
+                        end do
+                    end do
+                    end do
+                    end do
+                    nrings = maxval(buring)
+                    deallocate(buuniv)
+    
+                    allocate(mid(200))
+                    do mm = 1, n_materials
+                        if ( .not. allocated(materials(mm)%dtmc) ) cycle
+                        comp = count(materials(mm)%dtmc/=0)
+                        mid(1:comp) = materials(mm)%dtmc(1:comp)
+                        deallocate(materials(mm)%dtmc)
+                        allocate(materials(mm)%dtmc(comp))
+                        materials(mm)%dtmc(1:comp) = mid(1:comp)
+                    end do
+                    deallocate(mid)
                 end select Card_E_Inp
                 if (Char_Temp=="ENDE") Exit Read_Card_E
             end do Read_Card_E

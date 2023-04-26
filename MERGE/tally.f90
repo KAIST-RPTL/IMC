@@ -1,9 +1,10 @@
 module tally
+    use mpi
     use geometry_header 
     use constants
     use particle_header, only : Particle
-    use FMFD_HEADER, only: dfm, fm0, fm1
-    use VARIABLES, only: n_inact, curr_cyc, do_gmsh
+    use FMFD_HEADER, only: dfm, fm0, fm1, dcm, p_dep_mc, p_dep_dt
+    use VARIABLES, only: n_inact, curr_cyc, do_gmsh, do_burn
     
     implicit none
     
@@ -232,6 +233,17 @@ function FM_ID(fmxyz) result(fmid)
     integer:: fmid(3)               ! indice
        
     fmid(:) = floor((fmxyz(:)-fm0(:))/dfm(:))+1
+
+end function
+
+! =============================================================================
+! CM_ID finds the x, y, z indice in the fine mesh grid
+! =============================================================================
+function CM_ID(fmxyz) result(fmid)
+    real(8), intent(in):: fmxyz(:)  ! coordinate
+    integer:: fmid(3)               ! indice
+       
+    fmid(:) = floor((fmxyz(:)-fm0(:))/dcm(:))+1
 
 end function
 

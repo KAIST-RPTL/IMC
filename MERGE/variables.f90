@@ -100,7 +100,9 @@ implicit none
     & icore,      & !My core id
     & score = 0 , & !Server rank
     & ierr,       & !Error
-    & core        !Global communicator
+    & core,        & !Global communicator
+    & iscore = .false.
+
 
     ! Error message
     character(len=80) :: err_msg !> error message when exception handler is called
