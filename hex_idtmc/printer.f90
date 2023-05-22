@@ -10,6 +10,7 @@ module PRINTER
     use TALLY, only: tallyon, k_eff
     use STATISTICS
     use SIMULATION_HEADER, only: t_tot, t_mc, t_det
+	use hex_variables, only: dduct, hc_zmin ! LINKPOINT
     implicit none
     integer:: ii, jj, kk
     character(80):: dfile, dfile1
@@ -133,8 +134,10 @@ if ( icore==score ) then
         end if
         write(*,18), '   >> accumulation length = ', n_acc
         write(*,19), '   >> mesh grid = ', fm0(1:3), fm1(1:3), nfm(1:3)
-        if ( zigzagon ) &
+        if ( zigzagon .and. dduct < 0.0) & ! LINKPOINT
         write(*,20), '   >> zigzag = ', zzf0(2:n_zz+1)
+		if ( zigzagon .and. dduct > 0.0) &
+		write(*,20), '   >> zigzag = ', hc_zmin(:)
         if ( cmfdon ) &
         write(*,20), '   >> 1-node CMFD = ', fcr, fcz
         if ( quarter ) &
@@ -330,25 +333,25 @@ subroutine CYCLE_TALLY_MSG(bat)
     if ( DTMCBU .and. .not. MCBU ) then
     if ( istep_burnup == 0 ) then
     ! find if the file exists
-        nsum = 0
-        dfile = 'dep_dt0.out'
-        do
-        inquire(file=trim(dfile),exist=yes)
-        if ( yes ) then
-            nsum = nsum + 1
-            if ( nsum < 10 ) then
-                write(dfile,'(a,i1,a)'), 'dep_dt',nsum,'.out'
-            else
-                write(dfile,'(a,i2,a)'), 'dep_dt',nsum,'.out'
-            end if
-    
+    nsum = 0
+    dfile = 'dep_dt0.out'
+    do
+    inquire(file=trim(dfile),exist=yes)
+    if ( yes ) then
+        nsum = nsum + 1
+        if ( nsum < 10 ) then
+            write(dfile,'(a,i1,a)'), 'dep_dt',nsum,'.out'
         else
-            exit
+            write(dfile,'(a,i2,a)'), 'dep_dt',nsum,'.out'
         end if
-        end do
-        ! open a new file
-        open(46,file=trim(dfile))
-        close(46)
+
+    else
+        exit
+    end if
+    end do
+    ! open a new file
+    open(46,file=trim(dfile))
+    close(46)
     end if
     ! parameter generation
     do ii = 1, n_act
@@ -409,10 +412,6 @@ subroutine CYCLE_TALLY_MSG(bat)
     if (perton) then
     write(*,*) 'PERTURBED AVG'
     do jj = nfm(2), 1, -1
-    write(46,1), (AVG(p_dep_dt_pert(1,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
-    end do
-    write(46,*)
-    do jj = nfm(2), 1, -1
     write(46,1), (AVG(p_dep_dt_pert(n_act,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
     end do
     write(46,*)
@@ -428,11 +427,6 @@ subroutine CYCLE_TALLY_MSG(bat)
     
     if (perton) then
     write(*,*) 'PERTURBED SD'
-    do jj = nfm(2), 1, -1
-    write(46,1), (STD_S(p_dep_dt_pert(1,1:n_pert,ii,jj,1)) &
-        /AVG(p_dep_dt_pert(1,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
-    end do
-    write(46,*)
     do jj = nfm(2), 1, -1
     write(46,1), (STD_S(p_dep_dt_pert(n_act,1:n_pert,ii,jj,1)) &
         /AVG(p_dep_dt_pert(n_act,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
@@ -491,25 +485,25 @@ subroutine CYCLE_TALLY_MSG(bat)
     write(45,1), (p_dep_mc(1,ii,jj,1), ii = 1, nfm(1))
     end do
     write(45,*)
-!    do jj = nfm(2), 1, -1
-!    write(45,1), (AVG(p_dep_mc(1:3,ii,jj,1)), ii = 1, nfm(1))
-!    end do
-!    write(45,*)
-!    do jj = nfm(2), 1, -1
-!    write(45,1), (AVG(p_dep_mc(1:5,ii,jj,1)), ii = 1, nfm(1))
-!    end do
-!    write(45,*)
-!    do jj = nfm(2), 1, -1
-!    write(45,1), (AVG(p_dep_mc(1:n_act,ii,jj,1)), ii = 1, nfm(1))
-!    end do
-!    write(45,*)
-
-!    write(45,*), " HERE : SD of pin power"
     do jj = nfm(2), 1, -1
-    write(45,1), (STD_M(p_dep_mc(1:n_act,ii,jj,1)) &
-        /AVG(p_dep_mc(1:n_act,ii,jj,1)), ii = 1, nfm(1))
+    write(45,1), (AVG(p_dep_mc(1:3,ii,jj,1)), ii = 1, nfm(1))
     end do
     write(45,*)
+    do jj = nfm(2), 1, -1
+    write(45,1), (AVG(p_dep_mc(1:5,ii,jj,1)), ii = 1, nfm(1))
+    end do
+    write(45,*)
+    do jj = nfm(2), 1, -1
+    write(45,1), (AVG(p_dep_mc(1:n_act,ii,jj,1)), ii = 1, nfm(1))
+    end do
+    write(45,*)
+
+!    write(45,*), " HERE : SD of pin power"
+!    do jj = nfm(2), 1, -1
+!    write(45,1), (STD_M(p_dep_mc(1:n_act,ii,jj,1)) &
+!        /AVG(p_dep_mc(1:n_act,ii,jj,1)), ii = 1, nfm(1))
+!    end do
+!    write(45,*)
     close(45)
     end if
     end if

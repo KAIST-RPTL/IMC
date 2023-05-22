@@ -511,7 +511,6 @@ subroutine setugrid
     integer :: totngrid
     integer :: i, j, k, iso_, idx
     integer :: pt1
-    real(8), allocatable :: tmpgrid(:)
 
     if(E_mode==0) return
     !Set ugrid to accelerate energy-grid search
@@ -550,7 +549,7 @@ subroutine setuegrid
     integer :: totngrid
     integer :: i, j, k, iso_, idx
     integer :: pt1
-    real(8), allocatable :: tmpgrid(:)
+    real(8), allocatable :: tmpgrid(:), tmpgrid_2(:)
 
     if(E_mode==0) return
     totngrid = 0
@@ -593,20 +592,28 @@ subroutine setuegrid
     call QUICKSORT(tmpgrid,1,totngrid)
 
     ! 2. COLLECT UNIQUEs
-    allocate(ueggrid(0:totngrid))
+    allocate(tmpgrid_2(0:totngrid))
     idx = 1
-    ueggrid(0)   = 0d0
-    ueggrid(idx) = tmpgrid(1)
+    tmpgrid_2(0)   = 0d0
+    tmpgrid_2(idx) = tmpgrid(1)
     do i = 2, totngrid
         if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<UEGMAX &
             )then
-            !.and. tmpgrid(i)-tmpgrid(i-1)>=5E-5*tmpgrid(i-1)) then
             idx = idx + 1
-            ueggrid(idx) = tmpgrid(i)
+            tmpgrid_2(idx) = tmpgrid(i)
         endif
     enddo
     nueg    = idx
-    ueggrid = ueggrid(1:nueg)
+    allocate(ueggrid(0:nueg))
+    ueggrid(0:nueg) = tmpgrid_2(0:nueg)
+
+    deallocate(tmpgrid, tmpgrid_2)
+
+    open(502, file='ueg.out', action='write', status='unknown')
+    print *, 'NUEG', nueg
+    do i = 1, nueg
+        write(502, *) i, ueggrid(i), log(ueggrid(i))
+    enddo
 
     ! 3. SETUP HASH TABLE
     !   NUNI = len(UNIGRID)
@@ -619,7 +626,7 @@ subroutine setuegrid
     unigrid(0) = 0
     do i = 1, nuni-1
         Etmp = Emin * 1d1 ** (dble(i) * unidel)
-        if(Etmp > nueg) then
+        if(Etmp > ueggrid(nueg)) then
             idx = nuni
             goto 22
         endif

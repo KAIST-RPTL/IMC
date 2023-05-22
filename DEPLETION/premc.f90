@@ -15,7 +15,7 @@ subroutine premc
     !use TALLY, only: p_MC, e_MC
     
     implicit none
-    integer :: iwork1, iwork2, mm, i
+    integer :: iwork1, iwork2, mm, i, iso
     
     !===========================================================================
     !Read input geometry and cross section data
@@ -92,28 +92,10 @@ subroutine premc
     endif 
 
     call read_mgtally
+    if ( do_ueg ) call setuegrid
+    
     call setugrid
 
-    if ( do_ueg ) then
-        call setuegrid
-!        iwork1 = num_iso / ncore
-!        if(mod(num_iso, ncore)/=0) iwork1 = iwork1 + 1
-!        allocate(mpiace(iwork1, 0:ncore-1)); mpiace = 0
-!        do mm = 1, num_iso
-!            if(mod(mm, ncore) > 0) then
-!                mpiace(1+mm/ncore,mod(mm,ncore)-1) = mm
-!            else
-!                mpiace(mm/ncore,ncore-1) = mm
-!            endif
-!        enddo
-!        nace = iwork1
-!        if(icore==score) then
-!            print *, 'ISO DISTRIBUTED...'
-!            do mm = 0, ncore-1
-!                print *, mm, mpiace(1:nace,mm)
-!            enddo
-!        endif
-    endif
 
     ! UNIONIZED GRID TREATMENT
     call setueg
@@ -159,6 +141,9 @@ subroutine premc
     !write(*,'(I6, F17.7,F12.5,F12.5,F12.5)') ace(1)%zaid, ace(1)%E(i)*1E6, ace(1)%sigt(i), ace(1)%sigd(i), ace(1)%sigf(i)
     !enddo
     !endif
-	
+
+    iso = find_ACE_iso_idx_zaid(922350)
+    print *, 'TY', ace(iso) % NXS(4)
+    print *, ace(iso) % MT(1:ace(iso)%NXS(4))
 	
 end subroutine

@@ -576,7 +576,7 @@ module depletion_module
                         ! === 211110 ===
                         ! Updates on CFY and IFY -> TMP_FY
                         if(tmpfp>0) then
-                        if(cfy_yield(tmpfp,eg,fid)>fpcut) then
+                            if(cfy_yield(tmpfp,eg,fid)>fpcut .or. ify_yield(tmpfp,eg,fid)>fpcut) then
                             tmp_yield(tmpfp,eg,fid) = tmp_yield(tmpfp,eg,fid) + ify_yield(tmpfp,eg,fid)
                             if(fiss_path(tmpfp,fid)==0) fiss_path(tmpfp,fid) = 1
                             nuclide(inum,nnum,anum)%fiss = .true.
@@ -1136,27 +1136,37 @@ module depletion_module
                 if(icore==score) print *, 'XS pre-calculation completed'
             end subroutine
 
-            function buildflux(iso, n, eflux) result(flux)
+            function buildflux(iso, n, eflux_tmp) result(flux)
             implicit none
-            integer, intent(in)  :: iso
-            real(8), intent(in)  :: eflux(:)
-            real(8) :: flux(0:n)
+            integer, intent(in) :: iso
+            real(8), intent(in) :: eflux_tmp(:)
+            real(8) :: eflux(0:nueg)
+            real(8) :: flux(0:n-1)
             integer :: i, n, idx
             real(8) :: g, erg
 
-            flux(1:n) = 0d0
+            eflux(0:nueg) = eflux_tmp(1:nueg+1)
+
+            flux(1:n-1) = 0d0
             flux(0)   = eflux(0)
-            do i = 1, nueg
-                if( ace(iso) % UEG % Egrid(i) > ace(iso) % NXS(3) ) then
-                    flux(n) = flux(n) + sum(eflux(i:nueg))
-                    exit
+            idx = 1
+            FLX_LOOP: do i = 1, nueg
+                if( ueggrid(i) >= ace(iso) % E(ace(iso)%NXS(3)) ) then
+                    flux(n-1) = flux(n-1) + sum(eflux(i:nueg))
+                    exit FLX_LOOP
 !                elseif( ace(iso) % UEG % Egrid(i) == 0) then
 !                    cycle
+                elseif( ueggrid(i) < ace(iso) % E(1)) then
+                    flux(0) = flux(0) + eflux(i)
                 else ! In between
-                    idx = ace(iso) % UEG % Egrid(i)
+                    !idx = ace(iso) % UEG % Egrid(i)
+                    EDO: do
+                        if(ueggrid(i) < ace(iso) % E(idx+1)) exit EDO
+                        idx = idx + 1
+                    enddo EDO
                     flux(idx) = flux(idx) + eflux(i)
                 endif
-            enddo
+            enddo FLX_LOOP
 
             end function
 
@@ -1182,12 +1192,15 @@ module depletion_module
             end select
             endfunction
 
-            function buildogxs_e2(iso, rx, flux, flux2)
+            function buildogxs_e2(iso, rx, flux_tmp, flux2_tmp)
             implicit none
             real(8) :: buildogxs_e2
             integer, intent(in) :: iso, rx
-            real(8), intent(in) :: flux(:), flux2(:)
+            real(8), intent(in) :: flux_tmp(:), flux2_tmp(:)
+            real(8) :: flux(0:ace(iso)%NXS(3)), flux2(0:ace(iso)%NXS(3))
             integer :: mt, i
+            flux(0:ace(iso)%NXS(3)) = flux_tmp(1:ace(iso)%NXS(3)+1)
+            flux2(0:ace(iso)%NXS(3))= flux2_tmp(1:ace(iso)%NXS(3)+1)
             mt = ace(iso) % MT(rx)
             buildogxs_e2 = 0d0
             select case(mt)
@@ -1200,6 +1213,7 @@ module depletion_module
                     !buildogxs_e2 = buildogxs_e2 + flux(i) * (ace(iso)%sigd(i)+ace(iso)%sigd(i+1))*5d-1
                 enddo
                 buildogxs_e2 = buildogxs_e2 + flux(ace(iso)%NXS(3)) * ace(iso)%sigd(ace(iso)%NXS(3))
+
 
             case(N_FISSION)
                 buildogxs_e2 = flux(0) * ace(iso) % sigf(1)
@@ -1725,12 +1739,12 @@ module depletion_module
                     if(nuclide(inum,nnum,anum)%idx>0) nucexist(i) = 1.d0
                 enddo
 
-!                do i = 1,nfssn
-!                    ! NORMALIZE NFY: sum(NFY) = 200
-!                    ratio = sum(yield_data(:,i)*nucexist)/2.d0
-!                    if(ratio>0.d0) yield_data(:,i) = yield_data(:,i)/ratio
-!                    !if(icore==score) print *, 'NFY', fssn_zai(i), ratio
-!                enddo
+                do i = 1,nfssn
+                    ! NORMALIZE NFY: sum(NFY) = 200
+                    ratio = sum(yield_data(:,i)*nucexist)/2.d0
+                    if(ratio>0.d0) yield_data(:,i) = yield_data(:,i)/ratio
+                    if(icore==score) print *, 'NFY', fssn_zai(i), ratio
+                enddo
                 deallocate(nucexist)
                 !Calculate real flux (volume-averaged)
                 real_flux = ULnorm*mat%flux
@@ -1761,8 +1775,8 @@ module depletion_module
 
                     ! BUILD ISO-WISE FLUX
                     if(do_ueg) then
-                        flx  = buildflux(iso,ace(iso)%NXS(3)+1, mat %eflux(1:nueg))
-                        flx2 = buildflux(iso,ace(iso)%NXS(3)+1, mat%e2flux(1:nueg))
+                        flx  = buildflux(iso,ace(iso)%NXS(3)+1, mat %eflux(0:nueg))
+                        flx2 = buildflux(iso,ace(iso)%NXS(3)+1, mat%e2flux(0:nueg))
                         flx  = flx / toteflux; flx = flx * real_flux
                         flx2 = flx2/ toteflux; flx2= flx2* real_flux
                     endif
@@ -2256,7 +2270,7 @@ module depletion_module
         if(curr_cyc <= n_inact) return 
         if(.not. materials(imat)%depletable) return ! not depletable -> return
         
-        if(erg > ueggrid(nueg) .or. erg < ueggrid(1)) return
+        !if(erg > ueggrid(nueg) .or. erg < ueggrid(1)) return
         
         mat => materials(imat)
         
@@ -2266,14 +2280,14 @@ module depletion_module
             ! EFLUX TALLY
             call getiueg(erg, ierg)
             
-
+            
             if(ierg>=0) then
-    
-            !$OMP ATOMIC
-            mat%eflux(ierg) = mat%eflux(ierg) + wgt * distance
-    
-            !$OMP ATOMIC
-            mat%e2flux(ierg)= mat%e2flux(ierg)+ wgt * distance * erg
+   
+                !$OMP ATOMIC
+                mat%eflux(ierg) = mat%eflux(ierg) + wgt * distance
+        
+                !$OMP ATOMIC
+                mat%e2flux(ierg)= mat%e2flux(ierg)+ wgt * distance * max(ueggrid(1), min(ueggrid(nueg), erg))
 
             endif
         endif
