@@ -24,7 +24,7 @@ subroutine premc
     implicit none
     integer:: ista, iend
     real(8):: tt0, tt1
-    integer:: iwork1, iwork2, mm
+    integer:: iwork1, iwork2, mmm
     
     !===========================================================================
     !Read input geometry and cross section data
@@ -65,10 +65,10 @@ subroutine premc
         allocate(mp1(0:ncore-1),mp2(0:ncore-1))
         iwork1 = n_materials / ncore
         iwork2 = mod(n_materials,ncore)
-        do mm = 0, ncore-1
-        mp1(mm) = mm*iwork1+1+min(mm,iwork2)
-        mp2(mm) = mp1(mm)+iwork1-1
-        if ( iwork2 > mm ) mp2(mm) = mp2(mm) + 1
+        do mmm = 0, ncore-1
+        mp1(mmm) = mmm*iwork1+1+min(mmm,iwork2)
+        mp2(mmm) = mp1(mmm)+iwork1-1
+        if ( iwork2 > mmm ) mp2(mmm) = mp2(mmm) + 1
         end do
     endif 
 

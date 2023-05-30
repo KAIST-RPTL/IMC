@@ -142,8 +142,4 @@ subroutine premc
     !enddo
     !endif
 
-    iso = find_ACE_iso_idx_zaid(922350)
-    print *, 'TY', ace(iso) % NXS(4)
-    print *, ace(iso) % MT(1:ace(iso)%NXS(4))
-	
 end subroutine

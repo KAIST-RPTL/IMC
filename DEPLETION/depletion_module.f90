@@ -299,7 +299,7 @@ module depletion_module
         anum = nuclid/1000
         mnum = nuclid-anum*1000
         nnum = mnum-anum
-        if (nuclide(inum,nnum,anum)%data_exist) go to 15
+        if (nuclide(inum,nnum,anum)%data_exist .and. nuclide(inum,nnum,anum)%iu>0) go to 15
         nuclide(inum,nnum,anum)%data_exist = .true.
          
         nuclide(inum,nnum,anum)%sng = 0.d0
@@ -409,6 +409,10 @@ module depletion_module
                 nuclide(inum,nnum,anum)%daughter(react,1) = prod(1)
                 nuclide(inum,nnum,anum)%daughter(react,2) = prod(2)
                 nuclide(inum,nnum,anum)%daughter(react,3) = prod(3)
+                if(.not. nuclide(prod(1),prod(2),prod(3))%data_exist) then
+                    nuclide(prod(1), prod(2), prod(3)) % data_exist = .true.
+                    nuclide(prod(1), prod(2), prod(3)) % iu = 0
+                endif
             endif
         enddo
         15  continue
@@ -523,19 +527,31 @@ module depletion_module
 
                         ! 211109 MODIFICATION: If decay chain of meta. not exists, pass to ground
                         tmpfp = nuclide(inum,nnum,anum)%fp
+                        if(icore==score .and. anum==33 .and. mnum==74 .and. fssn_zai(fid)==922350) &
+                            print *, 'NUC', nuclide(inum,nnum,anum)%fp, inum, nuclide(inum,nnum,anum)%data_exist
                         if (nuclide(inum,nnum,anum)%fp == 0) then !Assign ifp to nuclide
                             if(nuclide(inum,nnum,anum)%data_exist) then
                                 ifp = ifp + 1
                                 nuclide(inum,nnum,anum)%fp = ifp
                                 fp_zai(ifp) = nuclid*10+inum
                                 tmpfp = nuclide(inum,nnum,anum)%fp
+                            else
+                                tmpfp = nuclide(0, nnum, anum) % fp
                             endif
                         endif
                         flag = mod(fp*4-1,6) ! Flag for yield
                         if (flag<3) read(rd_yield,'(A80)',end=300) line1
                         read(line1(11*flag-10:11*flag),'(f)') ify
-                        if(ify>0.d0 .and. tmpfp>0) ify_yield(tmpfp,eg,fid) = &
-                            ify_yield(tmpfp,eg,fid) + ify
+
+                        ! Alternate for Meta...
+
+                        if(ify>0.d0) then
+                            if(tmpfp>0) then
+                                ify_yield(tmpfp,eg,fid) = &
+                                ify_yield(tmpfp,eg,fid) + ify
+                            endif
+                        endif
+                        if(icore==score .and. anum==33 .and. mnum==74 .and. fssn_zai(fid)==922350) print *, 'NFY', nuclid, inum, ify, eg
                     enddo
                 enddo
                 nuclide(fssn_inum,fssn_nnum,fssn_anum)%yield_E = Ep*1.d-6
@@ -575,12 +591,13 @@ module depletion_module
                             cfy_yield(tmpfp,eg,fid) + cfy
                         ! === 211110 ===
                         ! Updates on CFY and IFY -> TMP_FY
+                        tmpfp = nuclide(inum, nnum, anum) %fp
                         if(tmpfp>0) then
                             if(cfy_yield(tmpfp,eg,fid)>fpcut .or. ify_yield(tmpfp,eg,fid)>fpcut) then
-                            tmp_yield(tmpfp,eg,fid) = tmp_yield(tmpfp,eg,fid) + ify_yield(tmpfp,eg,fid)
-                            if(fiss_path(tmpfp,fid)==0) fiss_path(tmpfp,fid) = 1
-                            nuclide(inum,nnum,anum)%fiss = .true.
-                        endif
+                                tmp_yield(tmpfp,eg,fid) = tmp_yield(tmpfp,eg,fid) + ify_yield(tmpfp,eg,fid)
+                                if(fiss_path(tmpfp,fid)==0) fiss_path(tmpfp,fid) = 1
+                                nuclide(inum,nnum,anum)%fiss = .true.
+                            endif
                         endif
                     enddo
                 enddo
@@ -1742,7 +1759,7 @@ module depletion_module
                 do i = 1,nfssn
                     ! NORMALIZE NFY: sum(NFY) = 200
                     ratio = sum(yield_data(:,i)*nucexist)/2.d0
-                    if(ratio>0.d0) yield_data(:,i) = yield_data(:,i)/ratio
+                    !if(ratio>0.d0) yield_data(:,i) = yield_data(:,i)/ratio
                     if(icore==score) print *, 'NFY', fssn_zai(i), ratio
                 enddo
                 deallocate(nucexist)
@@ -1839,6 +1856,7 @@ module depletion_module
                                     knuc = nuclide(inum1,nnum1,anum1)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) &
                                         + ogxs * yield_data(i,fy_midx) * bstep_size
+                                    if(anum1==33 .and. mnum1==74 .and. anum==92 .and. anum+nnum==235)  print *,'TST', fp_zai(i), yield_data(i,fy_midx), tmp_yield(i,:,fy_midx)
 
                                     !if(anum1==42 .and. mnum1==97) print *, 'MO97', fssn_zai(fy_midx), yield_data(i,fy_midx), tmp_yield(i,:,fy_midx) 
                                     !if(knuc/=0) print *, 'FP', knuc, jnuc, bMat(knuc,jnuc)

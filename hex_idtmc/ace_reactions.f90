@@ -10,6 +10,8 @@ use scattering_laws
 use particle_header
 use bank_header
 use geometry_header, only: cells 
+use hex_variables   ! LINKPOINT
+use hex_geometry
 
 implicit none
 
@@ -619,6 +621,7 @@ subroutine fissionSite_CE (p, iso, micro_xs)
     real(8) :: F         ! collision probability
     real(8) :: erg_out, mu
     integer :: id(3)
+	integer :: recv(9)
     logical :: delayed
     real(8) :: pdf
     
@@ -631,7 +634,12 @@ subroutine fissionSite_CE (p, iso, micro_xs)
     ! fission site for FMFD calculation
     if ( fmfdon ) then
         if ( INSIDE(p%coord(1)%xyz) ) then
-            id(:) = FM_ID(p%coord(1)%xyz)
+		    if (dduct > 0.0) then
+			    recv = hf_fmfd_coords(p%coord(1)%xyz, fm0(:), dcm(:), dfm(:), fcr)
+				id(:) = recv(7:9)
+			else
+                id(:) = FM_ID(p%coord(1)%xyz)
+			end if
             fsd_MC(id(1),id(2),id(3)) = fsd_MC(id(1),id(2),id(3)) + n
         end if
     end if

@@ -5,7 +5,8 @@ module hex_fmfd
     
 	use FMFD_header
     use hex_variables
-	use hex_geometry, only: hc_in_zz
+	use hex_geometry, only: hc_in_zz, hc_cmfd_coords
+	use hex_cmfd
 
     ! use ncm(3) (input)
 	! use fcr, fcz (input)
@@ -351,6 +352,41 @@ module hex_fmfd
 			end do
 		end do
 	end subroutine hf_allocate
+	
+    subroutine hf_FMFD_TO_MC(bat,cyc,fm) ! TODO: verify this!
+        use TALLY, only: ttally, MC_tally, n_type
+        use ENTROPY, only: fetnusigf
+        implicit none
+        integer, intent(in):: bat, cyc
+        type(FMFD_parameters), intent(in):: fm(:,:,:)
+        integer:: acyc
+    
+        if ( cyc <= n_inact ) return
+        if ( bat == 0 ) return
+        acyc = cyc - n_inact
+    
+        do ii = 1, n_type
+        select case(ttally(ii))
+        case(2)
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%sig_t
+        case(3)
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%sig_a
+        case(4)
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%nusig_f
+        case(12)
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%sig_t/fm(:,:,:)%phi
+        case(13)
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%sig_a/fm(:,:,:)%phi
+        case(14)
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%nusig_f/fm(:,:,:)%phi
+        case default
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%phi
+        end select
+        end do
+    
+        !fetnusigf(:,:,:) = fm(:,:,:)%nusig_f
+    
+    end subroutine
 
 	subroutine hf_process(bat,cyc) ! equivalent to PROCESS_FMFD
         use GEOMETRY_HEADER, only: universes
@@ -374,14 +410,12 @@ module hex_fmfd
 		
 		integer :: i, j, k, ii, jj, kk, x, y, z
 	    
-	    
         ! -------------------------------------------------------------------------
         ! data transmission I
         allocate(fsd_MC0(x_max, y_max, z_max))
 	    
         n_cells_hf = x_max * y_max * z_max
         lc = mod(cyc-1,n_acc)+1
-        print *, 'ACC', lc
 	    
         ac => acc(lc)
         tt0 = MPI_WTIME()
@@ -437,9 +471,6 @@ module hex_fmfd
             end do
         end do
 	    
-        do ij = 1,8
-        print *, 'JTEST', ij, sum(abs(ac%fm(:,:,:)%J0(ij))), sum(abs(ac%fm(:,:,:)%J1(ij)))
-        enddo
         ! initialisation
         fm_avg(:,:,:)%phi     = 0 
         fm_avg(:,:,:)%sig_t   = 0 
@@ -479,7 +510,6 @@ module hex_fmfd
         end if
         end select
 	   
-        print *, 'LEN', cyc, length, which_idtmc, acc_skip, n_inact
         ! accumulation
         do ii = 1, nfm(1)
         do jj = 1, nfm(2)
@@ -575,7 +605,10 @@ module hex_fmfd
                 do k = 1, z_max
                     if (v_hf(i,j,k) == 0.0) cycle ! only consider cells that exist...
                     do b = 1, 8
-                        if (s_hf(i,j,k,b) == 0.0) cycle ! ...and boundaries that exist
+                        if (s_hf(i,j,k,b) == 0.0) then
+						    fmDt(i,j,k,b) = 0.0
+							cycle
+                        end if ! ...and boundaries that exist
                         ! what type of surface is this?
                         ! code assumes that internal boundaries and assembly-edge radial boundaries have different areas; throw an error if not
                         if (s_e == s_s .or. s_e == s_l) print *, "WARNING AREAS OF DIFFERENT BOUNDARY TYPES MATCH"                        
@@ -637,7 +670,7 @@ module hex_fmfd
                         if (boundary == 1 .or. boundary == 2) then
                             d_temp = 2.0 * fmD(i,j,k) * fmD(ii,jj,kk) / (fmD(i,j,k) + fmD(ii,jj,kk))
                         else if (boundary == 3) then
-                            d_temp = fmD(i,j,k)
+                            d_temp = 0.0 ! fmD(i,j,k)
                         else
                             print *, "ERROR BOUNDARY NOT SET", i, j, k, b, boundary
                             stop
@@ -678,7 +711,10 @@ module hex_fmfd
                 do k = 1, z_max
                     if (v_hf(i, j, k) == 0.0) cycle ! skip nonexistent cells
                     do b = 1, 8
-                        if (fmDt(i,j,k,b) == 0) cycle ! skip surfaces with no diffusion
+                        if (s_hf(i,j,k,b) == 0) then
+						    fmDh(i,j,k,b) = 0.0
+						    cycle
+                        end if						! skip surfaces with no diffusion
                         if (b .ge. 5) then
                             fmDh(i,j,k,b) = fmJ1(i,j,k,b) / fphi1(i,j,k) - fmDt(i,j,k,b)
                         else
@@ -739,7 +775,7 @@ module hex_fmfd
                         bb = b
                         if (b .ge. 5) bb = b + 1 ! save space for the middle diagonal
                         if (boundary == 1) Mfm(i,j,k,bb) = Mfm(i,j,k,bb) - s_hf(i,j,k,b) * (fmDt(ii,jj,kk,9-b) + fmDh(ii,jj,kk,9-b)) / v_hf(i,j,k) ! INCOMING PARTIAL FLUX
-                        Mfm(i,j,k,5)  = Mfm(i,j,k,5) + s_hf(i,j,k,b) * (fmDt(i,j,k,b) + fmDh(i,j,k,b)) / v_hf(i,j,k) ! OUTGOING PARTIAL FLUX
+                        Mfm(i,j,k,5) = Mfm(i,j,k,5) + s_hf(i,j,k,b) * (fmDt(i,j,k,b) + fmDh(i,j,k,b)) / v_hf(i,j,k) ! OUTGOING PARTIAL FLUX
                     end do
                 end do
             end do
@@ -873,7 +909,8 @@ module hex_fmfd
 	    call hf_diffusion
 		if (corr) call hf_correction
 		call hf_matrix
-		do while (rel_err > 1d-6 .and. i < 500)
+		fphi0 = fphi1 ! save initial MC flux
+		do while (rel_err > 1d-8 .and. i < 500)
 		    i = i + 1
 			call hf_expansion
             b_hf_old = b_hf
@@ -883,17 +920,16 @@ module hex_fmfd
             call hf_source
             k_eff_old = k_eff
 			k_eff = k_eff * sum(b_hf * b_hf_old) / sum(b_hf_old * b_hf_old) ! K UPDATE
-            rel_err = abs(k_eff - k_eff_old) ! CONVERGENCE TEST
+            rel_err = sum(abs(b_hf - b_hf_old)) / sum(b_hf_old) ! CONVERGENCE TEST
         end do
-		
-!		! TESTING REMOVE
-!		do i = 1, x_max
-!		    do j = 1, y_max
-!			    do k = 1, z_max
-!				    print *, i, j, k, fphi1(i,j,k)
-!				end do
-!			end do
-!		end do
+		!do i = 1, x_max ! TEST REMOVE
+		!    do j = 1, y_max
+		!	    do k = 1, z_max
+		!		    if (v_hf(i,j,k) == 0.0) cycle
+		!			print "(2E12.4)", fphi0(i,j,k) / (sum(fphi0 * v_hf) / sum(v_hf)), fphi1(i,j,k) / (sum(fphi1 * v_hf) / sum(v_hf))
+		!		end do
+		!	end do
+		!end do
 	end subroutine hf_fmfd
 	
     subroutine hf_WEIGHT_UPDATE(bat,cyc,k_eff,phi2) ! TODO: verify this subroutine!
@@ -907,6 +943,7 @@ module hex_fmfd
                                fsd_FM3(:,:,:) ! for inactive CMFD
         integer:: ix0, ix1, iy0, iy1, iz0, iz1
         logical:: update
+		integer :: i, j, k, ii, jj, kk, x, y, z
     
         if ( inactive_cmfd .and. .not. allocated(fsd3) ) then
             allocate(fsd3(ncm(1),ncm(2),ncm(3)))
@@ -925,18 +962,42 @@ module hex_fmfd
 
         if ( update ) then
             if ( inactive_CMFD ) then
-                do ii = 1, ncm(1); ix1 = ii*fcr; ix0 = ix1-fcr+1
-                do jj = 1, ncm(2); iy1 = jj*fcr; iy0 = iy1-fcr+1
-                do kk = 1, ncm(3); iz1 = kk*fcz; iz0 = iz1-fcz+1
-                    fsd_MC3(ii,jj,kk) = sum(fsd_MC(ix0:ix1,iy0:iy1,iz0:iz1))
-                end do
-                end do
-                end do
+			
+			    fsd_MC3 = 0.0 ! LINKPOINT - sum up the Monte Carlo fission source distribution!
+			    do i = 1, ncm(1)
+				    do j = 1, ncm(2)
+					    if (.not. hc_in_zz(i, j)) cycle ! skip nonexistent fuel assemblies
+					    do k = 1, ncm(3)
+						    do ii = 1, (2*fcr-1)
+							    do jj = 1, (2*fcr-1)
+						            if (ii + jj < fcr + 1) then ! skip nonexistent fuel pins
+							            cycle
+							        else if (ii + jj > 3*fcr - 1) then
+							            cycle
+							        end if
+								    do kk = 1, fcz
+							            x = (fcr - 1) * (ncm(2) - 1) + ii + (i - 1) * fcr + (j - 1) * (1 - fcr)
+						                y = jj + (i - 1) * (fcr - 1) + (j - 1) * (2 * fcr - 1)
+							            z = kk + (k - 1) * fcz
+										fsd_MC3(i,j,k) = fsd_MC3(i,j,k) + fsd_MC(x,y,z)
+									end do
+								end do
+							end do
+						end do
+					end do
+				end do
         
-                fsd_FM3 = cm_nf*cphi1
-                fsd_MC3 = fsd_MC3 / sum(fsd_MC3)
+                fsd_FM3 = hc_nf*hcphi1
+				fsd_MC3 = hc_nf*hcphi0
                 fsd_FM3 = fsd_FM3 / sum(fsd_FM3)
+                fsd_MC3 = fsd_MC3 / sum(fsd_MC3)
                 fsd3 = fsd_FM3 / fsd_MC3
+				
+				do i = 1, ncm(1)
+				    do j = 1, ncm(2)
+					    if (.not. hc_in_zz(i,j)) fsd3(i,j,:) = 1.0
+					end do
+				end do
             else
                 fsd_FM = fm_nf*fphi1
                 fsd_MC = fsd_MC / sum(fsd_MC)
@@ -956,10 +1017,11 @@ module hex_fmfd
         if ( inactive_cmfd .and. cyc <= n_inact ) then
             call MPI_BCAST(fsd3,ncm(1)*ncm(2)*ncm(3),MPI_REAL8,score,MPI_COMM_WORLD,ierr)
             do ii = 1, bank_size
-                id = CM_ID(fission_bank(ii)%xyz)
+                id = hc_cmfd_coords(fission_bank(ii)%xyz, fm0, dcm, fcr) ! CM_ID(fission_bank(ii)%xyz)
                 if ( id(1) < 1 .or. id(1) > ncm(1) ) cycle
                 if ( id(2) < 1 .or. id(2) > ncm(2) ) cycle
                 if ( id(3) < 1 .or. id(3) > ncm(3) ) cycle
+				if ( .not. hc_in_zz(id(1), id(2))  ) cycle
                 fission_bank(ii)%wgt = fission_bank(ii)%wgt * fsd3(id(1),id(2),id(3))
             enddo
         else
@@ -1005,7 +1067,7 @@ module hex_fmfd
 		integer:: lc
 		real(8):: aa
 		real(8):: tt0, tt1, tt2
-		integer :: i, j, k
+		integer :: i, j, k, b, ii, jj, kk
 
 		! parameter initialization
 		!tt1 = MPI_WTIME()
@@ -1025,11 +1087,10 @@ module hex_fmfd
 			fm_nf(:,:,:)   = ac%fm(:,:,:)%nusig_f 
 			end where
 			do ii = 1, 8
-			aa = dble(ngen)*a_fm(ii)
-			where ( fphi1 /= 0 ) 
-			fmJ0(:,:,:,ii) = ac%fm(:,:,:)%J0(ii)/aa
-			fmJ1(:,:,:,ii) = ac%fm(:,:,:)%J1(ii)/aa
-			end where
+			    where ( fphi1 /= 0 ) 
+			        fmJ0(:,:,:,ii) = ac%fm(:,:,:)%J0(ii)/(dble(ngen)*s_hf(:,:,:,ii))
+			        fmJ1(:,:,:,ii) = ac%fm(:,:,:)%J1(ii)/(dble(ngen)*s_hf(:,:,:,ii))
+			    end where
 			end do
 			nullify(ac)
 		
@@ -1037,7 +1098,7 @@ module hex_fmfd
 			fm_t   = fm_t  / fphi1
 			fm_a   = fm_a  / fphi1
 			fm_nf  = fm_nf / fphi1
-			fphi1  = fphi1 / (dble(ngen)*v_fm*2D0)
+			fphi1  = fphi1 / (dble(ngen)*v_hf*2D0)
 			end where
 
 		else
@@ -1053,16 +1114,6 @@ module hex_fmfd
 			fmJ1(:,:,:,ii)  = fm_avg(:,:,:)%J1(ii)
 			end where 
 			end do
-
-            do i = 1, x_max
-                do j = 1, y_max
-                    if(fphi1(i,j,1)<=0) cycle
-                    print '(A,I3,I3,E15.5)', 'PH', i, j, fphi1(i,j,1)
-                    print '(8E15.5)', (fmJ1(i,j,1,ii)-fmJ0(i,j,1,ii), ii=1,8)
-                    print '(8E15.5)', (fmJ0(i,j,1,ii), ii=1,8)
-                    print '(8E15.5)', (fmJ1(i,j,1,ii), ii=1,8)
-                enddo
-            enddo
 
 !            do ii = 1,8
 !            do j = 1, y_max
@@ -1081,6 +1132,33 @@ module hex_fmfd
 !            print '(A,8E15.5)', 'J0', (fmJ0(5,6,1,i), i=1,8)
 !            print '(A,8E15.5)', 'J1', (fmJ1(5,6,1,i), i=1,8)
 		end if
+		! CALCULATE INCOMING PARTIAL FLUXES
+		! (TODO): check if redundant
+		do i = 1, x_max
+		    do j = 1, y_max
+			    do k = 1, z_max
+				    if (v_hf(i,j,k) == 0.0) then
+					    fmJ0(i,j,k,:) = 0.0
+						fmJ1(i,j,k,:) = 0.0
+					end if
+					do b = 1, 8
+				        ii = i
+					    jj = j
+						kk = k
+				        if (k == 1 .or. k == 2) ii = i - 1
+					    if (k == 7 .or. k == 8) ii = i + 1
+						if (k == 4)             kk = k - 1
+						if (k == 5)             kk = k + 1
+					    if (k == 3 .or. k == 7) jj = j - 1
+					    if (k == 2 .or. k == 6) jj = j + 1
+						if (ii < 1 .or. ii > x_max .or. jj < 1 .or. jj > y_max .or. kk < 1 .or. kk > z_max) cycle
+						if (v_hf(ii,jj,kk) == 0.0) cycle
+						if (b .le. 4) fmJ1(i,j,k,b) = fmJ1(ii,jj,kk,9-b)
+						if (b .ge. 5) fmJ0(i,j,k,b) = fmJ0(ii,jj,kk,9-b)
+					end do
+				end do
+			end do
+		end do
 		fmJn = fmJ1-fmJ0
 		fmD  = 1D0 / (3D0 * fm_t)
 		where( fphi1 == 0 ) fmD = 0
@@ -1097,37 +1175,26 @@ module hex_fmfd
 		!tt2 = MPI_WTIME()
 		!if ( iscore ) print*, " - FMFD parameter reading : ", tt2-tt1
 
-		if ( inactive_cmfd ) then ! (TODO): implement pCMFD
-			!if ( curr_cyc <= n_inact ) then
-			!call CMFD_CALCULATION(k_eff)
-			!else
-			!call ONE_NODE_CMFD(k_eff,1D-9)
-			!end if
-		elseif ( cmfdon ) then ! (TODO): implement one-node pCMFD
-			!if ( icore == score ) then
-			!if ( .not. allocated(fmF) ) allocate(fmF(nfm(1),nfm(2),nfm(3),6))
-			!fmF = 2D0*(fmJ1+fmJ0)
-			!end if
-			!call ONE_NODE_CMFD(k_eff,1D-9)
-		else
+		if ( inactive_cmfd .and. curr_cyc <= n_inact ) then
+		    if ( iscore ) then ! LINKPOINT
+			    call hc_cmfd(k_eff, .true.)
+			end if
+		else if ( curr_cyc > n_inact) then
 			if ( iscore ) then
-			call hf_diffusion ! D_TILDA_CALCULATION
-			if ( .not. pfmfdon ) then ! (TODO): implement FMFD
-				!call D_HAT_CALCULATION
-				!call FMFD_MATRIX
-			else
-				call hf_correction ! D_PHAT_CALCULATION
-				call hf_matrix ! PFMFD_MATRIX
-				write(*,*) 'PFMFD', sum(fmDh)
-			endif 
-			if ( zigzagon ) call hf_SET_ZERO_FLUX(fphi1) ! SET_ZERO_M
-			call hf_fmfd(k_eff, .true.) ! POWER
+			    call hf_diffusion ! D_TILDA_CALCULATION
+			    if ( pfmfdon ) then
+			    	call hf_correction ! D_PHAT_CALCULATION
+			    	call hf_matrix ! PFMFD_MATRIX
+			    	write(*,*) 'PFMFD', sum(fmDh)
+			    endif 
+			    if ( zigzagon ) call hf_SET_ZERO_FLUX(fphi1) ! SET_ZERO_M
+			    call hf_fmfd(k_eff, .true.) ! POWER
 			end if
 		end if
 		
 		! weight update
 		call hf_WEIGHT_UPDATE(bat,cyc,k_eff)
-		if(iscore) print *, 'keff_nopert', k_eff
+		!if(iscore) print *, 'keff_nopert', k_eff ! REMOVE: reimplement these print statements!
 	   
 		! error quantification by 1st order perturbation
 		tt1 = MPI_WTIME()
@@ -1135,10 +1202,10 @@ module hex_fmfd
 		
 
 		tt2 = MPI_WTIME()
-		if ( iscore ) print*, " - perturbation total : ", tt2-tt1
+		!if ( iscore ) print*, " - perturbation total : ", tt2-tt1
 
 		if ( icore /= score ) return
-		print*, "keff ", k_eff
+		!print*, "keff ", k_eff
 		!if (perton) write(*,*) "COSAMPLING", AVG(k_real(bat,cyc,:))
 
 		!> CMFD feedback (modulation)

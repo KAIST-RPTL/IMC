@@ -190,18 +190,6 @@ module hex_geometry
 		hf_fmfd_coords(7) = (fcr - 1) * (ncm(2) - 1) + ii + (i - 1) * fcr + (j - 1) * (1 - fcr)
 		hf_fmfd_coords(8) = jj + (i - 1) * (fcr - 1) + (j - 1) * (2 * fcr - 1)
 		hf_fmfd_coords(9) = kk + (k - 1) * fcz
-		!print *, "HF_FMFD_COORDS" ! TEST REMOVE
-		!fm_car(1) = p_coords(1) - ori(1) - sqrt(3.0/4.0) * cm_cor(1) * sca_cmfd(1)
-		!fm_car(2) = p_coords(2) - ori(2) - (cm_cor(2) + 0.5 * real(cm_cor(1))) * sca_cmfd(2)
-		!fm_car(3) = p_coords(3) - ori(3) - cm_cor(3) * sca_cmfd(3)
-		!print *, p_coords
-		!print *, cm_cor
-		!print *, fm_car
-		!print *, fm_cor
-		!print *, hf_fmfd_coords
-		if (hf_fmfd_coords(2) > 10) then
-		    print "(11I4)", hf_fmfd_coords, fcr, ncm(2)
-		end if
 	end function hf_fmfd_coords
 	
 	subroutine hex_surf(p_coords, dir, ori, sca_cmfd, sca_fmfd, n_fmfd, i_xyz, d_mesh, i_surf)
@@ -331,26 +319,7 @@ module hex_geometry
 		!if (i_surf /= 4 .and. i_surf /= 5) then
 		!    print *, p_coords + d_mesh * dir
 		!end if
-	
-		!print *, "SURF" ! TESTING REMOVE
-		!if (hf_global(2) == y_max) then
-		!    print *, "SURF"
-		!    print *, hf_global
-		!	print *, cm_cor
-		!	print *, fm_cor
-		!	print *, p_coords
-		!end if
-		!print *, p_coords
-		!print *, ori
-		!print *, cm_cor
-		!print *, fm_car
-		!print *, fm_cor
-		!print "(8I3)", boundaries
-		!print *, disp
-		!print *, vel
-		!print *, i_surf, d_mesh
-		!print *, disp + vel * d_mesh
-		!stop
+		
 		i_xyz = hf_global
 	end subroutine hex_surf
 	

@@ -663,6 +663,7 @@ subroutine fissionSite_CE (p, iso, micro_xs)
     logical :: delayed
 	real(8) :: pdf
     real(8) :: trvl, lambda
+    logical :: alive
 	
 	
 	delayed = .false. 
@@ -803,7 +804,9 @@ subroutine fissionSite_CE (p, iso, micro_xs)
             if(do_fuel_mv) then
                 lambda = ace(iso)%prcr(iMT)%decay_const
                 thread_bank(bank_idx)%time= -log(rang())/lambda
-                call MSR_treatment(thread_bank(bank_idx)%xyz, thread_bank(bank_idx)%time)
+                call MSR_treatment(thread_bank(bank_idx)%xyz, thread_bank(bank_idx)%time,alive)
+                if(.not. alive) bank_idx = bank_idx - 1
+                print *, 'TEST', alive, bank_idx, icore
             endif
         else !prompt
             thread_bank(bank_idx)%delayedarr(latent) = 0
@@ -816,7 +819,7 @@ subroutine fissionSite_CE (p, iso, micro_xs)
 end subroutine
 
 
-subroutine MSR_treatment(xyz, t_emit)
+subroutine MSR_treatment(xyz, t_emit, alive)
     use variables, only: core_radius, core_height, fuel_speed, core_base, t_rc
     implicit none
     real(8), intent(inout) :: xyz(3)
@@ -825,20 +828,23 @@ subroutine MSR_treatment(xyz, t_emit)
     real(8) :: t_end, t_res
     real(8) :: rn1, rn2
     integer :: zidx
-
+    logical, intent(out)  :: alive
+    alive = .false.
+    return
     if(.not. do_fuel_mv) return
     if(fuel_speed <= 0.d0) return
     t_end   = (core_height-(xyz(3)-core_base)) / fuel_speed
     n_recirc= max(0,floor((t_emit-t_end)/(t_rc + (core_height/fuel_speed))))
     t_res   = t_emit - t_end - n_recirc * (t_rc + core_height/fuel_speed)
-
+    alive   = .true.
     if(t_emit < t_end) then ! decays before hits top
         xyz(3) = xyz(3) + fuel_speed * t_emit
     elseif(t_res<=t_rc) then ! decays out of the core: exterminates
-        bank_idx = bank_idx - 1
+        !bank_idx = bank_idx - 1
         !print *, 'DEAD', t_emit, t_end, t_res, t_rc
         MSR_leak = MSR_leak + 1
         !print *, MSR_leak
+        alive = .false.
     elseif(t_res>t_rc) then ! recirculate and decayed
         rn1 = rang(); rn2 = rang()
         xyz(1) = rn1 * core_radius * cos(2*pi*rn2)
@@ -846,7 +852,8 @@ subroutine MSR_treatment(xyz, t_emit)
         xyz(3) = core_base + fuel_speed * (t_res-t_rc)
         !print *, 'RECIRC', t_emit, t_end, t_res, t_rc, xyz(1:3)
     else
-        bank_idx = bank_idx - 1
+        !bank_idx = bank_idx - 1
+        alive = .false.
     endif
 end subroutine
 

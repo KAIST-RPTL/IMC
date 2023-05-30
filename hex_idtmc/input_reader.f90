@@ -35,7 +35,7 @@ module input_reader
 ! INIT_VAR
 ! =============================================================================
 subroutine init_var
-    allocate(universes(0:10))
+    allocate(universes(0:100))
     universes(0)%univ_type = 0
     universes(0)%univ_id   = 0
     universes(0)%xyz(:)    = 0
@@ -1130,6 +1130,13 @@ end subroutine READ_CTRL
 				fm0(1) = fm0(1) - sqrt(3.0/4.0) * ((ncm(1) + 1) / 2) * dcm(1)
 				fm0(2) = fm0(2) - (3.0/2.0) * ((ncm(2) + 1) / 2) * dcm(2)
 				fm0(3) = fm0(3) - ((ncm(3) + 1) / 2) * dcm(3)
+			case("HEX_PCMFD") ! LINKPOINT
+                if ( .not. fmfdon ) cycle
+                backspace(File_Number)
+                read(File_Number,*,iostat=File_Error) Char_Temp, Equal, pcmfdon
+                if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+				inactive_cmfd = .true.
+                cmfdon = .true.
             case("FMFD_TO_MC")
                 if ( .not. fmfdon ) cycle
                 backspace(File_Number)
@@ -1700,6 +1707,8 @@ end subroutine READ_CTRL
                             case("CLAD"); CE_mat_ptr%mat_type = 2
                             case("COOL"); CE_mat_ptr%mat_type = 3
                             end select
+						case default
+						    !print *, "ERROR, " Char_Temp
                         end select Card_D_Inp
 
                         if (Char_Temp(1:7)=="END_MAT") Exit Read_Mat

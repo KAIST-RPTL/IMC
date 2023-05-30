@@ -21,15 +21,16 @@ FSRCS := \
 		th_header.f90\
 		simulation_header.f90\
 		statistics.f90\
+		hex_variables.f90\
+		hex_geometry.f90\
 		tally.f90\
 		entropy.f90\
 		temperature.f90\
 		bicg_header.f90\
 		preconditioner.f90\
 		solver.f90\
-		hex_variables.f90\
 		hex_solve.f90\
-		hex_geometry.f90\
+		hex_cmfd.f90\
 		pCMFD.f90\
 		CMFD.f90\
 		cosampling.f90\

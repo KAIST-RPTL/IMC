@@ -5,6 +5,10 @@ module tally
     use particle_header, only : Particle
     use FMFD_HEADER, only: dfm, fm0, fm1, dcm, p_dep_mc, p_dep_dt
     use VARIABLES, only: n_inact, curr_cyc, do_gmsh, do_burn
+	use hex_variables, only : dduct ! LINKPOINT
+	use hex_geometry, only : hc_in_zz, hc_cmfd_coords
+	use FMFD_header, only : fcr
+	
     
     implicit none
     
@@ -254,6 +258,17 @@ function INSIDE(fmxyz) result(inside_mesh)
     real(8), intent(in):: fmxyz(:)  ! coordinate
     integer:: inside_mesh
     integer:: ij
+	integer :: hc_id(3)
+	
+	if (dduct > 0.0) then ! LINKPOINT
+	    hc_id = hc_cmfd_coords(fmxyz, fm0, dcm, fcr)
+		if (hc_in_zz(hc_id(1), hc_id(2))) then
+		    inside_mesh = .true.
+		else
+		    inside_mesh = .false.
+		end if
+		return
+	end if
        
     inside_mesh = .true.
     do ij = 1, 3

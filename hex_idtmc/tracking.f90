@@ -34,11 +34,6 @@ module tracking
 	use hex_geometry ! LINKPOINT
 	use FMFD_header ! added for hex
     implicit none
-	
-	integer :: i_xyz_tmp(3) ! LINKPOINT
-	!real(8) :: x, y
-	!integer :: maindiag = 0
-	!integer :: contradiag = 0
 
 contains
 
@@ -77,7 +72,7 @@ subroutine transport(p)
     real(8) :: t_fm1, t_fm2
     integer:: i_last
 	
-	real(8) :: data_handle(9) ! LINKPOINT
+	integer :: data_handle(9) ! LINKPOINT
 	
     
     !found_cell = .false.   ***
@@ -91,7 +86,8 @@ subroutine transport(p)
 
     if ( p%material == 0 ) then
         p%alive = .false. 
-        print*, p%coord(1)%xyz, "this?"
+		data_handle = hf_fmfd_coords(p%coord(1)%xyz(:), fm0(:), dcm(:), dfm(:), fcr)
+        ! if (hc_in_zz(data_handle(1), data_handle(2))) print*, p%coord(1)%xyz, "this?" ! LINKPOINT; REMOVE; boundaries not always defined in a hex geometry
         return
     end if
 	
@@ -123,6 +119,7 @@ subroutine transport(p)
     
     !> Surface distance(boundary)
     call distance_to_boundary(p, d_boundary, surface_crossed)
+	!print *, "AAAA", d_boundary
 	
 	!> Sample a distance to collision
 	val = 1.0d0
@@ -141,69 +138,9 @@ subroutine transport(p)
 	! >>>>>>>>>>>>>>>>>>>>>>> CONTINUOUS MC (E_mode = 1)  >>>>>>>>>>>>>>>>>>>>>>>
 	! ===========================================================================
     elseif (E_mode == 1) then
-!		! material 이 OTF 일때만 
-!		if (materials(p%material)%db) then 
-!			if (do_MP) then 
-!				i_bin = FindTallyBin(p)
-!				if (i_bin(1) > 0) then 
-!					p%kT = k_B * tet_arr(find_mesh_idx(i_bin(1)))%mat_temp(materials(p%material)%MP_index)
-!				else 
-!					p%kT = materials(p%material)%temp
-!				endif
-!			elseif (do_gmsh .and. do_multimesh) then 
-!				! Multi-mesh 
-!				lat_idx = lattices(p%coord(p%n_coord)%lattice)%n_xyz(1) * (p%coord(p%n_coord)%lattice_y-1) + p%coord(p%n_coord)%lattice_x
-!				node_idx = find_nearest_node(p%coord(p%n_coord)%xyz)
-!				p%kT = k_B * tet_arr(find_mesh_idx(lat_idx))%temperature(node_idx)
-!			elseif (num_mesh == 1) then 
-!				node_idx = find_nearest_node(p%coord(1)%xyz)
-!				p%kT = k_B * node(node_idx)%temperature
-!			else 
-!				p%kT = materials(p%material)%temp
-!			endif 
-!		else 
-!			p%kT = materials(p%material)%temp
-!		endif 	
-!	
-!		!> Tetrahedron mesh temperature treatment
-!		if (p%in_tet) then
-!			p%sqrtkT = sqrt(K_B * Tet(p%tet)%temperature ) 
-!			p%kT = K_B * Tet(p%tet)%temperature 
-!		elseif (E_mode == 1) then 
-!			p%kT = materials(p%material)%temp
-!		endif
-!	
-!		!> Get macroscopic XS information
-!        macro_xs = getMacroXS(materials(p%material), p%E,p%kT)
-!
-!		!> Get the collision distance
-!		d_collision = -log(rang())/macro_xs(1)
-!    endif 
-!    !> Sample distances from special boundaries in univ 0
-!    i_cell = p % coord(1) % cell
-!    call cell_distance(cells(i_cell), p%coord(1)%xyz, p%coord(1)%uvw, surfaces, d_s, idx_surf)
-!    
-    val = 1.0d0
-    !> Sample a distance to collision
-!    if (E_mode == 0) then 
-!        macro_xs(1) = (sum(XS_MG(p%material)%sig_scat(p%g,:)) &
-!                    + XS_MG(p%material)%sig_abs(p%g))
-!        macro_xs(2) = XS_MG(p%material)%sig_abs(p%g)
-!        macro_xs(3) = XS_MG(p%material)%sig_fis(p%g)
-!        macro_xs(4) = XS_MG(p%material)%sig_fis(p%g)*XS_MG(p%material)%nu(p%g)
-!        macro_xs(5) = XS_MG(p%material)%sig_fis(p%g)
-!        d_collision = -log(rang())/macro_xs(1)
-!    elseif (E_mode == 1) then 
+        val = 1.0d0
         macro_xs = getMacroXS(materials(p%material), p%E,p%kT)
-        
-        !if (d_s == d_boundary ) then 
-        !    val = 1-exp(-macro_xs(1)*d_s)
-        !    d_collision = -log(1-rang()*val)/macro_xs(1)
-        !    !print *, d_collision, d_boundary, macro_xs(1)
-        !    !d_boundary = INFINITY 
-        !else 
-            d_collision = -log(rang())/macro_xs(1)
-        !endif 
+        d_collision = -log(rang())/macro_xs(1)
     endif
 	
     ! ===================================================
@@ -216,15 +153,16 @@ subroutine transport(p)
 		    !data_handle = hf_fmfd_coords(p%coord(1)%xyz(:), fm0(:), dcm(:), dfm(:), fcr)
 			!i_xyz = data_handle(7:9)
 			call hex_surf(p%coord(1)%xyz(:), p%coord(1)%uvw(:), fm0(:), dcm(:), dfm(:), fcr, i_xyz, d_mesh, i_surf)
-			inside_mesh = .TRUE. ! we do not consider the case where the reactor extends beyond the grid
+			! particle is inside mesh if the fine mesh node i_xyz exists, not inside mesh if it doesn't
+			inside_mesh = .TRUE.
+			if (i_xyz(1) < 1 .or. i_xyz(1) > x_max .or. i_xyz(2) < 1 .or. i_xyz(2) > y_max .or. i_xyz(3) < 1 .or. i_xyz(3) > z_max) then
+			    inside_mesh = .FALSE.
+			else if (v_hf(i_xyz(1), i_xyz(2), i_xyz(3)) == 0.0) then
+			    inside_mesh = .FALSE.
+			end if
+			print *, "BBBB", d_mesh, v_hf(i_xyz(1), i_xyz(2), i_xyz(3)) ! PRINT REMOVE
 		end if
 	end if
-    
-	i_xyz_tmp = i_xyz
-    i_xyz(1) = max(1,min(x_max,i_xyz(1))) ! TODO: FIX PROPERLY
-    i_xyz(2) = max(1,min(y_max,i_xyz(2)))
-    i_xyz(3) = max(1,min(z_max,i_xyz(3)))
-	!if (i_xyz_tmp(1) /= i_xyz(1)) print *, "BOUNDARY COORDINATE, ", i_xyz_tmp
 
     ! =========================================================================
     !> TH distance
@@ -234,16 +172,19 @@ subroutine transport(p)
     !> minimum distance
     ddiff = abs(d_boundary-d_mesh)/d_boundary
     if ( ddiff < TINY_BIT ) then ! LINKPOINT
-	    d_mesh = max(d_mesh, d_boundary)
-		d_boundary = max(d_mesh, d_boundary)
+	    d_mesh = d_boundary
+	    !d_mesh = max(d_mesh, d_boundary)
+		!d_boundary = max(d_mesh, d_boundary)
         fm_crossed = .true.
     else if ( d_boundary < 5E-5 .and. ddiff < 1E-8 ) then
-	    d_mesh = max(d_mesh, d_boundary)
-		d_boundary = max(d_mesh, d_boundary)
+	    d_mesh = d_boundary
+	    !d_mesh = max(d_mesh, d_boundary)
+		!d_boundary = max(d_mesh, d_boundary)
         fm_crossed = .true.
     else if ( d_mesh < 1E-8 .and. d_boundary < d_mesh ) then
-	    d_mesh = max(d_mesh, d_boundary)
-		d_boundary = max(d_mesh, d_boundary)
+	    d_mesh = d_boundary
+	    !d_mesh = max(d_mesh, d_boundary)
+		!d_boundary = max(d_mesh, d_boundary)
         fm_crossed = .true.
     else
         fm_crossed = .false.
@@ -326,6 +267,8 @@ subroutine transport(p)
     end if
     end if
 
+	! TEST REMOVE
+	!print "(A, 3E10.2, 3I4, 5E10.3, 3E10.2)", "T", p%coord(1)%xyz(:), i_xyz(:), macro_xs, d_boundary, d_collision, d_mesh
 
     !> Advance particle
     do j = 1, p % n_coord
@@ -356,8 +299,8 @@ subroutine transport(p)
         if ( fmfdon .and. inside_mesh ) then
         call FMFD_COL(p%wgt,macro_xs,i_xyz)
         !print *, 'FLAG1.1', curr_cyc, cells(7) % pos_surf_idx(1)
-        if ( DTMCBU .and. curr_cyc > acc_skip ) &
-        call DTMC_BU_COL(i_xyz,cells(i_cell)%dtmc,p%wgt/macro_xs(1),macro_xs(5))
+        if ( DTMCBU .and. curr_cyc > acc_skip ) & 
+        call DTMC_BU_COL(i_xyz,cells(i_cell)%dtmc,p%wgt/macro_xs(1),macro_xs(5)) ! TODO: CHECK IF INSIDE MESH?
         end if
 !        if ( th_on .and. .not. fmfdon ) then
 !            call TH_INSIDE(p%coord(1)%xyz(:),j_xyz(:),inside_th)
@@ -379,10 +322,10 @@ subroutine transport(p)
     elseif  ( distance == d_mesh ) then 
         !print *, 'FLAG3', curr_cyc, cells(7) % pos_surf_idx(1)
         p%n_cross = p%n_cross + 1 
-		if (dduct < 0.0) then ! LINKPOINT
+		if (dduct < 0.0 .and. inside_mesh) then ! LINKPOINT
             call FMFD_SURF(inside_mesh, income_mesh,i_surf, i_xyz, &
                         p%coord(1)%uvw, p%wgt, surfaces(surface_crossed)%bc)
-		else
+		else if (inside_mesh) then
 		    call hf_surf(i_xyz, i_surf, p%wgt)
             !if(i_surf/=4 .and. i_surf/=5) print '(A,4I3,3F15.5)', 'SURF', i_xyz, i_surf, p%coord(1)%xyz
 		end if

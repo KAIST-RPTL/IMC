@@ -24,6 +24,10 @@ module simulation
     use PCQS
     use PARTICLE_HEADER, only: particle
     use rgbimage_m
+	
+	use hex_geometry ! LINKPOINT
+	use hex_variables
+	use FMFD_header, only: fm0, dcm, fcr
    
     implicit none 
     
@@ -156,7 +160,7 @@ subroutine simulate_history(bat,cyc)
     !call MPI_BARRIER(MPI_COMM_WORLD, ierr)
     !> Process tallied FMFD parameters ==========================================
     if ( tallyon .and. .not. fmfdon ) call PROCESS_TALLY(bat,cyc)
-    if ( fmfdon .and. cyc > n_skip ) call PROCESS_FMFD(bat,cyc)
+    if ( fmfdon .and. cyc > n_skip ) call PROCESS_FMFD(bat,cyc) 
     if ( th_on .and. .not. fmfdon ) call PROCESS_TH()
     
     !> Gather keff from the slave nodes =========================================
@@ -1148,7 +1152,7 @@ subroutine bank_initialize(this)
     logical        :: found
     integer        :: xy(2), m, n
     integer        :: univ_id, cell_id, mat_id, n_univ
-    integer        :: id(3), m0, n0
+    integer        :: id(3), m0, n0, hc_id(3)
     
     
     if(icore==score) print *, '   Initializing Source...'
@@ -1190,6 +1194,12 @@ subroutine bank_initialize(this)
                 do j0 = 1, 3
                     this(i0) % xyz(j0) = rang()*(max(j0)-min(j0)) + min(j0)
                 enddo
+				hc_id = hc_cmfd_coords(this(i0)%xyz(:), fm0, dcm, fcr) ! LINKPOINT
+				if ( .not. hc_in_zz(hc_id(1), hc_id(2))) then
+				    !print "(3E12.3, I4)", this(i0)%xyz(:)
+					found = .false.
+					cycle search_MG
+				end if
                 call find_cell_xyz(this(i0)%xyz, univ_idx, cell_idx)
                 if (cells(cell_idx)%mat_idx == 0) then 
                     found = .false. 
@@ -1234,25 +1244,31 @@ subroutine bank_initialize(this)
                         this(i0) % xyz(j0) = rang()*(max(j0)-min(j0)) + min(j0)
                     enddo
 
-                    if ( zigzagon ) then
-                    id = CM_ID(this(i0)%xyz(:))
-                    !print'(2i5,3x,2f15.7)', id(1:2), this(i0)%xyz(1:2)
-                    !if ( id(1) == 0 ) print*, OUT_OF_ZZ(id(1),id(2))
-                    if ( .not. OUT_OF_ZZ(id(1),id(2)) &
-                        .and. id(1) > 0 .and. id(1) <= ncm(1) ) exit
+                    if ( zigzagon .and. dduct > 0.0 ) then
+                        id = hc_cmfd_coords(this(i0)%xyz(:), fm0, dcm, fcr)
+                        !print'(2i5,3x,2f15.7)', id(1:2), this(i0)%xyz(1:2)
+                        !if ( id(1) == 0 ) print*, OUT_OF_ZZ(id(1),id(2))
+                        if ( hc_in_zz(id(1),id(2)) &
+                            .and. id(1) > 0 .and. id(1) <= ncm(1) ) exit
+					else if ( zigzagon ) then
+                        id = CM_ID(this(i0)%xyz(:))
+                        !print'(2i5,3x,2f15.7)', id(1:2), this(i0)%xyz(1:2)
+                        !if ( id(1) == 0 ) print*, OUT_OF_ZZ(id(1),id(2))
+                        if ( .not. OUT_OF_ZZ(id(1),id(2)) &
+                            .and. id(1) > 0 .and. id(1) <= ncm(1) ) exit
                     end if
                     
                 enddo search_CMFD
-                if ( this(i0)%xyz(1) < -74 .and. this(i0)%xyz(2) < -74 ) then
-                    id = CM_ID(this(i0)%xyz(:))
-                    print*, "id", id(1:2)
-                    print*, this(i0)%xyz(1:2), OUT_OF_ZZ(id(1),id(2))
-                end if
-                if ( this(i0)%xyz(1) >  74 .and. this(i0)%xyz(2) >  74 ) then
-                    id = CM_ID(this(i0)%xyz(:))
-                    print*, "id", id(1:2)
-                    print*, this(i0)%xyz(1:2), OUT_OF_ZZ(id(1),id(2))
-                end if
+                ! if ( this(i0)%xyz(1) < -74 .and. this(i0)%xyz(2) < -74 ) then
+                !     id = CM_ID(this(i0)%xyz(:))
+                !     print*, "id", id(1:2)
+                !     print*, this(i0)%xyz(1:2), OUT_OF_ZZ(id(1),id(2))
+                ! end if
+                ! if ( this(i0)%xyz(1) >  74 .and. this(i0)%xyz(2) >  74 ) then
+                !     id = CM_ID(this(i0)%xyz(:))
+                !     print*, "id", id(1:2)
+                !     print*, this(i0)%xyz(1:2), OUT_OF_ZZ(id(1),id(2))
+                ! end if
 
 
                 else

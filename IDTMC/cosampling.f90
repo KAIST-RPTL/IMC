@@ -14,8 +14,8 @@ module COSAMPLING
     real(8), allocatable:: lhs(:,:), unlhs(:,:)
     real(8), allocatable:: courn(:,:,:,:,:), coxs(:,:,:,:,:,:)
 
-    integer, parameter :: n_pert = 100
-    integer :: maxiter = 5
+    integer, parameter :: n_pert = 200
+    integer :: maxiter = 1
     real(8):: k_pert(n_pert)    ! by perturbation with forward flux
     real(8):: k_pert2(n_pert)   ! with adjoint flux
     real(8):: k_pert3(n_pert)   ! direct calcultion

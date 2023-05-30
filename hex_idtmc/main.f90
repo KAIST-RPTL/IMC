@@ -10,7 +10,8 @@ use transient
 use TEMPERATURE, only: TEMP_DISTRIBUTE
 use TALLY, only: k_eff, TallyFlux
 use STATISTICS
-use PRINTER
+use PRINTER, only: t_tot, istep_burnup, START_MSG, BATCH_MSG, BURNUP_MSG, RUN_MSG, &
+                   CYCLE_TALLY_MSG, END_MSG, BATCH_TALLY_MSG
 use FMFD, only: DET_POWER, INTRA_PIN_DTMC
 use FMFD_HEADER, only: acc_skip, n_skip
 

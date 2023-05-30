@@ -610,7 +610,7 @@ subroutine setuegrid
     deallocate(tmpgrid, tmpgrid_2)
 
     open(502, file='ueg.out', action='write', status='unknown')
-    print *, 'NUEG', nueg
+    if(icore==score)print *, 'NUEG', nueg
     do i = 1, nueg
         write(502, *) i, ueggrid(i), log(ueggrid(i))
     enddo

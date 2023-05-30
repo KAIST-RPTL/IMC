@@ -393,7 +393,7 @@ module geometry
 			
             p % n_coord = 1
             !p % coord(1) % xyz(:) = p % coord(1) % xyz(:) - 1.0d-9 * p % coord(1) % uvw(:)
-            p % coord(1) % xyz(:) = p % coord(1) % xyz(:) - 100*TINY_BIT * uvw
+            p % coord(1) % xyz(:) = p % coord(1) % xyz(:) - 10*TINY_BIT * uvw
 			!if(p%n_cross>1000) print *, 'BC',p%coord(1)%xyz(1:2)
 			
             !p%last_material = p%material
@@ -401,7 +401,7 @@ module geometry
         else
             p % n_coord = 1
             !p % coord(1) % xyz = p % coord(1) % xyz + 0.1*TINY_BIT * p % coord(1) % uvw
-            p % coord(1) % xyz = p % coord(1) % xyz + 10*TINY_BIT * p % coord(1) % uvw
+            p % coord(1) % xyz = p % coord(1) % xyz + TINY_BIT * p % coord(1) % uvw
         endif
         call find_cell(p, found)
 		!print *, 'material ', p%material

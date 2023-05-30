@@ -652,7 +652,7 @@ subroutine collision_PCQS_CE (p)
     integer :: ierg
     integer :: n_iso
     real(8) :: dtemp
-    integer :: ii, jj, kk 
+    !integer :: ii, jj, kk 
     real(8) :: xs_t(5)
     
     integer :: imat, ng, pt1, pt2, pt3, NE, i_group 
@@ -947,7 +947,7 @@ subroutine collision_PCQS_CE_init (p)
     integer :: ierg
     integer :: n_iso
     real(8) :: dtemp
-    integer :: ii, jj, kk 
+    !integer :: ii, jj, kk 
     real(8) :: xs_t(5)
     
     integer :: imat, ng, pt1, pt2, pt3, NE, i_group 

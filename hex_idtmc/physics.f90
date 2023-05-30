@@ -6,6 +6,10 @@ module physics
     use XS_header 
     use bank_header
     use randoms
+	use FMFD, only: fsd_MC
+	use hex_variables ! LINKPOINT
+	use hex_geometry
+	use tally, only: INSIDE, FM_ID
     
     implicit none 
     
@@ -20,7 +24,8 @@ module physics
         integer :: pg, ng, nsplit
         real(8) :: temp, beta, lambda_b, speedn, fd
         real(8) :: rn, lambda_d, beta_d, val
-        
+		integer :: recv(9) ! LINKPOINT
+        integer :: m
         
         p % n_collision = p % n_collision + 1
         p % n_coord = 1
@@ -35,6 +40,7 @@ module physics
         
         !> Fission bank add
         n = int(p%wgt*(XS_MG(p%material)%nu(p%g)*XS_MG(p%material)%sig_fis(p%g)/sig_tot)*(1/keff) + rang())
+		!m = int(p%wgt*(micro_xs(5)/micro_xs(1))*(1.0/keff) + rang())
         
         if (n > 0) then
             if (allocated(MGD)) then 
@@ -44,6 +50,18 @@ module physics
             bank_idx = bank_idx + 1
             thread_bank(bank_idx)%xyz = p%coord(1)%xyz
             thread_bank(bank_idx)%uvw = rand_vec()
+			
+			if ( fmfdon ) then ! LINKPOINT
+				if ( INSIDE(p%coord(1)%xyz) ) then
+					if (dduct > 0.0) then
+						recv = hf_fmfd_coords(p%coord(1)%xyz, fm0(:), dcm(:), dfm(:), fcr)
+						id(:) = recv(7:9)
+					else
+						id(:) = FM_ID(p%coord(1)%xyz)
+					end if
+					fsd_MC(id(1),id(2),id(3)) = fsd_MC(id(1),id(2),id(3)) + n
+				end if
+			end if
             
             if (delayed) then 
                 ng = size(MGD(p%material)%beta)
