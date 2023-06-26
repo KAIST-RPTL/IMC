@@ -11,13 +11,14 @@ subroutine read_depletion
 	character::Card_Type	
 
 	file_exists = .false.
-	inquire(file="./inputfile/depletion.inp",exist=file_exists)
+    if(icore==score) write(*,*) trim(directory)//'depletion.inp'
+	inquire(file=trim(directory)//"depletion.inp",exist=file_exists)
 	if(file_exists==.false.) then
 	  do_burn = .false.
 	  return
 	end if 
 	
-    open(unit=rd_dep,file="./inputfile/depletion.inp",status='old', action='read',iostat=Open_Error)
+    open(unit=rd_dep,file=trim(directory)//"depletion.inp",status='old', action='read',iostat=Open_Error)
 	Read_File : do
         read(rd_dep,*,iostat=File_Error) Card
         if (File_Error/=0) exit Read_File

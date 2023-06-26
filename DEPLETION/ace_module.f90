@@ -2,16 +2,18 @@ module ace_module
 
 use variables
 use ace_header 
+use strings, only : parse
 
 implicit none 
 
 contains
 
-subroutine set_ace_iso(iso)
+subroutine set_ace_iso(iso, lib)
 
 !==============================================================================
 implicit none
 integer, intent(in) :: iso
+character(*), intent(in) :: lib
 integer :: i, j, k
 integer :: line
 integer :: iso0K
@@ -22,6 +24,8 @@ integer, parameter :: ace_read_handler = 20171116
 integer :: ierr
 
 integer :: min_egrid, max_egrid, num_egrid, loc1, loc2, loc3, max_len
+character(100) :: tmp1, args(100)
+integer :: nargs
  
 if(E_mode==0) return
 
@@ -48,7 +52,15 @@ if(E_mode==0) return
 !  else 
 !    ace(iso)%excited = .false. 
 !  endif 
-  
+
+  do
+    read(ace_read_handler,*) tmp1
+    call parse(tmp1,' ',args, nargs) 
+    if(trim(args(1)) == lib) exit
+  enddo
+  backspace(ace_read_handler)
+
+
   !1st line
   read(ace_read_handler,'(i6, 4X, f12.6, es12.4)') ace(iso)%ZAID, ace(iso)%atn, ace(iso)%temp
   
@@ -1871,7 +1883,7 @@ subroutine find_ACE(this,line, iso_)
                 ace(num_iso) % xslib   = trim(line)
                 ace(num_iso) % library = trim(libpath(j))
                 iso_ = num_iso
-                call set_ace_iso(iso_)
+                call set_ace_iso(iso_, trim(line))
                 acerecord(j) = .false.
                end select
                 return

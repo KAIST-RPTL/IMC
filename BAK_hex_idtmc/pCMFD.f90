@@ -1,51 +1,100 @@
 module PCMFD
     use FMFD_HEADER
-    !use VARIABLES, only: icore, score
-    use VARIABLES   ! ***
+    use VARIABLES, only: icore, score
     implicit none
-    integer:: ix0, ix1, iy0, iy1, iz0, iz1
+
+
     contains
 
-! =============================================================================
-! OUT_OF_ZZ determines if a region is in or out of the zigzag boundary region
-! =============================================================================
-function OUT_OF_ZZ0(io,jo,ko)
-    logical:: OUT_OF_ZZ0
-    integer, intent(in):: io, jo, ko
-    integer:: mo, no
 
-    if  ( io == 1 .or. io == ncm(1) ) then
-        OUT_OF_ZZ0 = .true.
-        return
-    end if
-    if  ( jo == 1 .or. jo == ncm(2) ) then
-        OUT_OF_ZZ0 = .true.
-        return
-    end if
-    if  ( ko == 1 .or. ko == ncm(3) ) then
-        OUT_OF_ZZ0 = .true.
-        return
-    end if
-    
-    if ( .not. zigzagon ) then
-        OUT_OF_ZZ0 = .false.
-        return
-    end if
-
-    do mo = 1, zz_div
-    if ( zza0(mo) < io .and. io <= zza0(mo+1) ) then
-        no = mo
-        exit
-    end if
-    end do
-
-    if ( zza1(no) < jo .and. jo <= zza2(no) ) then
-        OUT_OF_ZZ0 = .false.
-    else
-        OUT_OF_ZZ0 = .true.
-    end if
-
-end function
+!! =============================================================================
+!! ONE_NODE_CMFD
+!! =============================================================================
+!subroutine ONE_NODE_PCMFD(keff,fm_t,fm_a,fm_nf,fmD,fm_phi1,fmJ0,fmJ1,fmJn,fmF)
+!    use SOLVERS, only: BICG_G, BiCG_L, BICG_LP!, SORL, SORG
+!    use MPI, only: MPI_COMM_WORLD, MPI_DOUBLE_PRECISION
+!    implicit none
+!    real(8), intent(inout):: keff
+!    real(8), intent(in), dimension(:,:,:):: fm_t, fm_a, fm_nf, fmD
+!    real(8), intent(inout):: fm_phi1(:,:,:)
+!    real(8), intent(inout), dimension(:,:,:,:):: fmJ0, fmJ1, fmJn, fmF
+!    real(8), dimension(nfm(1),nfm(2),nfm(3)):: &
+!        fm_phi0, &  ! neutron flux
+!        fm_s        ! neutron source
+!    real(8), dimension(nfm(1),nfm(2),nfm(3),6):: &
+!        fmDt, &     ! D tilda
+!        fmDh        ! D hat
+!    real(8) :: error, k_pre, mpie
+!    integer :: global, local
+!    integer :: iter, iter_max = 3D2
+!    real(8) :: tt0, tt1
+!    logical :: cvg  ! converged
+!
+!    if ( icore == score ) then
+!    call L2G(fm_phi1,fm_t,fm_a,fm_nf,fmJn,fmF)
+!    call L_DTILDA(fmD,fmDt)
+!    call L_PDHAT(fmDt,fm_phi1,fmJ0,fmJ1,fmJn,fmDh)
+!    call D_BC(fmD,fmDt)
+!    call L_PBC(fmDt,fmDh)
+!    call L_PMATRIX(fmDt,fmDh,fm_a)
+!    end if
+!
+!    iter  = 1
+!    error = 1
+!    cvg   = .false.
+!    do
+!    if ( icore == score ) then
+!    call CPU_TIME(tt0)
+!    ! ------------------------------- GLOBAL
+!    call G_DHAT(cmJn,cmDt,cm_phi1,cmF,cmDh)
+!    call G_MATRIX(cmDt,cmDh,cm_phi1)
+!    k_pre = keff
+!
+!    do global = 1, 5
+!    cm_phi0 = cm_phi1
+!    cm_s = cm_nf*cm_phi0/keff
+!    cm_phi1 = BiCG_G(Mcm,cm_s)
+!    !call SORG(Mcm,cm_s,cm_phi1)
+!    keff = keff*sum(cm_nf*cm_phi1*cm_nf*cm_phi1) &
+!           / sum(cm_nf*cm_phi0*cm_nf*cm_phi1)
+!    end do
+!    error = abs(keff-k_pre)/keff
+!    end if
+!
+!    ! convergence test
+!    if ( icore == score .and. ( error < 1D-8 .or. isnan(keff) &
+!        .or. keff < 1E-1 .or. keff > 2 .or. iter > iter_max ) ) cvg = .true.
+!    call MPI_BCAST(cvg,1,MPI_DOUBLE_PRECISION,score,MPI_COMM_WORLD,mpie)
+!    if ( cvg ) exit
+!
+!    ! ------------------------------- LOCAL
+!    if ( icore == score ) then
+!    call G_INJ(cmDt,cmDh,cm_phi1)
+!    end if
+!
+!    do local = 1, 2
+!    if ( icore == score ) then
+!    call G2L(fm_phi0,fm_phi1,fmJ0,fmJ1)
+!    call L_SOURCE(fm_phi0,fm_phi1,keff,fm_nf,fm_s,fmJ0,fmJ1)
+!!    call LINEATION(Mfm(:,:,:,:),fm_s(:,:,:))
+!    fm_phi1(:,:,:) = BICG_L(Mfm(:,:,:,:),fm_s(:,:,:))
+!!    call SORL(Mfm,fm_s,fm_phi1)
+!    end if
+!!    call MPI_BCAST(svec,bs0,MPI_DOUBLE_PRECISION,score,MPI_COMM_WORLD,mpie)
+!!    call MPI_BCAST(mvec,bs1,MPI_DOUBLE_PRECISION,score,MPI_COMM_WORLD,mpie)
+!!    fm_phi1(:,:,:) = BICG_LP(mvec(:,:,:,:,:),svec(:,:,:,:))
+!    if ( icore == score ) then
+!    call L_POUTJ(fm_phi0,fm_phi1,fmF,fmJ0,fmJ1,fmJn)
+!    call L_REFJ(fmF,fmJ0,fmJ1,fmJn)
+!    call G_XS(fm_t,fm_a,fm_nf,fm_phi1)
+!    end if
+!    end do
+!    iter = iter + 1
+!    call CPU_TIME(tt1)
+!    !write(8,*), error, tt1-tt0
+!    end do
+!
+!end subroutine
 
 ! =============================================================================
 ! OUT_OF_ZZ determines if a region is in or out of the zigzag boundary region
@@ -59,7 +108,7 @@ function OUT_OF_ZZ(io,jo)
         OUT_OF_ZZ = .false.
         return
     end if
-    OUT_OF_ZZ = .false.
+
     do mo = 1, zz_div
     if ( zzc0(mo) < io .and. io <= zzc0(mo+1) ) then
         no = mo
@@ -104,160 +153,349 @@ function OUT_OF_ZZ1(io,jo)
 
 end function
 
+!! =============================================================================
+!! L2G homogenizes the reactor parameters from local to global
+!! =============================================================================
+!subroutine L2G(phi,fm_tot,fm_abso,fm_nufiss,fmJn,fmF)
+!    implicit none
+!    real(8), intent(in), dimension(:,:,:):: phi, fm_tot, fm_abso, fm_nufiss
+!    real(8), intent(in), dimension(:,:,:,:):: fmJn, fmF
+!    real(8):: ssum(2)
+!
+!    ! -------------------------------------------------------------------------
+!    ! homogenization
+!    do ii = 1, ncm(1); id(1) = (ii-1)*fcr
+!    do jj = 1, ncm(2); id(2) = (jj-1)*fcr
+!    do kk = 1, ncm(3); id(3) = (kk-1)*fcz
+!        cm_phi1(ii,jj,kk) = sum(phi(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz))
+!        
+!        if ( OUT_OF_ZZ(ii,jj) ) cycle
+!
+!        cm_t(ii,jj,kk) = sum(fm_tot(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz)*phi(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz))/cm_phi1(ii,jj,kk)
+!        cm_a(ii,jj,kk) = sum(fm_abso(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz)*phi(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz))/cm_phi1(ii,jj,kk)
+!        cm_nf(ii,jj,kk) = sum(fm_nufiss(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz)*phi(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz))/cm_phi1(ii,jj,kk)
+!    end do
+!    end do
+!    end do
+!    cmD = 1D0 / (3D0 * cm_t)
+!    where ( cm_phi1 == 0 ) cmD = 0
+!    cm_phi1 = cm_phi1 / (fcr*fcr*fcz)
+!
+!    ! set zero quantity to zigzag boundary region
+!    if ( zigzagon ) where ( cm_phi1 == 0 ) cm_nf = 0
+!
+!    ! interface diffusion coefficient
+!    do ii = 1, ncm(1)
+!    do jj = 1, ncm(2)
+!    do kk = 1, ncm(3)
+!        cmDt(ii,jj,kk,1) = 2D0*cmD(ii,jj,kk)/(fcr*dfm(1))
+!        cmDt(ii,jj,kk,2) = 2D0*cmD(ii,jj,kk)/(fcr*dfm(1))
+!        cmDt(ii,jj,kk,3) = 2D0*cmD(ii,jj,kk)/(fcr*dfm(2))
+!        cmDt(ii,jj,kk,4) = 2D0*cmD(ii,jj,kk)/(fcr*dfm(2))
+!        cmDt(ii,jj,kk,5) = 2D0*cmD(ii,jj,kk)/(fcz*dfm(3))
+!        cmDt(ii,jj,kk,6) = 2D0*cmD(ii,jj,kk)/(fcz*dfm(3))
+!    end do
+!    end do
+!    end do
+!
+!    ! -------------------------------------------------------------------------
+!    ! surface average
+!    do kk = 1, ncm(3); id0(3) = (kk-1)*fcz
+!    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr
+!    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr
+!        if ( OUT_OF_ZZ1(ii,jj) ) cycle
+!        ! x-direction
+!        ssum = 0;       id(1) = id0(1)+1
+!        do oo = 1, fcz; id(3) = id0(3)+oo
+!        do nn = 1, fcr; id(2) = id0(2)+nn
+!            ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),1)
+!            ssum(2) = ssum(2) + fmF(id(1),id(2),id(3),1)
+!        end do
+!        end do
+!        cmJn(ii,jj,kk,1) = ssum(1) / (fcr*fcz)
+!        cmF(ii,jj,kk,1)  = ssum(2) / (fcr*fcz)
+!        if ( ii /= 1 ) then
+!        cmJn(ii-1,jj,kk,2) = cmJn(ii,jj,kk,1)
+!        cmF(ii-1,jj,kk,2)  = cmF(ii,jj,kk,1)
+!        end if
+!        ! y-direction
+!        ssum = 0;       id(2) = id0(2)+1
+!        do oo = 1, fcz; id(3) = id0(3)+oo
+!        do mm = 1, fcr; id(1) = id0(1)+mm
+!            ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),3)
+!            ssum(2) = ssum(2) + fmF(id(1),id(2),id(3),3)
+!        end do
+!        end do
+!        cmJn(ii,jj,kk,3) = ssum(1) / (fcr*fcz)
+!        cmF(ii,jj,kk,3)  = ssum(2) / (fcr*fcz)
+!        if ( jj /= 1 ) then
+!        cmJn(ii,jj-1,kk,4) = cmJn(ii,jj,kk,3)
+!        cmF(ii,jj-1,kk,4)  = cmF(ii,jj,kk,3)
+!        end if
+!        ! z-direction
+!        ssum = 0;       id(3) = id0(3)+1
+!        do mm = 1, fcr; id(1) = id0(1)+mm
+!        do nn = 1, fcr; id(2) = id0(2)+nn
+!            ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),5)
+!            ssum(2) = ssum(2) + fmF(id(1),id(2),id(3),5)
+!        end do
+!        end do
+!        cmJn(ii,jj,kk,5) = ssum(1) / (fcr*fcr)
+!        cmF(ii,jj,kk,5)  = ssum(2) / (fcr*fcr)
+!        if ( kk /= 1 ) then
+!        cmJn(ii,jj,kk-1,6) = cmJn(ii,jj,kk,5)
+!        cmF(ii,jj,kk-1,6)  = cmF(ii,jj,kk,5)
+!        end if
+!    end do
+!    end do
+!    end do
+!    ! Closure
+!    !   x-direction
+!    ii = ncm(1);       id(1) = nfm(1)
+!    do kk = 1, ncm(3); id0(3) = (kk-1)*fcz
+!    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr; ssum = 0
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),2)
+!    end do
+!    end do
+!    cmJn(ii,jj,kk,2) = ssum(1) / (fcr*fcz)
+!    end do
+!    end do
+!    !   y-direction
+!    jj = ncm(2);       id(2) = nfm(2)
+!    do kk = 1, ncm(3); id0(3) = (kk-1)*fcz
+!    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr; ssum = 0
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!        ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),4)
+!    end do
+!    end do
+!    cmJn(ii,jj,kk,4) = ssum(1) / (fcr*fcz)
+!    end do
+!    end do
+!    !   z-direction
+!    kk = ncm(3);       id(3) = nfm(3)
+!    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr
+!    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr; ssum = 0
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),6)
+!    end do
+!    end do
+!    cmJn(ii,jj,kk,6) = ssum(1) / (fcr*fcr)
+!    end do
+!    end do
+!
+!end subroutine
+!
+!
+!! =============================================================================
+!! D_TILDA
+!! =============================================================================
+!subroutine L_DTILDA(D,Dt)
+!    implicit none
+!    real(8), intent(in) :: D(:,:,:)
+!    real(8), intent(out):: Dt(:,:,:,:)
+!
+!    ! inner region
+!    do ii = 1, nfm(1)
+!    do jj = 1, nfm(2)
+!    do kk = 1, nfm(3)
+!        if ( ii /= 1 ) then         ! x0
+!            Dt(ii,jj,kk,1) = 2D0*D(ii,jj,kk)*D(ii-1,jj,kk) &
+!                /(D(ii,jj,kk)+D(ii-1,jj,kk))/dfm(1)
+!            deltf0(ii,jj,kk,1) = Dt(ii,jj,kk,1)
+!        end if
+!        if ( ii /= nfm(1) ) then    ! x1
+!            Dt(ii,jj,kk,2) = 2D0*D(ii+1,jj,kk)*D(ii,jj,kk) &
+!                /(D(ii+1,jj,kk)+D(ii,jj,kk))/dfm(1)
+!            deltf0(ii,jj,kk,2) = Dt(ii,jj,kk,2)
+!        end if
+!        if ( jj /= 1 ) then         ! y0
+!            Dt(ii,jj,kk,3) = 2D0*D(ii,jj,kk)*D(ii,jj-1,kk) &
+!                /(D(ii,jj,kk)+D(ii,jj-1,kk))/dfm(2)
+!            deltf0(ii,jj,kk,3) = Dt(ii,jj,kk,3)
+!        end if
+!        if ( jj /= nfm(2) ) then    ! y1
+!            Dt(ii,jj,kk,4) = 2D0*D(ii,jj+1,kk)*D(ii,jj,kk) &
+!                /(D(ii,jj+1,kk)+D(ii,jj,kk))/dfm(2)
+!            deltf0(ii,jj,kk,4) = Dt(ii,jj,kk,4)
+!        end if
+!        if ( kk /= 1 ) then         ! z0
+!            Dt(ii,jj,kk,5) = 2D0*D(ii,jj,kk)*D(ii,jj,kk-1) &
+!                /(D(ii,jj,kk)+D(ii,jj,kk-1))/dfm(3)
+!            deltf0(ii,jj,kk,5) = Dt(ii,jj,kk,5)
+!        end if
+!        if ( kk /= nfm(3) ) then    ! z1
+!            Dt(ii,jj,kk,6) = 2D0*D(ii,jj,kk+1)*D(ii,jj,kk) &
+!                /(D(ii,jj,kk+1)+D(ii,jj,kk))/dfm(3)
+!            deltf0(ii,jj,kk,6) = Dt(ii,jj,kk,6)
+!        end if
+!    end do
+!    end do
+!    end do
+!
+!end subroutine
+
 ! =============================================================================
-! OUT_OF_ZZ determines if a region is in or out of the zigzag boundary region
-! plus one more region
+! L_DHAT
 ! =============================================================================
-subroutine IN_ZZ(io,jo,ko,inz1,inz2)
-    integer, intent(in):: io, jo, ko
-    logical:: inz1, inz2
-    integer:: mo, no
-
-    if ( ko == 1 .or. ko == ncm(3) ) then
-        inz1 = .true.; inz2 = .true.; return
-    end if
-    
-    if ( io == 1 ) then
-    if ( zzc1(1) < jo .and. jo <= zzc2(1) ) then
-        inz1 = .true.; inz2 = .true.; return
-    else if ( zzc1(1) == jo .or. jo == zzc2(1)+1 ) then
-        inz1 = .false.; inz2 = .true.; return
-    else
-        inz1 = .false.; inz2 = .false.; return
-    end if
-    end if
-
-    if ( io == ncm(1) ) then
-    if ( zzc1(zz_div) < jo .and. jo <= zzc2(zz_div) ) then
-        inz1 = .true.; inz2 = .true.; return
-    else if ( zzc1(zz_div) == jo .or. jo == zzc2(zz_div)+1 ) then
-        inz1 = .false.; inz2 = .true.; return
-    else
-        inz1 = .false.; inz2 = .false.; return
-    end if
-    end if
-
-    do mo = 1, zz_div
-    if ( zzc0(mo) < io .and. io <= zzc0(mo+1) ) then
-        no = mo
-        exit
-    end if
-    end do
-
-    if ( zzc1(no)+1 < jo .and. jo <= zzc2(no)-1 ) then
-        inz1 = .true.; inz2 = .false.
-    else if ( zzc1(no)+1 == jo .or. jo == zzc2(no) ) then
-        inz1 = .true.; inz2 = .true.
-    else if ( zzc1(no) == jo .or. jo == zzc2(no)+1 ) then
-        inz1 = .false.; inz2 = .true.
-    else
-        inz1 = .false.; inz2 = .false.
-    end if
-
-end subroutine
-
-
-! =============================================================================
-! L_PDHAT
-! =============================================================================
-subroutine L_PDHAT
-    use VARIABLES, only: curr_cyc
+subroutine L_PDHAT(Dt,phi,J0,J1,Jn,Dh)
     implicit none
+    real(8):: Dt(:,:,:,:), phi(:,:,:), J0(:,:,:,:), &
+              J1(:,:,:,:), Jn(:,:,:,:), Dh(:,:,:,:)
 
-    do ii = 2, nfm(1)
-        fmDh(ii,:,:,1) = (fmJ0(ii,:,:,1)-5D-1 &
-            *fmDt(ii,:,:,1)*(fphi1(ii,:,:)-fphi1(ii-1,:,:)))/fphi1(ii,:,:)
+    do kk = 1, nfm(3)
+    do jj = 1, nfm(2)
+    do ii = 1, nfm(1)
+        if ( ii /= 1 )      Dh(ii,jj,kk,1) = (J0(ii,jj,kk,1)-5D-1 &
+            *Dt(ii,jj,kk,1)*(phi(ii,jj,kk)-phi(ii-1,jj,kk)))/phi(ii,jj,kk)
+        if ( ii /= nfm(1) ) Dh(ii,jj,kk,2) = (J1(ii,jj,kk,2)+5D-1 &
+            *Dt(ii,jj,kk,2)*(phi(ii+1,jj,kk)-phi(ii,jj,kk)))/phi(ii,jj,kk)
+        if ( jj /= 1 )      Dh(ii,jj,kk,3) = (J0(ii,jj,kk,3)-5D-1 &
+            *Dt(ii,jj,kk,3)*(phi(ii,jj,kk)-phi(ii,jj-1,kk)))/phi(ii,jj,kk)
+        if ( jj /= nfm(2) ) Dh(ii,jj,kk,4) = (J1(ii,jj,kk,4)+5D-1 &
+            *Dt(ii,jj,kk,4)*(phi(ii,jj+1,kk)-phi(ii,jj,kk)))/phi(ii,jj,kk)
+        if ( kk /= 1 )      Dh(ii,jj,kk,5) = (J0(ii,jj,kk,5)-5D-1 &
+            *Dt(ii,jj,kk,5)*(phi(ii,jj,kk)-phi(ii,jj,kk-1)))/phi(ii,jj,kk)
+        if ( kk /= nfm(3) ) Dh(ii,jj,kk,6) = (J1(ii,jj,kk,6)+5D-1 &
+            *Dt(ii,jj,kk,6)*(phi(ii,jj,kk+1)-phi(ii,jj,kk)))/phi(ii,jj,kk)
     end do
-    do ii = 1, nfm(1)-1
-        fmDh(ii,:,:,2) = (fmJ1(ii,:,:,2)+5D-1 &
-            *fmDt(ii,:,:,2)*(fphi1(ii+1,:,:)-fphi1(ii,:,:)))/fphi1(ii,:,:)
     end do
-    do jj = 2, nfm(2)
-        fmDh(:,jj,:,3) = (fmJ0(:,jj,:,3)-5D-1 &
-            *fmDt(:,jj,:,3)*(fphi1(:,jj,:)-fphi1(:,jj-1,:)))/fphi1(:,jj,:)
-    end do
-    do jj = 1, nfm(2)-1
-        fmDh(:,jj,:,4) = (fmJ1(:,jj,:,4)+5D-1 &
-            *fmDt(:,jj,:,4)*(fphi1(:,jj+1,:)-fphi1(:,jj,:)))/fphi1(:,jj,:)
-    end do
-    do kk = 2, nfm(3)
-        fmDh(:,:,kk,5) = (fmJ0(:,:,kk,5)-5D-1 &
-            *fmDt(:,:,kk,5)*(fphi1(:,:,kk)-fphi1(:,:,kk-1)))/fphi1(:,:,kk)
-    end do
-    do kk = 1, nfm(3)-1
-        fmDh(:,:,kk,6) = (fmJ1(:,:,kk,6)+5D-1 &
-            *fmDt(:,:,kk,6)*(fphi1(:,:,kk+1)-fphi1(:,:,kk)))/fphi1(:,:,kk)
     end do
 
     ! Boundary condition
     if ( .not. zigzagon ) then
-    ii = 1;      fmDh(ii,:,:,1) = -fmJn(ii,:,:,1)/fphi1(ii,:,:)
-    ii = nfm(1); fmDh(ii,:,:,2) = +fmJn(ii,:,:,2)/fphi1(ii,:,:)
-    jj = 1;      fmDh(:,jj,:,3) = -fmJn(:,jj,:,3)/fphi1(:,jj,:)
-    jj = nfm(2); fmDh(:,jj,:,4) = +fmJn(:,jj,:,4)/fphi1(:,jj,:)
+    ii = 1;      Dh(ii,:,:,1) = -Jn(ii,:,:,1)/phi(ii,:,:)
+    ii = nfm(1); Dh(ii,:,:,2) = +Jn(ii,:,:,2)/phi(ii,:,:)
+    jj = 1;      Dh(:,jj,:,3) = -Jn(:,jj,:,3)/phi(:,jj,:)
+    jj = nfm(2); Dh(:,jj,:,4) = +Jn(:,jj,:,4)/phi(:,jj,:)
     else
     do ii = 1, zz_div
-        fmDh(zzf1(ii)+1,zzf0(ii)+1:zzf0(ii+1),:,1) = &
-            -fmJn(zzf1(ii)+1,zzf0(ii)+1:zzf0(ii+1),:,1) &
-            /fphi1(zzf1(ii)+1,zzf0(ii)+1:zzf0(ii+1),:)
-        fmDh(zzf2(ii),zzf0(ii)+1:zzf0(ii+1),:,2) = &
-            +fmJn(zzf2(ii),zzf0(ii)+1:zzf0(ii+1),:,2) &
-            /fphi1(zzf2(ii),zzf0(ii)+1:zzf0(ii+1),:)
-        fmDh(zzf0(ii)+1:zzf0(ii+1),zzf1(ii)+1,:,3) = &
-            -fmJn(zzf0(ii)+1:zzf0(ii+1),zzf1(ii)+1,:,3) &
-            /fphi1(zzf0(ii)+1:zzf0(ii+1),zzf1(ii)+1,:)
-        fmDh(zzf0(ii)+1:zzf0(ii+1),zzf2(ii),:,4) = &
-            +fmJn(zzf0(ii)+1:zzf0(ii+1),zzf2(ii),:,4) &
-            /fphi1(zzf0(ii)+1:zzf0(ii+1),zzf2(ii),:)
+        Dh(zzf1(ii)+1,zzf0(ii)+1:zzf0(ii+1),:,1) = &
+            -Jn(zzf1(ii)+1,zzf0(ii)+1:zzf0(ii+1),:,1) &
+            /phi(zzf1(ii)+1,zzf0(ii)+1:zzf0(ii+1),:)
+        Dh(zzf2(ii),zzf0(ii)+1:zzf0(ii+1),:,2) = &
+            +Jn(zzf2(ii),zzf0(ii)+1:zzf0(ii+1),:,2) &
+            /phi(zzf2(ii),zzf0(ii)+1:zzf0(ii+1),:)
+        Dh(zzf0(ii)+1:zzf0(ii+1),zzf1(ii)+1,:,3) = &
+            -Jn(zzf0(ii)+1:zzf0(ii+1),zzf1(ii)+1,:,3) &
+            /phi(zzf0(ii)+1:zzf0(ii+1),zzf1(ii)+1,:)
+        Dh(zzf0(ii)+1:zzf0(ii+1),zzf2(ii),:,4) = &
+            +Jn(zzf0(ii)+1:zzf0(ii+1),zzf2(ii),:,4) &
+            /phi(zzf0(ii)+1:zzf0(ii+1),zzf2(ii),:)
 
-        if ( zzf1(ii) /= 0 ) then
-        fmDh(zzf1(ii),zzf0(ii)+1:zzf0(ii+1),:,2) = 0
-        fmDh(zzf0(ii)+1:zzf0(ii+1),zzf1(ii),:,4) = 0
+!        if ( zzf1(ii) /= 0 .or. zzf2(ii) /= nfm(1) ) then
+!        Dh(zzf1(ii),zzf0(ii)+1:zzf0(ii+1),:,2) = &
+!            -Dh(zzf1(ii)+1,zzf0(ii)+1:zzf0(ii+1),:,1)
+!        Dh(zzf2(ii)+1,zzf0(ii)+1:zzf0(ii+1),:,1) = &
+!            +Dh(zzf2(ii),zzf0(ii)+1:zzf0(ii+1),:,2)
+!        Dh(zzf0(ii)+1:zzf0(ii+1),zzf1(ii),:,4) = &
+!            -Dh(zzf0(ii)+1:zzf0(ii+1),zzf1(ii)+1,:,3)
+!        Dh(zzf0(ii)+1:zzf0(ii+1),zzf2(ii)+1,:,3) = &
+!            +Dh(zzf0(ii)+1:zzf0(ii+1),zzf2(ii),:,4)
+!        end if
+        if ( zzf1(ii) /= 0 .or. zzf2(ii) /= nfm(1) ) then
+        Dh(zzf1(ii),zzf0(ii)+1:zzf0(ii+1),:,2) = 0
+        Dh(zzf2(ii)+1,zzf0(ii)+1:zzf0(ii+1),:,1) = 0
+        Dh(zzf0(ii)+1:zzf0(ii+1),zzf1(ii),:,4) = 0
+        Dh(zzf0(ii)+1:zzf0(ii+1),zzf2(ii)+1,:,3) = 0
         end if
-        if ( zzf2(ii) /= nfm(1) ) then
-        fmDh(zzf2(ii)+1,zzf0(ii)+1:zzf0(ii+1),:,1) = 0
-        fmDh(zzf0(ii)+1:zzf0(ii+1),zzf2(ii)+1,:,3) = 0
-        end if
-
     end do
     end if
-    kk = 1;      fmDh(:,:,kk,5) = -fmJn(:,:,kk,5)/fphi1(:,:,kk)
-    kk = nfm(3); fmDh(:,:,kk,6) = +fmJn(:,:,kk,6)/fphi1(:,:,kk)
+    kk = 1;      Dh(:,:,kk,5) = -Jn(:,:,kk,5)/phi(:,:,kk)
+    kk = nfm(3); Dh(:,:,kk,6) = +Jn(:,:,kk,6)/phi(:,:,kk)
 
 end subroutine
 
-! =============================================================================
-! L_PBC
-! =============================================================================
-subroutine L_PBC
-    implicit none
+!! =============================================================================
+!! D_BC
+!! =============================================================================
+!subroutine D_BC(D,Dt)
+!    implicit none
+!    real(8):: D(:,:,:), Dt(:,:,:,:)
+!
+!    ! diffusion coefficient at boundary
+!    do kk = 1, ncm(3); id0(3) = (kk-1)*fcz
+!    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr
+!    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr
+!        if ( OUT_OF_ZZ(ii,jj) ) cycle
+!        id(1) = id0(1)+1    ! x0
+!        Dt(id(1),:,:,1) = 2D0*D(id(1),:,:)/dfm(1); deltf0(id(1),:,:,1) = 0D0
+!        id(1) = id0(1)+fcr  ! x1
+!        Dt(id(1),:,:,2) = 2D0*D(id(1),:,:)/dfm(1); deltf0(id(1),:,:,2) = 0D0
+!        id(2) = id0(2)+1    ! y0
+!        Dt(:,id(2),:,3) = 2D0*D(:,id(2),:)/dfm(2); deltf0(:,id(2),:,3) = 0D0
+!        id(2) = id0(2)+fcr  ! y1
+!        Dt(:,id(2),:,4) = 2D0*D(:,id(2),:)/dfm(2); deltf0(:,id(2),:,4) = 0D0
+!        id(3) = id0(3)+1    ! z0
+!        Dt(:,:,id(3),5) = 2D0*D(:,:,id(3))/dfm(3); deltf0(:,:,id(3),5) = 0D0
+!        id(3) = id0(3)+fcz  ! z1
+!        Dt(:,:,id(3),6) = 2D0*D(:,:,id(3))/dfm(3); deltf0(:,:,id(3),6) = 0D0
+!    end do
+!    end do
+!    end do
+!
+!    if ( zigzagon ) then
+!    do ii = 1, zz_div
+!        Dt(zzf1(ii)+1,zzf0(ii)+1:zzf0(ii+1),:,1) = 0
+!        Dt(zzf2(ii),zzf0(ii)+1:zzf0(ii+1),:,2)   = 0
+!        Dt(zzf0(ii)+1:zzf0(ii+1),zzf1(ii)+1,:,3) = 0
+!        Dt(zzf0(ii)+1:zzf0(ii+1),zzf2(ii),:,4)   = 0
+!    end do
+!    end if
+!
+!end subroutine
 
-    deltf1 = fmDh
+
+! =============================================================================
+! L_BC
+! =============================================================================
+subroutine L_PBC(Dt,Dh)
+    implicit none
+    real(8), intent(in):: Dt(:,:,:,:), Dh(:,:,:,:)
+
+    deltf1 = Dh
 
     ! interface boundary
-    do ii = 2, ncm(1); ix0 = 1+(ii-1)*fcr
-        deltf1(ix0,:,:,1) = (fmDt(ix0,:,:,1)+fmDh(ix0,:,:,1)) &
-                            / (1D0+2D0*fmDt(ix0,:,:,1))
+    do kk = 1, ncm(3); id0(3) = (kk-1)*fcz
+    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr
+    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr
+        if ( OUT_OF_ZZ(ii,jj) ) cycle
+        if ( ii /= 1 ) then;        id(1) = id0(1)+1    ! x0
+        deltf1(id(1),:,:,1) = (Dt(id(1),:,:,1)+Dh(id(1),:,:,1)) &
+                            / (1D0+2D0*Dt(id(1),:,:,1))
+        end if
+        if ( ii /= ncm(1) ) then;   id(1) = id0(1)+fcr  ! x1
+        deltf1(id(1),:,:,2) = (Dt(id(1),:,:,2)+Dh(id(1),:,:,2)) &
+                            / (1D0+2D0*Dt(id(1),:,:,2))
+        end if
+        if ( jj /= 1 ) then;        id(2) = id0(2)+1    ! y0
+        deltf1(:,id(2),:,3) = (Dt(:,id(2),:,3)+Dh(:,id(2),:,3)) &
+                            / (1D0+2D0*Dt(:,id(2),:,3))
+        end if
+        if ( jj /= ncm(2) ) then;   id(2) = id0(2)+fcr  ! y1
+        deltf1(:,id(2),:,4) = (Dt(:,id(2),:,4)+Dh(:,id(2),:,4)) &
+                            / (1D0+2D0*Dt(:,id(2),:,4))
+        end if
+        if ( kk /= 1 ) then;        id(3) = id0(3)+1    ! z0
+        deltf1(:,:,id(3),5) = (Dt(:,:,id(3),5)+Dh(:,:,id(3),5)) &
+                            / (1D0+2D0*Dt(:,:,id(3),5))
+        end if
+        if ( kk /= ncm(3) ) then;   id(3) = id0(3)+fcz  ! z1
+        deltf1(:,:,id(3),6) = (Dt(:,:,id(3),6)+Dh(:,:,id(3),6)) &
+                            / (1D0+2D0*Dt(:,:,id(3),6))
+        end if
     end do
-    do ii = 1, ncm(1)-1; ix1 = ii*fcr
-        deltf1(ix1,:,:,2) = (fmDt(ix1,:,:,2)+fmDh(ix1,:,:,2)) &
-                            / (1D0+2D0*fmDt(ix1,:,:,2))
     end do
-    do jj = 2, ncm(2); iy0 = 1+(jj-1)*fcr
-        deltf1(:,iy0,:,3) = (fmDt(:,iy0,:,3)+fmDh(:,iy0,:,3)) &
-                            / (1D0+2D0*fmDt(:,iy0,:,3))
-    end do
-    do jj = 1, ncm(2)-1; iy1 = jj*fcr
-        deltf1(:,iy1,:,4) = (fmDt(:,iy1,:,4)+fmDh(:,iy1,:,4)) &
-                            / (1D0+2D0*fmDt(:,iy1,:,4))
-    end do
-    do kk = 2, ncm(3); iz0 = 1+(kk-1)*fcz
-        deltf1(:,:,iz0,5) = (fmDt(:,:,iz0,5)+fmDh(:,:,iz0,5)) &
-                            / (1D0+2D0*fmDt(:,:,iz0,5))
-    end do
-    do kk = 1, ncm(3)-1; iz1 = kk*fcz
-        deltf1(:,:,iz1,6) = (fmDt(:,:,iz1,6)+fmDh(:,:,iz1,6)) &
-                            / (1D0+2D0*fmDt(:,:,iz1,6))
     end do
 
 end subroutine
@@ -265,378 +503,926 @@ end subroutine
 ! =============================================================================
 ! L_MATRIX
 ! =============================================================================
-subroutine L_PMATRIX
+subroutine L_PMATRIX(Dt,Dh,abso)
     implicit none
+    real(8), intent(in):: Dt(:,:,:,:), Dh(:,:,:,:), abso(:,:,:)
     real(8):: deno(nfm(1),nfm(2),nfm(3))  ! denominator
+    real(8):: deno1
 
-    !$omp parallel default(shared) private(ii,jj,kk)
-    !$omp do
+    ! Matrix formulation
+
+    ! -------------------------------------------------------------------------
+    !   migration term
     do ii = 1, nfm(1)
-        if ( ii /= 1 ) &
-        Mfm(ii,:,:,3) = -(deltf0(ii,:,:,1)+deltf1(ii-1,:,:,2))/dfm(1)
-        if ( ii /= nfm(1) ) &
-        Mfm(ii,:,:,5) = -(deltf0(ii,:,:,2)+deltf1(ii+1,:,:,1))/dfm(1)
-    end do
-    !$omp end do
-    !$omp do
     do jj = 1, nfm(2)
-        if ( jj /= 1 ) &
-        Mfm(:,jj,:,2) = -(deltf0(:,jj,:,3)+deltf1(:,jj-1,:,4))/dfm(2)
-        if ( jj /= nfm(2) ) &
-        Mfm(:,jj,:,6) = -(deltf0(:,jj,:,4)+deltf1(:,jj+1,:,3))/dfm(2)
-    end do
-    !$omp end do
-    !$omp do
     do kk = 1, nfm(3)
-        if ( kk /= 1 ) &
-        Mfm(:,:,kk,1) = -(deltf0(:,:,kk,5)+deltf1(:,:,kk-1,6))/dfm(3)
-        if ( kk /= nfm(3) ) &
-        Mfm(:,:,kk,7) = -(deltf0(:,:,kk,6)+deltf1(:,:,kk+1,5))/dfm(3)
+
+        if ( kk /= 1   ) Mfm(ii,jj,kk,1) = &
+                -(deltf0(ii,jj,kk,5)+deltf1(ii,jj,kk-1,6))/dfm(3)
+        if ( jj /= 1   ) Mfm(ii,jj,kk,2) = &
+                -(deltf0(ii,jj,kk,3)+deltf1(ii,jj-1,kk,4))/dfm(2)
+        if ( ii /= 1   ) Mfm(ii,jj,kk,3) = &
+                -(deltf0(ii,jj,kk,1)+deltf1(ii-1,jj,kk,2))/dfm(1)
+        if ( ii /= nfm(1) ) Mfm(ii,jj,kk,5) = &
+                -(deltf0(ii,jj,kk,2)+deltf1(ii+1,jj,kk,1))/dfm(1)
+        if ( jj /= nfm(2) ) Mfm(ii,jj,kk,6) = &
+                -(deltf0(ii,jj,kk,4)+deltf1(ii,jj+1,kk,3))/dfm(2)
+        if ( kk /= nfm(3) ) Mfm(ii,jj,kk,7) = &
+                -(deltf0(ii,jj,kk,6)+deltf1(ii,jj,kk+1,5))/dfm(3)
+        
+        Mfm(ii,jj,kk,4) = &
+            +(deltf0(ii,jj,kk,1)+deltf1(ii,jj,kk,1))/dfm(1) &
+            +(deltf0(ii,jj,kk,2)+deltf1(ii,jj,kk,2))/dfm(1) &
+            +(deltf0(ii,jj,kk,3)+deltf1(ii,jj,kk,3))/dfm(2) &
+            +(deltf0(ii,jj,kk,4)+deltf1(ii,jj,kk,4))/dfm(2) &
+            +(deltf0(ii,jj,kk,5)+deltf1(ii,jj,kk,5))/dfm(3) &
+            +(deltf0(ii,jj,kk,6)+deltf1(ii,jj,kk,6))/dfm(3) &
+            +abso(ii,jj,kk)
+
     end do
-    !$omp end do
-    !$omp end parallel
+    end do
+    end do
 
-    Mfm(:,:,:,4) = &
-    +(deltf0(:,:,:,1)+deltf1(:,:,:,1)+deltf0(:,:,:,2)+deltf1(:,:,:,2))/dfm(1) &
-    +(deltf0(:,:,:,3)+deltf1(:,:,:,3)+deltf0(:,:,:,4)+deltf1(:,:,:,4))/dfm(2) &
-    +(deltf0(:,:,:,5)+deltf1(:,:,:,5)+deltf0(:,:,:,6)+deltf1(:,:,:,6))/dfm(3) &
-    +fm_a(:,:,:)
-
-
-    if ( zigzagon ) then
-    where( fphi1 == 0 )
-        Mfm(:,:,:,1) = 0
-        Mfm(:,:,:,2) = 0
-        Mfm(:,:,:,3) = 0
-        Mfm(:,:,:,4) = 0
-        Mfm(:,:,:,5) = 0
-        Mfm(:,:,:,6) = 0
-        Mfm(:,:,:,7) = 0
-    end where
-    end if
 
     ! -------------------------------------------------------------------------
     !   source term
-    !$omp parallel default(shared) private(ii,jj,kk,ix0,ix1,iy0,iy1,iz0,iz1)
-    !$omp do
-    do ii = 2, ncm(1); ix0 = 1+(ii-1)*fcr
-        deno(ix0,:,:) = 1D0+2D0*fmDt(ix0,:,:,1)
-        jsrc(ix0,:,:,1) = 4D0*fmDt(ix0,:,:,1)/deno(ix0,:,:)
-        fsrc(ix0,:,:,1) = fmDh(ix0-1,:,:,2)/deno(ix0,:,:)
-    end do
-    !$omp end do
-    !$omp do
-    do ii = 1, ncm(1)-1; ix1 = ii*fcr
-        deno(ix1,:,:) = 1D0+2D0*fmDt(ix1,:,:,2)
-        jsrc(ix1,:,:,2) = 4D0*fmDt(ix1,:,:,2)/deno(ix1,:,:)
-        fsrc(ix1,:,:,2) = fmDh(ix1+1,:,:,1)/deno(ix1,:,:)
-    end do
-    !$omp end do
-    !$omp do
-    do jj = 2, ncm(2); iy0 = 1+(jj-1)*fcr
-        deno(:,iy0,:) = 1D0+2D0*fmDt(:,iy0,:,3)
-        jsrc(:,iy0,:,3) = 4D0*fmDt(:,iy0,:,3)/deno(:,iy0,:)
-        fsrc(:,iy0,:,3) = fmDh(:,iy0-1,:,4)/deno(:,iy0,:)
-    end do
-    !$omp end do
-    !$omp do
-    do jj = 1, ncm(2)-1; iy1 = jj*fcr
-        deno(:,iy1,:) = 1D0+2D0*fmDt(:,iy1,:,4)
-        jsrc(:,iy1,:,4) = 4D0*fmDt(:,iy1,:,4)/deno(:,iy1,:)
-        fsrc(:,iy1,:,4) = fmDh(:,iy1+1,:,3)/deno(:,iy1,:)
-    end do
-    !$omp end do
-    !$omp do
-    do kk = 2, ncm(3); iz0 = 1+(kk-1)*fcz
-        deno(:,:,iz0) = 1D0+2D0*fmDt(:,:,iz0,5)
-        jsrc(:,:,iz0,5) = 4D0*fmDt(:,:,iz0,5)/deno(:,:,iz0)
-        fsrc(:,:,iz0,5) = fmDh(:,:,iz0-1,6)/deno(:,:,iz0)
-    end do
-    !$omp end do
-    !$omp do
-    do kk = 1, ncm(3)-1; iz1 = kk*fcz
-        deno(:,:,iz1) = 1D0+2D0*fmDt(:,:,iz1,6)
-        jsrc(:,:,iz1,6) = 4D0*fmDt(:,:,iz1,6)/deno(:,:,iz1)
-        fsrc(:,:,iz1,6) = fmDh(:,:,iz1+1,5)/deno(:,:,iz1)
-    end do
-    !$omp end do
-    !$omp end parallel
-
-end subroutine
-
-! =============================================================================
-! L_PSOURCE
-! =============================================================================
-subroutine L_PSOURCE(keff)
-    implicit none
-    real(8), intent(in):: keff
-
-    ! neutron fission source
-    fm_s(:,:,:) = fm_nf(:,:,:)*fphi1(:,:,:)/keff
-
-    ! interface BC
-    !$omp parallel default(shared) private(ii,jj,kk,ix0,ix1,iy0,iy1,iz0,iz1)
-    !$omp do
-    do ii = 2, ncm(1); ix0 = 1+(ii-1)*fcr
-        fm_s(ix0,:,:) = fm_s(ix0,:,:) &
-            +(jsrc(ix0,:,:,1)*fmJ1(ix0,:,:,1) &
-            +fsrc(ix0,:,:,1)*fphi1(ix0-1,:,:))/dfm(1)
-    end do
-    !$omp end do
-    !$omp do
-    do ii = 1,ncm(1)-1; ix1 = ii*fcr
-        fm_s(ix1,:,:) = fm_s(ix1,:,:) & 
-            +(jsrc(ix1,:,:,2)*fmJ0(ix1,:,:,2) &
-            +fsrc(ix1,:,:,2)*fphi1(ix1+1,:,:))/dfm(1)
-    end do
-    !$omp end do
-    !$omp do
-    do jj = 2, ncm(2); iy0 = 1+(jj-1)*fcr
-        fm_s(:,iy0,:) = fm_s(:,iy0,:) &
-            +(jsrc(:,iy0,:,3)*fmJ1(:,iy0,:,3) &
-            +fsrc(:,iy0,:,3)*fphi1(:,iy0-1,:))/dfm(2)
-    end do
-    !$omp end do
-    !$omp do
-    do jj = 1, ncm(2)-1; iy1 = jj*fcr
-        fm_s(:,iy1,:) = fm_s(:,iy1,:) &
-            +(jsrc(:,iy1,:,4)*fmJ0(:,iy1,:,4) &
-            +fsrc(:,iy1,:,4)*fphi1(:,iy1+1,:))/dfm(2)
-    end do
-    !$omp end do
-    !$omp do
-    do kk = 2, ncm(3); iz0 = 1+(kk-1)*fcz
-        fm_s(:,:,iz0) = fm_s(:,:,iz0) &
-            +(jsrc(:,:,iz0,5)*fmJ1(:,:,iz0,5) &
-            +fsrc(:,:,iz0,5)*fphi1(:,:,iz0-1))/dfm(3)
-    end do
-    !$omp end do
-    !$omp do
-    do kk = 1, ncm(3)-1; iz1 = kk*fcz
-        fm_s(:,:,iz1) = fm_s(:,:,iz1) &
-            +(jsrc(:,:,iz1,6)*fmJ0(:,:,iz1,6) &
-            +fsrc(:,:,iz1,6)*fphi1(:,:,iz1+1))/dfm(3)
-    end do
-    !$omp end do
-    !$omp end parallel
-
-    ! net current
-!    if ( wholecore .and. zigzagon ) then
-!    do ii = 1, zz_div
-!        fm_s(zzb1(ii)+1,zzb0(ii)+1:zzb0(ii+1),:) = &
-!            fm_s(zzb1(ii)+1,zzb0(ii)+1:zzb0(ii+1),:) + &
-!            fmJ3(zzb1(ii)+1,zzb0(ii)+1:zzb0(ii+1),:,1)/dfm(1)
-!        fm_s(zzb2(ii),zzb0(ii)+1:zzb0(ii+1),:) = &
-!            fm_s(zzb2(ii),zzb0(ii)+1:zzb0(ii+1),:) - &
-!            fmJ3(zzb2(ii),zzb0(ii)+1:zzb0(ii+1),:,2)/dfm(1)
-!        fm_s(zzb0(ii)+1:zzb0(ii+1),zzb1(ii)+1,:) = &
-!            fm_s(zzb0(ii)+1:zzb0(ii+1),zzb1(ii)+1,:) + &
-!            fmJ3(zzb0(ii)+1:zzb0(ii+1),zzb1(ii)+1,:,3)/dfm(2)
-!        fm_s(zzb0(ii)+1:zzb0(ii+1),zzb2(ii),:) = &
-!            fm_s(zzb0(ii)+1:zzb0(ii+1),zzb2(ii),:) - &
-!            fmJ3(zzb0(ii)+1:zzb0(ii+1),zzb2(ii),:,4)/dfm(2)
-!    end do
-!    fm_s(:,:,1+fcz) = fm_s(:,:,1+fcz) + fmJ3(:,:,1+fcz,5)/dfm(3)
-!    fm_s(:,:,nfm(3)-fcz) = fm_s(:,:,nfm(3)-fcz) - fmJ3(:,:,nfm(3)-fcz,6)/dfm(3)
-!    end if
-    
-end subroutine
-
-! =============================================================================
-! L_OUTJ
-! =============================================================================
-subroutine L_POUTJ
-    implicit none
-
-    ! outgoing partial current
-    !$omp parallel default(shared) private(ii,jj,kk,ix0,ix1,iy0,iy1,iz0,iz1)
-    !$omp do
-    do ii = 1, ncm(1); ix1 = ii*fcr; ix0 = ix1-fcr+1
-        if ( ii /= 1 ) then
-        fmJn(ix0,:,:,1) = +jsrc(ix0,:,:,1)*fmJ1(ix0,:,:,1) &
-            -deltf1(ix0,:,:,1)*fphi1(ix0,:,:) &
-            +fsrc(ix0,:,:,1)*fphi0(ix0-1,:,:)
-        fmJ0(ix0,:,:,1) = fmJ1(ix0,:,:,1)-fmJn(ix0,:,:,1)
+    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr
+    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr
+    do kk = 1, ncm(3); id0(3) = (kk-1)*fcz
+        if ( OUT_OF_ZZ(ii,jj) ) cycle
+        if ( ii /= 1 ) then;        id(1) = id0(1)+1    ! x0
+            deno(id(1),:,:) = 1D0+2D0*Dt(id(1),:,:,1)
+            jsrc(id(1),:,:,1) = 4D0*Dt(id(1),:,:,1)/deno(id(1),:,:)
+            fsrc(id(1),:,:,1) = Dh(id(1)-1,:,:,2)/deno(id(1),:,:)
         end if
-        if ( ii /= ncm(1) ) then
-        fmJn(ix1,:,:,2) = -jsrc(ix1,:,:,2)*fmJ0(ix1,:,:,2) &
-            +deltf1(ix1,:,:,2)*fphi1(ix1,:,:) &
-            -fsrc(ix1,:,:,2)*fphi0(ix1+1,:,:)
-        fmJ1(ix1,:,:,2) = fmJ0(ix1,:,:,2)+fmJn(ix1,:,:,2)
+        if ( ii /= ncm(1) ) then;   id(1) = id0(1)+fcr  ! x1
+            deno(id(1),:,:) = 1D0+2D0*Dt(id(1),:,:,2)
+            jsrc(id(1),:,:,2) = 4D0*Dt(id(1),:,:,2)/deno(id(1),:,:)
+            fsrc(id(1),:,:,2) = Dh(id(1)+1,:,:,1)/deno(id(1),:,:)
+        end if
+        if ( jj /= 1 ) then;        id(2) = id0(2)+1    ! y0
+            deno(:,id(2),:) = 1D0+2D0*Dt(:,id(2),:,3)
+            jsrc(:,id(2),:,3) = 4D0*Dt(:,id(2),:,3)/deno(:,id(2),:)
+            fsrc(:,id(2),:,3) = Dh(:,id(2)-1,:,4)/deno(:,id(2),:)
+        end if
+        if ( jj /= ncm(2) ) then;   id(2) = id0(2)+fcr  ! y1
+            deno(:,id(2),:) = 1D0+2D0*Dt(:,id(2),:,4)
+            jsrc(:,id(2),:,4) = 4D0*Dt(:,id(2),:,4)/deno(:,id(2),:)
+            fsrc(:,id(2),:,4) = Dh(:,id(2)+1,:,3)/deno(:,id(2),:)
+        end if
+        if ( kk /= 1 ) then;        id(3) = id0(3)+1    ! z0
+            deno(:,:,id(3)) = 1D0+2D0*Dt(:,:,id(3),5)
+            jsrc(:,:,id(3),5) = 4D0*Dt(:,:,id(3),5)/deno(:,:,id(3))
+            fsrc(:,:,id(3),5) = Dh(:,:,id(3)-1,6)/deno(:,:,id(3))
+        end if
+        if ( kk /= ncm(3) ) then;   id(3) = id0(3)+fcz  ! z1
+            deno(:,:,id(3)) = 1D0+2D0*Dt(:,:,id(3),6)
+            jsrc(:,:,id(3),6) = 4D0*Dt(:,:,id(3),6)/deno(:,:,id(3))
+            fsrc(:,:,id(3),6) = Dh(:,:,id(3)+1,5)/deno(:,:,id(3))
         end if
     end do
-    !$omp end do
-    !$omp do
-    do jj = 1, ncm(2); iy1 = jj*fcr; iy0 = iy1-fcr+1
-        if ( jj /= 1 ) then
-        fmJn(:,iy0,:,3) = +jsrc(:,iy0,:,3)*fmJ1(:,iy0,:,3) &
-            -deltf1(:,iy0,:,3)*fphi1(:,iy0,:) &
-            +fsrc(:,iy0,:,3)*fphi0(:,iy0-1,:)
-        fmJ0(:,iy0,:,3) = fmJ1(:,iy0,:,3)-fmJn(:,iy0,:,3)
-        end if
-        if ( jj /= ncm(2) ) then
-        fmJn(:,iy1,:,4) = -jsrc(:,iy1,:,4)*fmJ0(:,iy1,:,4) &
-            +deltf1(:,iy1,:,4)*fphi1(:,iy1,:) &
-            -fsrc(:,iy1,:,4)*fphi0(:,iy1+1,:)
-        fmJ1(:,iy1,:,4) = fmJ0(:,iy1,:,4)+fmJn(:,iy1,:,4)
-        end if
     end do
-    !$omp end do
-    !$omp do
-    do kk = 1, ncm(3); iz1 = kk*fcz; iz0 = iz1-fcz+1
-        if ( kk /= 1 ) then
-        fmJn(:,:,iz0,5) = +jsrc(:,:,iz0,5)*fmJ1(:,:,iz0,5) &
-            -deltf1(:,:,iz0,5)*fphi1(:,:,iz0) &
-            +fsrc(:,:,iz0,5)*fphi0(:,:,iz0-1)
-        fmJ0(:,:,iz0,5) = fmJ1(:,:,iz0,5)-fmJn(:,:,iz0,5)
-        end if
-        if ( kk /= ncm(3) ) then
-        fmJn(:,:,iz1,6) = -jsrc(:,:,iz1,6)*fmJ0(:,:,iz1,6) &
-            +deltf1(:,:,iz1,6)*fphi1(:,:,iz1) &
-            -fsrc(:,:,iz1,6)*fphi0(:,:,iz1+1)
-        fmJ1(:,:,iz1,6) = fmJ0(:,:,iz1,6)+fmJn(:,:,iz1,6)
-        end if
     end do
-    !$omp end do
 
-    ! data swapping for updating next iteration incoming partial current
-    !$omp do
-    do ii = 1, ncm(1); ix1 = ii*fcr; ix0 = ix1-fcr+1
-        if ( ii /= 1 )      fmJ0(ix0-1,:,:,2) = fmJ0(ix0,:,:,1)
-        if ( ii /= ncm(1) ) fmJ1(ix1+1,:,:,1) = fmJ1(ix1,:,:,2)
-    end do
-    !$omp end do
-    !$omp do
-    do jj = 1, ncm(2); iy1 = jj*fcr; iy0 = iy1-fcr+1
-        if ( jj /= 1 )      fmJ0(:,iy0-1,:,4) = fmJ0(:,iy0,:,3)
-        if ( jj /= ncm(2) ) fmJ1(:,iy1+1,:,3) = fmJ1(:,iy1,:,4)
-    end do
-    !$omp end do
-    !$omp do
-    do kk = 1, ncm(3); iz1 = kk*fcz; iz0 = iz1-fcz+1
-        if ( kk /= 1 )      fmJ0(:,:,iz0-1,6) = fmJ0(:,:,iz0,5)
-        if ( kk /= ncm(3) ) fmJ1(:,:,iz1+1,5) = fmJ1(:,:,iz1,6)
-    end do
-    !$omp end do
-    !$omp end parallel
-
-end subroutine
-
-
-! =============================================================================
-! L_REFJ
-! =============================================================================
-subroutine L_PREFJ
-    implicit none
 
     ! zigzag boundary
     if ( zigzagon ) then
     do ii = 1, zz_div
-    if ( zzf1(ii) /= 0 ) then
-        fmJn(zzf1(ii),zzf0(ii)+1:zzf0(ii+1),:,2) = &
-            fmJn(zzf1(ii)+1,zzf0(ii)+1:zzf0(ii+1),:,1)
-        fmJn(zzf0(ii)+1:zzf0(ii+1),zzf1(ii),:,4) = &
-            fmJn(zzf0(ii)+1:zzf0(ii+1),zzf1(ii)+1,:,3)
-    end if
-    if ( zzf2(ii) /= nfm(1) ) then
-        fmJn(zzf2(ii)+1,zzf0(ii)+1:zzf0(ii+1),:,1) = &
-            fmJn(zzf2(ii),zzf0(ii)+1:zzf0(ii+1),:,2)
-        fmJn(zzf0(ii)+1:zzf0(ii+1),zzf2(ii)+1,:,3) = &
-            fmJn(zzf0(ii)+1:zzf0(ii+1),zzf2(ii),:,4)
-    end if
+        fsrc(zzf1(ii)+1,zzf0(ii)+1:zzf0(ii+1),:,1) = 0
+        fsrc(zzf2(ii),zzf0(ii)+1:zzf0(ii+1),:,2)   = 0
+        fsrc(zzf0(ii)+1:zzf0(ii+1),zzf1(ii)+1,:,3) = 0
+        fsrc(zzf0(ii)+1:zzf0(ii+1),zzf2(ii),:,4)   = 0
     end do
-    end if
-
-    ! boundary surface
-    ii = 1;      fmJn(ii,:,:,1) = -deltf1(ii,:,:,1)*fphi1(ii,:,:)
-    ii = nfm(1); fmJn(ii,:,:,2) = +deltf1(ii,:,:,2)*fphi1(ii,:,:)
-    jj = 1;      fmJn(:,jj,:,3) = -deltf1(:,jj,:,3)*fphi1(:,jj,:)
-    jj = nfm(2); fmJn(:,jj,:,4) = +deltf1(:,jj,:,4)*fphi1(:,jj,:)
-    kk = 1;      fmJn(:,:,kk,5) = -deltf1(:,:,kk,5)*fphi1(:,:,kk)
-    kk = nfm(3); fmJn(:,:,kk,6) = +deltf1(:,:,kk,6)*fphi1(:,:,kk)
-
-    ! net current & surface average
-    if ( zigzagon ) then
-    !$omp parallel do default(shared) private(ii,jj,kk,ix0,ix1,iy0,iy1,iz0,iz1)
-    do ii = 1, ncm(1); ix1 = ii*fcr; ix0 = ix1-fcr+1
-    do jj = 1, ncm(2); iy1 = jj*fcr; iy0 = iy1-fcr+1
-    do kk = 1, ncm(3); iz1 = kk*fcz; iz0 = iz1-fcz+1
-        
-        ! inner surfaces
-        cmJ0(ii,jj,kk,1) = sum(fmJ0(ix0,iy0:iy1,iz0:iz1,1))/fc1
-        cmJ1(ii,jj,kk,1) = sum(fmJ1(ix0,iy0:iy1,iz0:iz1,1))/fc1
-
-        cmJ0(ii,jj,kk,2) = sum(fmJ0(ix1,iy0:iy1,iz0:iz1,2))/fc1
-        cmJ1(ii,jj,kk,2) = sum(fmJ1(ix1,iy0:iy1,iz0:iz1,2))/fc1
-
-        cmJ0(ii,jj,kk,3) = sum(fmJ0(ix0:ix1,iy0,iz0:iz1,3))/fc1
-        cmJ1(ii,jj,kk,3) = sum(fmJ1(ix0:ix1,iy0,iz0:iz1,3))/fc1
-
-        cmJ0(ii,jj,kk,4) = sum(fmJ0(ix0:ix1,iy1,iz0:iz1,4))/fc1
-        cmJ1(ii,jj,kk,4) = sum(fmJ1(ix0:ix1,iy1,iz0:iz1,4))/fc1
-
-        cmJ0(ii,jj,kk,5) = sum(fmJ0(ix0:ix1,iy0:iy1,iz0,5))/fc2
-        cmJ1(ii,jj,kk,5) = sum(fmJ1(ix0:ix1,iy0:iy1,iz0,5))/fc2
-
-        cmJ0(ii,jj,kk,6) = sum(fmJ0(ix0:ix1,iy0:iy1,iz1,6))/fc2
-        cmJ1(ii,jj,kk,6) = sum(fmJ1(ix0:ix1,iy0:iy1,iz1,6))/fc2
-    
-        ! boundary surfaces
-        cmJn(ii,jj,kk,1) = sum(fmJn(ix0,iy0:iy1,iz0:iz1,1))/fc1
-        cmJn(ii,jj,kk,2) = sum(fmJn(ix1,iy0:iy1,iz0:iz1,2))/fc1
-        cmJn(ii,jj,kk,3) = sum(fmJn(ix0:ix1,iy0,iz0:iz1,3))/fc1
-        cmJn(ii,jj,kk,4) = sum(fmJn(ix0:ix1,iy1,iz0:iz1,4))/fc1
-        cmJn(ii,jj,kk,5) = sum(fmJn(ix0:ix1,iy0:iy1,iz0,5))/fc2
-        cmJn(ii,jj,kk,6) = sum(fmJn(ix0:ix1,iy0:iy1,iz1,6))/fc2
-
-    end do
-    end do
-    end do
-    !$omp end parallel do
-    else
-    !$omp parallel do default(shared) private(ii,jj,kk,ix0,ix1,iy0,iy1,iz0,iz1)
-    do ii = 1, ncm(1); ix1 = ii*fcr; ix0 = ix1-fcr+1
-    do jj = 1, ncm(2); iy1 = jj*fcr; iy0 = iy1-fcr+1
-    do kk = 1, ncm(3); iz1 = kk*fcz; iz0 = iz1-fcz+1
-        ! inner surfaces
-        cmJ0(ii,jj,kk,1) = sum(fmJ0(ix0,iy0:iy1,iz0:iz1,1))/fc1
-        cmJ1(ii,jj,kk,1) = sum(fmJ1(ix0,iy0:iy1,iz0:iz1,1))/fc1
-
-        cmJ0(ii,jj,kk,2) = sum(fmJ0(ix1,iy0:iy1,iz0:iz1,2))/fc1
-        cmJ1(ii,jj,kk,2) = sum(fmJ1(ix1,iy0:iy1,iz0:iz1,2))/fc1
-
-        cmJ0(ii,jj,kk,3) = sum(fmJ0(ix0:ix1,iy0,iz0:iz1,3))/fc1
-        cmJ1(ii,jj,kk,3) = sum(fmJ1(ix0:ix1,iy0,iz0:iz1,3))/fc1
-
-        cmJ0(ii,jj,kk,4) = sum(fmJ0(ix0:ix1,iy1,iz0:iz1,4))/fc1
-        cmJ1(ii,jj,kk,4) = sum(fmJ1(ix0:ix1,iy1,iz0:iz1,4))/fc1
-
-        cmJ0(ii,jj,kk,5) = sum(fmJ0(ix0:ix1,iy0:iy1,iz0,5))/fc2
-        cmJ1(ii,jj,kk,5) = sum(fmJ1(ix0:ix1,iy0:iy1,iz0,5))/fc2
-
-        cmJ0(ii,jj,kk,6) = sum(fmJ0(ix0:ix1,iy0:iy1,iz1,6))/fc2
-        cmJ1(ii,jj,kk,6) = sum(fmJ1(ix0:ix1,iy0:iy1,iz1,6))/fc2
-
-        ! boundary surfaces
-        if ( ii == 1 ) &
-        cmJn(ii,jj,kk,1) = sum(fmJn(ix0,iy0:iy1,iz0:iz1,1))/fc1
-        if ( ii == ncm(1) ) &
-        cmJn(ii,jj,kk,2) = sum(fmJn(ix1,iy0:iy1,iz0:iz1,2))/fc1
-        if ( jj == 1 ) &
-        cmJn(ii,jj,kk,3) = sum(fmJn(ix0:ix1,iy0,iz0:iz1,3))/fc1
-        if ( jj == ncm(2) ) &
-        cmJn(ii,jj,kk,4) = sum(fmJn(ix0:ix1,iy1,iz0:iz1,4))/fc1
-        if ( kk == 1 ) &
-        cmJn(ii,jj,kk,5) = sum(fmJn(ix0:ix1,iy0:iy1,iz0,5))/fc2
-        if ( kk == ncm(3) ) &
-        cmJn(ii,jj,kk,6) = sum(fmJn(ix0:ix1,iy0:iy1,iz1,6))/fc2
-    end do
-    end do
-    end do
-    !$omp end parallel do
     end if
 
 end subroutine
+
+!! =============================================================================
+!! G_DHAT
+!! =============================================================================
+!subroutine G_DHAT(Jn,Dt,vphi,sphi,Dh)
+!    implicit none
+!    real(8), intent(in) :: Jn(:,:,:,:), Dt(:,:,:,:), vphi(:,:,:), sphi(:,:,:,:)
+!    real(8), intent(out):: Dh(:,:,:,:)
+!
+!    ! x0 +
+!    Dh(:,:,:,1) = (Jn(:,:,:,1)+Dt(:,:,:,1) &
+!        *(vphi(:,:,:)-sphi(:,:,:,1)))/(vphi(:,:,:)+sphi(:,:,:,1))
+!    ! x1 -
+!    Dh(:,:,:,2) = (Jn(:,:,:,2)+Dt(:,:,:,2) &
+!        *(sphi(:,:,:,2)-vphi(:,:,:)))/(sphi(:,:,:,2)+vphi(:,:,:))
+!    ! y0 +
+!    Dh(:,:,:,3) = (Jn(:,:,:,3)+Dt(:,:,:,3) &
+!        *(vphi(:,:,:)-sphi(:,:,:,3)))/(vphi(:,:,:)+sphi(:,:,:,3))
+!    ! y1 -
+!    Dh(:,:,:,4) = (Jn(:,:,:,4)+Dt(:,:,:,4) &
+!        *(sphi(:,:,:,4)-vphi(:,:,:)))/(sphi(:,:,:,4)+vphi(:,:,:))
+!    ! z0 +
+!    Dh(:,:,:,5) = (Jn(:,:,:,5)+Dt(:,:,:,5) &
+!        *(vphi(:,:,:)-sphi(:,:,:,5)))/(vphi(:,:,:)+sphi(:,:,:,5))
+!    ! z1 -
+!    Dh(:,:,:,6) = (Jn(:,:,:,6)+Dt(:,:,:,6) &
+!        *(sphi(:,:,:,6)-vphi(:,:,:)))/(sphi(:,:,:,6)+vphi(:,:,:))
+!
+!    ! boundary condition
+!    ! - square boundary
+!    if ( .not. zigzagon ) then
+!    ii = 1;      Dh(ii,:,:,1) = Jn(ii,:,:,1) / vphi(ii,:,:)
+!    ii = ncm(1); Dh(ii,:,:,2) = Jn(ii,:,:,2) / vphi(ii,:,:)
+!    jj = 1;      Dh(:,jj,:,3) = Jn(:,jj,:,3) / vphi(:,jj,:)
+!    jj = ncm(2); Dh(:,jj,:,4) = Jn(:,jj,:,4) / vphi(:,jj,:)
+!
+!    ! - zigzag boundary
+!    else
+!    do ii = 1, zz_div
+!        Dh(zzc1(ii)+1,zzc0(ii)+1:zzc0(ii+1),:,1) = &
+!            Jn(zzc1(ii)+1,zzc0(ii)+1:zzc0(ii+1),:,1) &
+!            / vphi(zzc1(ii)+1,zzc0(ii)+1:zzc0(ii+1),:)
+!        Dh(zzc2(ii),zzc0(ii)+1:zzc0(ii+1),:,2) = &
+!            Jn(zzc2(ii),zzc0(ii)+1:zzc0(ii+1),:,2) &
+!            / vphi(zzc2(ii),zzc0(ii)+1:zzc0(ii+1),:)
+!        Dh(zzc0(ii)+1:zzc0(ii+1),zzc1(ii)+1,:,3) = &
+!            Jn(zzc0(ii)+1:zzc0(ii+1),zzc1(ii)+1,:,3) &
+!            / vphi(zzc0(ii)+1:zzc0(ii+1),zzc1(ii)+1,:)
+!        Dh(zzc0(ii)+1:zzc0(ii+1),zzc2(ii),:,4) = &
+!            Jn(zzc0(ii)+1:zzc0(ii+1),zzc2(ii),:,4) &
+!            / vphi(zzc0(ii)+1:zzc0(ii+1),zzc2(ii),:)
+!    end do
+!    end if
+!    kk = 1;      Dh(:,:,kk,5) = Jn(:,:,kk,5) / vphi(:,:,kk)
+!    kk = ncm(3); Dh(:,:,kk,6) = Jn(:,:,kk,6) / vphi(:,:,kk)
+!
+!end subroutine
+!
+!
+!! =============================================================================
+!! G_MATRIX
+!! =============================================================================
+!subroutine G_MATRIX(Dt,Dh,phi)
+!    implicit none
+!    real(8), intent(in):: Dt(:,:,:,:), Dh(:,:,:,:), phi(:,:,:)
+!    real(8):: deno    ! denominator of the parameter
+!
+!    ! diffusion coefficient
+!    do ii = 1, ncm(1)
+!    do jj = 1, ncm(2)
+!    do kk = 1, ncm(3)
+!        if ( OUT_OF_ZZ(ii,jj) ) cycle
+!        if ( ii /= 1 ) then         ! x0
+!        deno = Dt(ii-1,jj,kk,2)+Dt(ii,jj,kk,1)+Dh(ii,jj,kk,1)-Dh(ii-1,jj,kk,2)
+!        deltc0(ii,jj,kk,1) = (Dt(ii-1,jj,kk,2)*Dt(ii,jj,kk,1) &
+!            +Dh(ii,jj,kk,1)*Dh(ii-1,jj,kk,2))/deno
+!        deltc1(ii,jj,kk,1) = (Dt(ii-1,jj,kk,2)*Dh(ii,jj,kk,1) &
+!            +Dt(ii,jj,kk,1)*Dh(ii-1,jj,kk,2))/deno
+!        end if
+!        if ( ii /= ncm(1) ) then    ! x1
+!        deno = Dt(ii,jj,kk,2)+Dt(ii+1,jj,kk,1)+Dh(ii+1,jj,kk,1)-Dh(ii,jj,kk,2)
+!        deltc0(ii,jj,kk,2) = (Dt(ii,jj,kk,2)*Dt(ii+1,jj,kk,1) &
+!            +Dh(ii+1,jj,kk,1)*Dh(ii,jj,kk,2))/deno
+!        deltc1(ii,jj,kk,2) = (Dt(ii,jj,kk,2)*Dh(ii+1,jj,kk,1) &
+!            +Dt(ii+1,jj,kk,1)*Dh(ii,jj,kk,2))/deno
+!        end if
+!        if ( jj /= 1 ) then         ! y0
+!        deno = Dt(ii,jj-1,kk,4)+Dt(ii,jj,kk,3)+Dh(ii,jj,kk,3)-Dh(ii,jj-1,kk,4)
+!        deltc0(ii,jj,kk,3) = (Dt(ii,jj-1,kk,4)*Dt(ii,jj,kk,3) &
+!            +Dh(ii,jj,kk,3)*Dh(ii,jj-1,kk,4))/deno
+!        deltc1(ii,jj,kk,3) = (Dt(ii,jj-1,kk,4)*Dh(ii,jj,kk,3) &
+!            +Dt(ii,jj,kk,3)*Dh(ii,jj-1,kk,4))/deno
+!        end if
+!        if ( jj /= ncm(2) ) then    ! y1
+!        deno = Dt(ii,jj,kk,4)+Dt(ii,jj+1,kk,3)+Dh(ii,jj+1,kk,3)-Dh(ii,jj,kk,4)
+!        deltc0(ii,jj,kk,4) = (Dt(ii,jj,kk,4)*Dt(ii,jj+1,kk,3) &
+!            +Dh(ii,jj+1,kk,3)*Dh(ii,jj,kk,4))/deno
+!        deltc1(ii,jj,kk,4) = (Dt(ii,jj,kk,4)*Dh(ii,jj+1,kk,3) &
+!            +Dt(ii,jj+1,kk,3)*Dh(ii,jj,kk,4))/deno
+!        end if
+!        if ( kk /= 1 ) then         ! z0
+!        deno = Dt(ii,jj,kk-1,6)+Dt(ii,jj,kk,5)+Dh(ii,jj,kk,5)-Dh(ii,jj,kk-1,6)
+!        deltc0(ii,jj,kk,5) = (Dt(ii,jj,kk-1,6)*Dt(ii,jj,kk,5) &
+!            +Dh(ii,jj,kk,5)*Dh(ii,jj,kk-1,6))/deno
+!        deltc1(ii,jj,kk,5) = (Dt(ii,jj,kk-1,6)*Dh(ii,jj,kk,5) &
+!            +Dt(ii,jj,kk,5)*Dh(ii,jj,kk-1,6))/deno
+!        end if
+!        if ( kk /= ncm(3) ) then    ! z1
+!        deno = Dt(ii,jj,kk,6)+Dt(ii,jj,kk+1,5)+Dh(ii,jj,kk+1,5)-Dh(ii,jj,kk,6)
+!        deltc0(ii,jj,kk,6) = (Dt(ii,jj,kk,6)*Dt(ii,jj,kk+1,5) &
+!            +Dh(ii,jj,kk+1,5)*Dh(ii,jj,kk,6))/deno
+!        deltc1(ii,jj,kk,6) = (Dt(ii,jj,kk,6)*Dh(ii,jj,kk+1,5) &
+!            +Dt(ii,jj,kk+1,5)*Dh(ii,jj,kk,6))/deno
+!        end if
+!    end do
+!    end do
+!    end do
+!
+!    ! boundary condition (J/phi)
+!    ! - sqaure boundary
+!    if ( .not. zigzagon ) then
+!    ii = 1;      deltc1(ii,:,:,1) = Dh(ii,:,:,1)
+!    ii = ncm(1); deltc1(ii,:,:,2) = Dh(ii,:,:,2)
+!    jj = 1;      deltc1(:,jj,:,3) = Dh(:,jj,:,3)
+!    jj = ncm(2); deltc1(:,jj,:,4) = Dh(:,jj,:,4)
+!
+!    ! - zigzag boundary
+!    else
+!    do ii = 1, zz_div
+!        ! deltc0
+!        deltc0(zzc1(ii)+1,zzc0(ii)+1:zzc0(ii+1),:,1) = 0
+!        deltc0(zzc2(ii),zzc0(ii)+1:zzc0(ii+1),:,2)   = 0
+!        deltc0(zzc0(ii)+1:zzc0(ii+1),zzc1(ii)+1,:,3) = 0
+!        deltc0(zzc0(ii)+1:zzc0(ii+1),zzc2(ii),:,4)   = 0
+!        ! deltc1
+!        deltc1(zzc1(ii)+1,zzc0(ii)+1:zzc0(ii+1),:,1) = &
+!            Dh(zzc1(ii)+1,zzc0(ii)+1:zzc0(ii+1),:,1)
+!        deltc1(zzc2(ii),zzc0(ii)+1:zzc0(ii+1),:,2) = &
+!            Dh(zzc2(ii),zzc0(ii)+1:zzc0(ii+1),:,2)
+!        deltc1(zzc0(ii)+1:zzc0(ii+1),zzc1(ii)+1,:,3) = &
+!            Dh(zzc0(ii)+1:zzc0(ii+1),zzc1(ii)+1,:,3)
+!        deltc1(zzc0(ii)+1:zzc0(ii+1),zzc2(ii),:,4) = &
+!            Dh(zzc0(ii)+1:zzc0(ii+1),zzc2(ii),:,4)
+!    end do
+!    end if
+!    kk = 1;      deltc1(:,:,kk,5) = Dh(:,:,kk,5)
+!    kk = ncm(3); deltc1(:,:,kk,6) = Dh(:,:,kk,6)
+!
+!
+!    ! cell components
+!    do kk = 1, ncm(3)
+!    do jj = 1, ncm(2)
+!    do ii = 1, ncm(1)
+!        if ( OUT_OF_ZZ(ii,jj) ) cycle
+!        ! conventional FDM
+!        if ( kk /= 1 )      Mcm(ii,jj,kk,1) = &
+!            -(deltc0(ii,jj,kk,5)+deltc1(ii,jj,kk,5))/(dfm(3)*fcz)
+!        if ( jj /= 1 )      Mcm(ii,jj,kk,2) = &
+!            -(deltc0(ii,jj,kk,3)+deltc1(ii,jj,kk,3))/(dfm(2)*fcr)
+!        if ( ii /= 1 )      Mcm(ii,jj,kk,3) = &
+!            -(deltc0(ii,jj,kk,1)+deltc1(ii,jj,kk,1))/(dfm(1)*fcr)
+!        if ( ii /= ncm(1) ) Mcm(ii,jj,kk,5) = &
+!            -(deltc0(ii,jj,kk,2)-deltc1(ii,jj,kk,2))/(dfm(1)*fcr)
+!        if ( jj /= ncm(2) ) Mcm(ii,jj,kk,6) = &
+!            -(deltc0(ii,jj,kk,4)-deltc1(ii,jj,kk,4))/(dfm(2)*fcr)
+!        if ( kk /= ncm(3) ) Mcm(ii,jj,kk,7) = &
+!            -(deltc0(ii,jj,kk,6)-deltc1(ii,jj,kk,6))/(dfm(3)*fcz)
+!        
+!        Mcm(ii,jj,kk,4)= &
+!            +(deltc0(ii,jj,kk,1)-deltc1(ii,jj,kk,1))/(dfm(1)*fcr) &
+!            +(deltc0(ii,jj,kk,2)+deltc1(ii,jj,kk,2))/(dfm(1)*fcr) &
+!            +(deltc0(ii,jj,kk,3)-deltc1(ii,jj,kk,3))/(dfm(2)*fcr) &
+!            +(deltc0(ii,jj,kk,4)+deltc1(ii,jj,kk,4))/(dfm(2)*fcr) &
+!            +(deltc0(ii,jj,kk,5)-deltc1(ii,jj,kk,5))/(dfm(3)*fcz) &
+!            +(deltc0(ii,jj,kk,6)+deltc1(ii,jj,kk,6))/(dfm(3)*fcz) &
+!            +cm_a(ii,jj,kk)
+!
+!    end do
+!    end do
+!    end do
+!
+!    ! zigzag boundary
+!    if ( zigzagon ) then
+!    where ( phi(:,:,:) == 0 ) 
+!        Mcm(:,:,:,1) = 0
+!        Mcm(:,:,:,2) = 0
+!        Mcm(:,:,:,3) = 0
+!        Mcm(:,:,:,4) = 1
+!        Mcm(:,:,:,5) = 0
+!        Mcm(:,:,:,6) = 0
+!        Mcm(:,:,:,7) = 0
+!    end where
+!    end if
+!
+!end subroutine
+!
+!
+!! =============================================================================
+!! G_INJ
+!! =============================================================================
+!subroutine G_INJ(Dt,Dh,phi)
+!    implicit none
+!    real(8), intent(in):: Dt(:,:,:,:), Dh(:,:,:,:), phi(:,:,:)
+!    real(8):: deno
+!
+!    ! incoming partial current for FMFD boundary condition
+!    do kk = 1, ncm(3)
+!    do jj = 1, ncm(2)
+!    do ii = 1, ncm(1)
+!        if ( OUT_OF_ZZ1(ii,jj) ) cycle
+!        ! x-direction ---------------------------------------------------------
+!        if ( ii /= 1 ) then
+!        deno = Dt(ii-1,jj,kk,2)+Dt(ii,jj,kk,1)+Dh(ii,jj,kk,1)-Dh(ii-1,jj,kk,2)
+!        cmF(ii,jj,kk,1) = ((Dt(ii,jj,kk,1)-Dh(ii,jj,kk,1))*phi(ii,jj,kk) &
+!            +(Dt(ii-1,jj,kk,2)+Dh(ii-1,jj,kk,2))*phi(ii-1,jj,kk))/deno
+!        cmF(ii-1,jj,kk,2) = cmF(ii,jj,kk,1)
+!
+!        cmJn(ii,jj,kk,1) = -Dt(ii,jj,kk,1)*(phi(ii,jj,kk)-cmF(ii,jj,kk,1)) &
+!                           +Dh(ii,jj,kk,1)*(phi(ii,jj,kk)+cmF(ii,jj,kk,1))
+!        cmJn(ii-1,jj,kk,2) = cmJn(ii,jj,kk,1)
+!
+!        cmJ0(ii-1,jj,kk,2) = 25D-2*cmF(ii-1,jj,kk,2)-5D-1*cmJn(ii-1,jj,kk,2)
+!        cmJ1(ii,jj,kk,1)   = 25D-2*cmF(ii,jj,kk,1)+5D-1*cmJn(ii,jj,kk,1)
+!        end if
+!        ! y-direction ---------------------------------------------------------
+!        if ( jj /= 1 ) then
+!        deno = Dt(ii,jj-1,kk,4)+Dt(ii,jj,kk,3)+Dh(ii,jj,kk,3)-Dh(ii,jj-1,kk,4)
+!        cmF(ii,jj,kk,3) = ((Dt(ii,jj,kk,3)-Dh(ii,jj,kk,3))*phi(ii,jj,kk) &
+!            +(Dt(ii,jj-1,kk,4)+Dh(ii,jj-1,kk,4))*phi(ii,jj-1,kk))/deno
+!        cmF(ii,jj-1,kk,4) = cmF(ii,jj,kk,3)
+!
+!        cmJn(ii,jj,kk,3) = -Dt(ii,jj,kk,3)*(phi(ii,jj,kk)-cmF(ii,jj,kk,3)) &
+!                           +Dh(ii,jj,kk,3)*(phi(ii,jj,kk)+cmF(ii,jj,kk,3))
+!        cmJn(ii,jj-1,kk,4) = cmJn(ii,jj,kk,3)
+!
+!        cmJ0(ii,jj-1,kk,4) = 25D-2*cmF(ii,jj-1,kk,4)-5D-1*cmJn(ii,jj-1,kk,4)
+!        cmJ1(ii,jj,kk,3)   = 25D-2*cmF(ii,jj,kk,3)+5D-1*cmJn(ii,jj,kk,3)
+!        end if
+!        ! z-direction ---------------------------------------------------------
+!        if ( kk /= 1 ) then
+!        deno = Dt(ii,jj,kk-1,6)+Dt(ii,jj,kk,5)+Dh(ii,jj,kk,5)-Dh(ii,jj,kk-1,6)
+!        cmF(ii,jj,kk,5) = ((Dt(ii,jj,kk,5)-Dh(ii,jj,kk,5))*phi(ii,jj,kk) &
+!            +(Dt(ii,jj,kk-1,6)+Dh(ii,jj,kk-1,6))*phi(ii,jj,kk-1))/deno
+!        cmF(ii,jj,kk-1,6) = cmF(ii,jj,kk,5)
+!
+!        cmJn(ii,jj,kk,5) = -Dt(ii,jj,kk,5)*(phi(ii,jj,kk)-cmF(ii,jj,kk,5)) &
+!                           +Dh(ii,jj,kk,5)*(phi(ii,jj,kk)+cmF(ii,jj,kk,5))
+!        cmJn(ii,jj,kk-1,6) = cmJn(ii,jj,kk,5)
+!
+!        cmJ0(ii,jj,kk-1,6) = 25D-2*cmF(ii,jj,kk-1,6)-5D-1*cmJn(ii,jj,kk-1,6)
+!        cmJ1(ii,jj,kk,5)   = 25D-2*cmF(ii,jj,kk,5)+5D-1*cmJn(ii,jj,kk,5)
+!        end if
+!    end do
+!    end do
+!    end do
+!
+!end subroutine
+!
+!! =============================================================================
+!! G2L carries out the flux and current modulation (from GLOBAL to LOCAL)
+!! =============================================================================
+!subroutine G2L(phi0,phi1,fmJ0,fmJ1)
+!    implicit none
+!    real(8), intent(inout):: phi1(:,:,:), fmJ0(:,:,:,:), fmJ1(:,:,:,:)
+!    real(8), intent(out)::   phi0(:,:,:)
+!    real(8):: ssum
+!
+!    phi0(:,:,:) = phi1(:,:,:)
+!
+!
+!    do kk = 1, ncm(3); id0(3) = (kk-1)*fcz
+!    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr
+!    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr
+!
+!    if ( OUT_OF_ZZ(ii,jj) ) cycle
+!
+!    ! flux modulation
+!    phi1(id0(1)+1:id0(1)+fcr,id0(2)+1:id0(2)+fcr,id0(3)+1:id0(3)+fcz) = &
+!    phi1(id0(1)+1:id0(1)+fcr,id0(2)+1:id0(2)+fcr,id0(3)+1:id0(3)+fcz) &
+!    /sum(phi1(id0(1)+1:id0(1)+fcr,id0(2)+1:id0(2)+fcr,id0(3)+1:id0(3)+fcz)) &
+!    *(fcr*fcr*fcz)*cm_phi1(ii,jj,kk)
+!
+!    ! incoming partial current modulation
+!    if ( ii /= 1 ) then
+!    ! x0
+!    ssum = 0;       id(1) = id0(1)+1
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        ssum = ssum + fmJ1(id(1),id(2),id(3),1)
+!    end do
+!    end do
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        if ( ssum /= 0 ) fmJ1(id(1),id(2),id(3),1) = &
+!            fmJ1(id(1),id(2),id(3),1)/ssum*(fcr*fcz)*cmJ1(ii,jj,kk,1)
+!    end do
+!    end do
+!    end if
+!    if ( ii /= ncm(1) ) then
+!    ! x1
+!    ssum = 0;       id(1) = id0(1)+fcr
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        ssum = ssum + fmJ0(id(1),id(2),id(3),2)
+!    end do
+!    end do
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        if ( ssum /= 0 ) fmJ0(id(1),id(2),id(3),2) = &
+!            fmJ0(id(1),id(2),id(3),2)/ssum*(fcr*fcz)*cmJ0(ii,jj,kk,2)
+!    end do
+!    end do
+!    end if
+!    if ( jj /= 1 ) then
+!    ! y0
+!    ssum = 0;       id(2) = id0(2)+1
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!        ssum = ssum + fmJ1(id(1),id(2),id(3),3)
+!    end do 
+!    end do 
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!        if ( ssum /= 0 ) fmJ1(id(1),id(2),id(3),3) = &
+!            fmJ1(id(1),id(2),id(3),3)/ssum*(fcr*fcz)*cmJ1(ii,jj,kk,3)
+!    end do
+!    end do 
+!    end if
+!    if ( jj /= ncm(2) ) then
+!    ! y1
+!    ssum = 0;       id(2) = id0(2)+fcr
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!        ssum = ssum + fmJ0(id(1),id(2),id(3),4)
+!    end do
+!    end do
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!        if ( ssum /= 0 ) fmJ0(id(1),id(2),id(3),4) = &
+!            fmJ0(id(1),id(2),id(3),4)/ssum*(fcr*fcz)*cmJ0(ii,jj,kk,4)
+!    end do
+!    end do
+!    end if
+!    if ( kk /= 1 ) then
+!    ! z0
+!    ssum = 0;       id(3) = id0(3)+1
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        ssum = ssum + fmJ1(id(1),id(2),id(3),5)
+!    end do
+!    end do
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        if ( ssum /= 0 ) fmJ1(id(1),id(2),id(3),5) = &
+!            fmJ1(id(1),id(2),id(3),5)/ssum*(fcr*fcr)*cmJ1(ii,jj,kk,5)
+!    end do
+!    end do
+!    end if
+!    if ( kk /= ncm(3) ) then
+!    ! z1
+!    ssum = 0;       id(3) = id0(3)+fcz
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        ssum = ssum + fmJ0(id(1),id(2),id(3),6)
+!    end do
+!    end do
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        if ( ssum /= 0 ) fmJ0(id(1),id(2),id(3),6) = &
+!            fmJ0(id(1),id(2),id(3),6)/ssum*(fcr*fcr)*cmJ0(ii,jj,kk,6)
+!    end do
+!    end do
+!    end if
+!
+!    end do
+!    end do
+!    end do
+!
+!end subroutine
+
+
+! =============================================================================
+! L_SOURCE
+! =============================================================================
+subroutine L_PSOURCE(phi0,phi1,keff,fm_nf,fm_s,fmJ0,fmJ1)
+    implicit none
+    real(8), intent(inout):: fm_s(:,:,:)
+    real(8), intent(in):: phi0(:,:,:), phi1(:,:,:), fm_nf(:,:,:), keff
+    real(8), intent(in):: fmJ0(:,:,:,:), fmJ1(:,:,:,:)
+    real(8):: fsource
+
+    ! neutron fission source
+    fm_s(:,:,:) = fm_nf(:,:,:)*phi1(:,:,:)/keff
+
+    ! interface BC
+    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr
+        if ( ii /= 1 ) then; id(1) = id0(1)+1           ! x0
+            fm_s(id(1),:,:) = fm_s(id(1),:,:) &
+                +(jsrc(id(1),:,:,1)*fmJ1(id(1),:,:,1) &
+                +fsrc(id(1),:,:,1)*phi0(id(1)-1,:,:))/dfm(1)
+        end if
+        if ( ii /= ncm(1) ) then; id(1) = id0(1)+fcr    ! x1
+            fm_s(id(1),:,:) = fm_s(id(1),:,:) & 
+                +(jsrc(id(1),:,:,2)*fmJ0(id(1),:,:,2) &
+                +fsrc(id(1),:,:,2)*phi0(id(1)+1,:,:))/dfm(1)
+        end if
+    end do
+    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr
+        if ( jj /= 1 ) then; id(2) = id0(2)+1           ! y0
+            fm_s(:,id(2),:) = fm_s(:,id(2),:) &
+                +(jsrc(:,id(2),:,3)*fmJ1(:,id(2),:,3) &
+                +fsrc(:,id(2),:,3)*phi0(:,id(2)-1,:))/dfm(2)
+        end if
+        if ( jj /= ncm(2) ) then; id(2) = id0(2)+fcr    ! y1
+            fm_s(:,id(2),:) = fm_s(:,id(2),:) &
+                +(jsrc(:,id(2),:,4)*fmJ0(:,id(2),:,4) &
+                +fsrc(:,id(2),:,4)*phi0(:,id(2)+1,:))/dfm(2)
+        end if
+    end do
+    do kk = 1, ncm(3); id0(3) = (kk-1)*fcz
+        if ( kk /= 1 ) then; id(3) = id0(3)+1           ! z0
+            fm_s(:,:,id(3)) = fm_s(:,:,id(3)) &
+                +(jsrc(:,:,id(3),5)*fmJ1(:,:,id(3),5) &
+                +fsrc(:,:,id(3),5)*phi0(:,:,id(3)-1))/dfm(3)
+        end if
+        if ( kk /= ncm(3) ) then; id(3) = id0(3)+fcz    ! z1
+            fm_s(:,:,id(3)) = fm_s(:,:,id(3)) &
+                +(jsrc(:,:,id(3),6)*fmJ0(:,:,id(3),6) &
+                +fsrc(:,:,id(3),6)*phi0(:,:,id(3)+1))/dfm(3)
+        end if
+    end do
+
+end subroutine
+
+!! =============================================================================
+!! LINEATION converts 3D matrix to 1D array
+!! =============================================================================
+!subroutine LINEATION(Mfm,fm_s)
+!    implicit none
+!    real(8), intent(in):: Mfm(:,:,:,:)
+!    real(8), intent(in):: fm_s(:,:,:)
+!    integer:: nid   ! coarse mesh node index
+!
+!    do ii = 1, anode
+!        do mm = 1, 7
+!        mvec(ii,1:fcr,1:fcr,1:fcz,mm) = &
+!            Mfm(ax(ii)+1:ax(ii)+fcr,ay(ii)+1:ay(ii)+fcr,az(ii)+1:az(ii)+fcz,mm)
+!        end do
+!        svec(ii,1:fcr,1:fcr,1:fcz) = &
+!            fm_s(ax(ii)+1:ax(ii)+fcr,ay(ii)+1:ay(ii)+fcr,az(ii)+1:az(ii)+fcz)
+!    end do
+!
+!end subroutine
+
+! =============================================================================
+! L_OUTJ
+! =============================================================================
+subroutine L_POUTJ(phi0,phi1,fmF,fmJ0,fmJ1,fmJn)
+    implicit none
+    real(8), intent(in):: phi0(:,:,:), phi1(:,:,:)
+    real(8), intent(inout):: fmF(:,:,:,:), fmJ0(:,:,:,:)
+    real(8), intent(inout):: fmJ1(:,:,:,:), fmJn(:,:,:,:)
+    real(8):: netJ(nfm(1),nfm(2),nfm(3))
+
+    ! outgoing partial current
+    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr
+        if ( ii /= 1 ) then; id(1) = id0(1)+1           ! x0
+            fmJn(id(1),:,:,1) = +jsrc(id(1),:,:,1)*fmJ1(id(1),:,:,1) &
+                -deltf1(id(1),:,:,1)*phi1(id(1),:,:) &
+                +fsrc(id(1),:,:,1)*phi0(id(1)-1,:,:)
+            fmF(id(1),:,:,1) = 4D0*fmJ1(id(1),:,:,1)-2D0*fmJn(id(1),:,:,1)
+            fmJ0(id(1),:,:,1) = 25D-2*fmF(id(1),:,:,1)-5D-1*fmJn(id(1),:,:,1)
+        end if
+        if ( ii /= ncm(1) ) then; id(1) = id0(1)+fcr    ! x1
+            fmJn(id(1),:,:,2) = -jsrc(id(1),:,:,2)*fmJ0(id(1),:,:,2) &
+                +deltf1(id(1),:,:,2)*phi1(id(1),:,:) &
+                -fsrc(id(1),:,:,2)*phi0(id(1)+1,:,:)
+            fmF(id(1),:,:,2) = 4D0*fmJ0(id(1),:,:,2)+2D0*fmJn(id(1),:,:,2)
+            fmJ1(id(1),:,:,2) = 25D-2*fmF(id(1),:,:,2)+5D-1*fmJn(id(1),:,:,2)
+        end if
+    end do
+    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr
+        if ( jj /= 1 ) then; id(2) = id0(2)+1           ! y0
+            fmJn(:,id(2),:,3) = +jsrc(:,id(2),:,3)*fmJ1(:,id(2),:,3) &
+                -deltf1(:,id(2),:,3)*phi1(:,id(2),:) &
+                +fsrc(:,id(2),:,3)*phi0(:,id(2)-1,:)
+            fmF(:,id(2),:,3) = 4D0*fmJ1(:,id(2),:,3)-2D0*fmJn(:,id(2),:,3)
+            fmJ0(:,id(2),:,3) = 25D-2*fmF(:,id(2),:,3)-5D-1*fmJn(:,id(2),:,3)
+        end if
+        if ( jj /= ncm(2) ) then; id(2) = id0(2)+fcr    ! y1
+            fmJn(:,id(2),:,4) = -jsrc(:,id(2),:,4)*fmJ0(:,id(2),:,4) &
+                +deltf1(:,id(2),:,4)*phi1(:,id(2),:) &
+                -fsrc(:,id(2),:,4)*phi0(:,id(2)+1,:)
+            fmF(:,id(2),:,4) = 4D0*fmJ0(:,id(2),:,4)+2D0*fmJn(:,id(2),:,4)
+            fmJ1(:,id(2),:,4) = 25D-2*fmF(:,id(2),:,4)+5D-1*fmJn(:,id(2),:,4)
+        end if
+    end do
+    do kk = 1, ncm(3); id0(3) = (kk-1)*fcz
+        if ( kk /= 1 ) then; id(3) = id0(3)+1           ! z0
+            fmJn(:,:,id(3),5) = +jsrc(:,:,id(3),5)*fmJ1(:,:,id(3),5) &
+                -deltf1(:,:,id(3),5)*phi1(:,:,id(3)) &
+                +fsrc(:,:,id(3),5)*phi0(:,:,id(3)-1)
+            fmF(:,:,id(3),5) = 4D0*fmJ1(:,:,id(3),5)-2D0*fmJn(:,:,id(3),5)
+            fmJ0(:,:,id(3),5) = 25D-2*fmF(:,:,id(3),5)-5D-1*fmJn(:,:,id(3),5)
+        end if
+        if ( kk /= ncm(3) ) then; id(3) = id0(3)+fcz    ! z1
+            fmJn(:,:,id(3),6) = -jsrc(:,:,id(3),6)*fmJ0(:,:,id(3),6) &
+                +deltf1(:,:,id(3),6)*phi1(:,:,id(3)) &
+                -fsrc(:,:,id(3),6)*phi0(:,:,id(3)+1)
+            fmF(:,:,id(3),6) = 4D0*fmJ0(:,:,id(3),6)+2D0*fmJn(:,:,id(3),6)
+            fmJ1(:,:,id(3),6) = 25D-2*fmF(:,:,id(3),6)+5D-1*fmJn(:,:,id(3),6)
+        end if
+    end do
+
+    ! boundary surface
+    ii = 1;      fmJn(ii,:,:,1) = -deltf1(ii,:,:,1)*phi1(ii,:,:)
+    ii = nfm(1); fmJn(ii,:,:,2) = +deltf1(ii,:,:,2)*phi1(ii,:,:)
+    jj = 1;      fmJn(:,jj,:,3) = -deltf1(:,jj,:,3)*phi1(:,jj,:)
+    jj = nfm(2); fmJn(:,jj,:,4) = +deltf1(:,jj,:,4)*phi1(:,jj,:)
+    kk = 1;      fmJn(:,:,kk,5) = -deltf1(:,:,kk,5)*phi1(:,:,kk)
+    kk = nfm(3); fmJn(:,:,kk,6) = +deltf1(:,:,kk,6)*phi1(:,:,kk)
+
+    ! data swapping for updating incoming partial current update
+    ! at next iteration
+    do kk = 1, ncm(3); id0(3) = (kk-1)*fcz
+    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr
+    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr
+        if ( OUT_OF_ZZ1(ii,jj) ) cycle
+        ! x0
+        if ( ii /= 1 ) then
+        id(1) = id0(1)+1
+        do oo = 1, fcz; id(3) = id0(3)+oo
+        do nn = 1, fcr; id(2) = id0(2)+nn
+            fmJ0(id(1)-1,id(2),id(3),2) = fmJ0(id(1),id(2),id(3),1)
+        end do
+        end do
+        end if
+        ! x1
+        if ( ii /= ncm(1) ) then
+        id(1) = id0(1)+fcr
+        do oo = 1, fcz; id(3) = id0(3)+oo
+        do nn = 1, fcr; id(2) = id0(2)+nn
+            fmJ1(id(1)+1,id(2),id(3),1) = fmJ1(id(1),id(2),id(3),2)
+        end do
+        end do
+        end if
+        ! y0
+        if ( jj /= 1 ) then
+        id(2) = id0(2)+1
+        do oo = 1, fcz; id(3) = id0(3)+oo
+        do mm = 1, fcr; id(1) = id0(1)+mm
+            fmJ0(id(1),id(2)-1,id(3),4) = fmJ0(id(1),id(2),id(3),3)
+        end do
+        end do
+        end if
+        ! y1
+        if ( jj /= ncm(2) ) then
+        id(2) = id0(2)+fcr
+        do oo = 1, fcz; id(3) = id0(3)+oo
+        do mm = 1, fcr; id(1) = id0(1)+mm
+            fmJ1(id(1),id(2)+1,id(3),3) = fmJ1(id(1),id(2),id(3),4)
+        end do
+        end do
+        end if
+        ! z0
+        if ( kk /= 1 ) then
+        id(3) = id0(3)+1
+        do mm = 1, fcr; id(1) = id0(1)+mm
+        do nn = 1, fcr; id(2) = id0(2)+nn
+            fmJ0(id(1),id(2),id(3)-1,6) = fmJ0(id(1),id(2),id(3),5)
+        end do
+        end do
+        end if
+        ! z1
+        if ( kk /= ncm(3) ) then
+        id(3) = id0(3)+fcz
+        do mm = 1, fcr; id(1) = id0(1)+mm
+        do nn = 1, fcr; id(2) = id0(2)+nn
+            fmJ1(id(1),id(2),id(3)+1,5) = fmJ1(id(1),id(2),id(3),6)
+        end do
+        end do
+        end if
+    end do
+    end do
+    end do
+
+end subroutine
+
+
+!! =============================================================================
+!! L_REFJ
+!! =============================================================================
+!subroutine L_REFJ(fmF,fmJ0,fmJ1,fmJn)
+!    implicit none
+!    real(8), intent(in), dimension(:,:,:,:):: fmF, fmJ0, fmJ1, fmJn
+!    real(8):: ssum(2)
+!
+!    ! surface average
+!    do kk = 1, ncm(3); id0(3) = (kk-1)*fcz
+!    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr
+!    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr
+!        if ( OUT_OF_ZZ1(ii,jj) ) cycle
+!        ! x0
+!        if ( ii /= 1 ) then
+!        ssum = 0;       id(1) = id0(1)+1
+!        do oo = 1, fcz; id(3) = id0(3)+oo
+!        do nn = 1, fcr; id(2) = id0(2)+nn
+!            ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),1)
+!            ssum(2) = ssum(2) + fmF(id(1),id(2),id(3),1)
+!        end do
+!        end do
+!        cmJn(ii,jj,kk,1) = ssum(1) / (fcr*fcz)
+!        cmF(ii,jj,kk,1)  = ssum(2) / (fcr*fcz)
+!        end if
+!        ! x1
+!        if ( ii /= ncm(1) ) then
+!        ssum = 0;       id(1) = id0(1)+fcr
+!        do oo = 1, fcz; id(3) = id0(3)+oo
+!        do nn = 1, fcr; id(2) = id0(2)+nn
+!            ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),2)
+!            ssum(2) = ssum(2) + fmF(id(1),id(2),id(3),2)
+!        end do
+!        end do
+!        cmJn(ii,jj,kk,2) = ssum(1) / (fcr*fcz)
+!        cmF(ii,jj,kk,2)  = ssum(2) / (fcr*fcz)
+!        end if
+!        ! y0
+!        if ( jj /= 1 ) then
+!        ssum = 0;       id(2) = id0(2)+1
+!        do oo = 1, fcz; id(3) = id0(3)+oo
+!        do mm = 1, fcr; id(1) = id0(1)+mm
+!            ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),3)
+!            ssum(2) = ssum(2) + fmF(id(1),id(2),id(3),3)
+!        end do
+!        end do
+!        cmJn(ii,jj,kk,3) = ssum(1) / (fcr*fcz)
+!        cmF(ii,jj,kk,3)  = ssum(2) / (fcr*fcz)
+!        end if
+!        ! y1
+!        if ( jj /= ncm(2) ) then
+!        ssum = 0;       id(2) = id0(2)+fcr
+!        do oo = 1, fcz; id(3) = id0(3)+oo
+!        do mm = 1, fcr; id(1) = id0(1)+mm
+!            ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),4)
+!            ssum(2) = ssum(2) + fmF(id(1),id(2),id(3),4)
+!        end do
+!        end do
+!        cmJn(ii,jj,kk,4) = ssum(1) / (fcr*fcz)
+!        cmF(ii,jj,kk,4)  = ssum(2) / (fcr*fcz)
+!        end if
+!        ! z0
+!        if ( kk /= 1 ) then
+!        ssum = 0;       id(3) = id0(3)+1
+!        do mm = 1, fcr; id(1) = id0(1)+mm
+!        do nn = 1, fcr; id(2) = id0(2)+nn
+!            ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),5)
+!            ssum(2) = ssum(2) + fmF(id(1),id(2),id(3),5)
+!        end do
+!        end do
+!        cmJn(ii,jj,kk,5) = ssum(1) / (fcr*fcr)
+!        cmF(ii,jj,kk,5)  = ssum(2) / (fcr*fcr)
+!        end if
+!        ! z1
+!        if ( kk /= ncm(3) ) then
+!        ssum = 0;       id(3) = id0(3)+fcz
+!        do mm = 1, fcr; id(1) = id0(1)+mm
+!        do nn = 1, fcr; id(2) = id0(2)+nn
+!            ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),6)
+!            ssum(2) = ssum(2) + fmF(id(1),id(2),id(3),6)
+!        end do
+!        end do
+!        cmJn(ii,jj,kk,6) = ssum(1) / (fcr*fcr)
+!        cmF(ii,jj,kk,6)  = ssum(2) / (fcr*fcr)
+!        end if
+!    end do
+!    end do
+!    end do
+!
+!    ! interface surface
+!    do ii = 1, ncm(1)
+!    do jj = 1, ncm(2)
+!    do kk = 1, ncm(3)
+!        ! x-direction
+!        if ( ii /= 1 ) then
+!            cmJn(ii,jj,kk,1) = (cmJn(ii,jj,kk,1)+cmJn(ii-1,jj,kk,2))/2D0
+!            cmJn(ii-1,jj,kk,2) = cmJn(ii,jj,kk,1)
+!            cmF(ii,jj,kk,1) = (cmF(ii,jj,kk,1)+cmF(ii-1,jj,kk,2))/2D0
+!            cmF(ii-1,jj,kk,2) = cmF(ii,jj,kk,1)
+!        end if
+!        ! y-direction
+!        if ( jj /= 1 ) then
+!            cmJn(ii,jj,kk,3) = (cmJn(ii,jj,kk,3)+cmJn(ii,jj-1,kk,4))/2D0
+!            cmJn(ii,jj-1,kk,4) = cmJn(ii,jj,kk,3)
+!            cmF(ii,jj,kk,3) = (cmF(ii,jj,kk,3)+cmF(ii,jj-1,kk,4))/2D0
+!            cmF(ii,jj-1,kk,4) = cmF(ii,jj,kk,3)
+!        end if
+!        ! z-direction
+!        if ( kk /= 1 ) then
+!            cmJn(ii,jj,kk,5) = (cmJn(ii,jj,kk,5)+cmJn(ii,jj,kk-1,6))/2D0
+!            cmJn(ii,jj,kk-1,6) = cmJn(ii,jj,kk,5)
+!            cmF(ii,jj,kk,5) = (cmF(ii,jj,kk,5)+cmF(ii,jj,kk-1,6))/2D0
+!            cmF(ii,jj,kk-1,6) = cmF(ii,jj,kk,5)
+!        end if
+!    end do
+!    end do
+!    end do
+!
+!
+!    ! boundary surface
+!    do kk = 1, ncm(3); id0(3) = (kk-1)*fcz
+!    !   x0
+!    ii = 1; id(1) = 1
+!    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr; ssum(1) = 0
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),1)
+!    end do
+!    end do
+!    cmJn(ii,jj,kk,1) = ssum(1) / (fcr*fcz)
+!    end do
+!    !   x1
+!    ii = ncm(1); id(1) = nfm(1)
+!    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr; ssum(1) = 0
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),2)
+!    end do
+!    end do
+!    cmJn(ii,jj,kk,2) = ssum(1) / (fcr*fcz)
+!    end do
+!    !   y0
+!    jj = 1; id(2) = 1
+!    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr; ssum(1) = 0
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!        ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),3)
+!    end do
+!    end do
+!    cmJn(ii,jj,kk,3) = ssum(1) / (fcr*fcz)
+!    end do
+!    !   y1
+!    jj = ncm(2); id(2) = nfm(2)
+!    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr; ssum(1) = 0
+!    do oo = 1, fcz; id(3) = id0(3)+oo
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!        ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),4)
+!    end do
+!    end do
+!    cmJn(ii,jj,kk,4) = ssum(1) / (fcr*fcz)
+!    end do
+!    end do
+!    !   z0
+!    kk = 1; id(3) = 1
+!    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr
+!    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr; ssum(1) = 0
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),5)
+!    end do
+!    end do
+!    cmJn(ii,jj,kk,5) = ssum(1) / (fcr*fcr)
+!    end do
+!    end do
+!    !   z1
+!    kk = ncm(3); id(3) = nfm(3)
+!    do ii = 1, ncm(1); id0(1) = (ii-1)*fcr
+!    do jj = 1, ncm(2); id0(2) = (jj-1)*fcr; ssum(1) = 0
+!    do mm = 1, fcr; id(1) = id0(1)+mm
+!    do nn = 1, fcr; id(2) = id0(2)+nn
+!        ssum(1) = ssum(1) + fmJn(id(1),id(2),id(3),6)
+!    end do
+!    end do
+!    cmJn(ii,jj,kk,6) = ssum(1) / (fcr*fcr)
+!    end do
+!    end do
+!
+!
+!end subroutine
+!    
+!    
+!! =============================================================================
+!! G_XS produces the flux-volume-weight group constants
+!! ============================================================================= 
+!subroutine G_XS(fm_t,fm_a,fm_nf,phi)
+!    implicit none
+!    real(8), intent(in), dimension(:,:,:):: fm_t, fm_a, fm_nf, phi
+!
+!    ! homogenization
+!    do ii = 1, ncm(1); id(1) = (ii-1)*fcr
+!    do jj = 1, ncm(2); id(2) = (jj-1)*fcr
+!    do kk = 1, ncm(3); id(3) = (kk-1)*fcz
+!        cm_phi1(ii,jj,kk) = sum(phi(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz))
+!        cm_t(ii,jj,kk) = sum(fm_t(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz)*phi(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz))/cm_phi1(ii,jj,kk)
+!        cm_a(ii,jj,kk) = sum(fm_a(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz)*phi(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz))/cm_phi1(ii,jj,kk)
+!        cm_nf(ii,jj,kk) = sum(fm_nf(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz)*phi(id(1)+1:id(1)+fcr, &
+!            id(2)+1:id(2)+fcr,id(3)+1:id(3)+fcz))/cm_phi1(ii,jj,kk)
+!    end do
+!    end do
+!    end do
+!    cmD = 1D0 / (3D0 * cm_t)
+!    where ( cm_phi1 == 0 ) cmD = 0
+!    cm_phi1 = cm_phi1 / (fcr*fcr*fcz)
+!
+!    ! zigzag shape
+!    if ( zigzagon ) where ( cm_phi1 == 0 ) cm_nf = 0
+!
+!    ! interface diffusion coefficient
+!    do ii = 1, ncm(1)
+!    do jj = 1, ncm(2)
+!    do kk = 1, ncm(3)
+!        cmDt(ii,jj,kk,1) = 2D0*cmD(ii,jj,kk)/(fcr*dfm(1))
+!        cmDt(ii,jj,kk,2) = 2D0*cmD(ii,jj,kk)/(fcr*dfm(1))
+!        cmDt(ii,jj,kk,3) = 2D0*cmD(ii,jj,kk)/(fcr*dfm(2))
+!        cmDt(ii,jj,kk,4) = 2D0*cmD(ii,jj,kk)/(fcr*dfm(2))
+!        cmDt(ii,jj,kk,5) = 2D0*cmD(ii,jj,kk)/(fcz*dfm(3))
+!        cmDt(ii,jj,kk,6) = 2D0*cmD(ii,jj,kk)/(fcz*dfm(3))
+!    end do
+!    end do
+!    end do
+!
+!end subroutine
 
 end module
 

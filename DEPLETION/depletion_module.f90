@@ -1368,7 +1368,7 @@ module depletion_module
                         ace(num_iso) % xslib   = trim(line)
                         ace(num_iso) % library = trim(libpath(i))
                         acerecord(i) = .false.
-                        call set_ace_iso(num_iso)
+                        call set_ace_iso(num_iso, trim(line))
                         return
                     endif
                 enddo
@@ -1801,8 +1801,11 @@ module depletion_module
                     do rx = 1,ace(iso)%NXS(4)
                         mt = ace(iso)%MT(rx)
                         !if(abs(ace(iso)%TY(rx))==1) print *, 'EXCLUDED', iso, mt
-                        if(abs(ace(iso)%TY(rx))==1 .and. .not.(mt==N_P .or. mt==N_A .or. mt==N_D .or. mt==N_T .or. mt==N_3HE)) cycle ! Maybe inelastic?
+                        !if(icore==score .and. ace(iso)%zaid==57138) print *, 'MTS', rx, mt
+                        if(icore==score .and. ace(iso)%zaid==57138) print *, ace(iso)%zaid, rx, mt, ace(iso)%TY(rx)
+                        if(abs(ace(iso)%TY(rx))==1 .and. .not.(mt==N_NA .or. mt==N_NF .or. mt==N_NA .or. mt==N_N3A .or. mt==N_NP .or. mt==N_N2A .or. mt==N_ND .or. mt==N_NT .or. mt==N_N3HE .or. mt==N_ND2A .or. mt==N_NT2A .or. mt==N_N2P .or. mt==N_NPA .or. mt==N_NDA .or. mt==N_NPD .or. mt==N_NPT .or. mt==N_NDT .or. mt==N_NP3HE .or. mt==N_ND3HE .or. mt==N_NT3HE .or. mt==N_NTA .or. mt==N_N3P)) cycle ! Maybe inelastic?
                         if(mt == 4 .or. mt > 200) cycle ! Inelastic and Damage
+                        !if(abs(ace(iso)%TY(rx))==1 .and. icore==score) print *, 'WOW',ace(iso)%zaid, mt
                         ! TALLY OGXS
                         !elseif(
                         if(do_ueg) ogxs = buildogxs_e2(iso, rx, flx, flx2) * barn
@@ -1819,6 +1822,12 @@ module depletion_module
                                 enddo
                             endif
                         endif
+!                        if(ace(iso)%zaid==57138) then
+!                            print *, trim(materials(imat)%mat_name), ace(iso)%zaid, mt, ogxs
+!                            call mtrxread(mt, nn, pn, dn, tn, an, a3n)
+!                            print *, 'MT', 'N', 'P', 'D', 'T', 'A', 'A3'
+!                            print *, nn, pn, dn, tn, an, a3n
+!                        endif
                         !if(mt==N_NF .or. mt==N_2NF .or. mt==N_3NF) cycle
                         ! FIND DESTINATION
                         if(mt==18 .or. ace(iso)%TY(rx)==19) then ! In case of Fission
@@ -1831,7 +1840,7 @@ module depletion_module
                                 elseif(ace(iso)%MT(rx)==N_3NF) then
                                     addn = 3
                                 endif
-
+                                if(icore==score .and. addn>0) print *, 'NFS', addn, ace(iso)%zaid, ogxs
                                 if(nuclide(inum,nnum-addn,anum)%fy_idx>0) then
                                     fy_midx = nuclide(inum,nnum-addn,anum)%fy_idx
                                 else
@@ -1856,7 +1865,6 @@ module depletion_module
                                     knuc = nuclide(inum1,nnum1,anum1)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) &
                                         + ogxs * yield_data(i,fy_midx) * bstep_size
-                                    if(anum1==33 .and. mnum1==74 .and. anum==92 .and. anum+nnum==235)  print *,'TST', fp_zai(i), yield_data(i,fy_midx), tmp_yield(i,:,fy_midx)
 
                                     !if(anum1==42 .and. mnum1==97) print *, 'MO97', fssn_zai(fy_midx), yield_data(i,fy_midx), tmp_yield(i,:,fy_midx) 
                                     !if(knuc/=0) print *, 'FP', knuc, jnuc, bMat(knuc,jnuc)

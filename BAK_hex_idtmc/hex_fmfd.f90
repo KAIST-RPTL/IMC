@@ -5,7 +5,8 @@ module hex_fmfd
     
 	use FMFD_header
     use hex_variables
-	use hex_geometry, only: hc_in_zz
+	use hex_geometry, only: hc_in_zz, hc_cmfd_coords
+	use hex_cmfd
 
     ! use ncm(3) (input)
 	! use fcr, fcz (input)
@@ -20,6 +21,10 @@ module hex_fmfd
 	! use Mfm(:,:,:,:) (running variable)
 	
 	use hex_solve
+		
+    real(8) :: s_s, s_l, s_e, s_v! radial surface areas (internal, long, edge external, vertex external boundaries)
+    real(8) :: a_i, a_e, a_v ! axial surface areas
+    real(8) :: v_i, v_e, v_v ! volumes (internal, edge, vertex cells)
 	
 	real(8), allocatable :: A_hf(:,:)
 	real(8), allocatable :: b_hf(:), x_hf(:), b_hf_old(:)
@@ -38,10 +43,6 @@ module hex_fmfd
 	    
 	    integer :: i, j, k, ii, jj, kk, x, y, z ! coarse-mesh, fine-mesh, global mesh indices for iteration
 		integer :: s ! surface iteration
-		
-		real(8) :: s_s, s_l, s_e, s_v! radial surface areas (internal, long, edge external, vertex external boundaries)
-		real(8) :: a_i, a_e, a_v ! axial surface areas
-		real(8) :: v_i, v_e, v_v ! volumes (internal, edge, vertex cells)
         integer :: num
 		integer :: boundaries(8)
 		
@@ -205,6 +206,7 @@ module hex_fmfd
 		v_v = a_v * dfm(3)
 	    do i = 1, ncm(1)
 		    do j = 1, ncm(2)
+                if (.not. hc_in_zz(i,j)) cycle
 			    do k = 1, ncm(3)
 					do ii = 1, (2*fcr-1)
 					    do jj = 1, (2*fcr-1)
@@ -350,6 +352,41 @@ module hex_fmfd
 			end do
 		end do
 	end subroutine hf_allocate
+	
+    subroutine hf_FMFD_TO_MC(bat,cyc,fm) ! TODO: verify this!
+        use TALLY, only: ttally, MC_tally, n_type
+        use ENTROPY, only: fetnusigf
+        implicit none
+        integer, intent(in):: bat, cyc
+        type(FMFD_parameters), intent(in):: fm(:,:,:)
+        integer:: acyc
+    
+        if ( cyc <= n_inact ) return
+        if ( bat == 0 ) return
+        acyc = cyc - n_inact
+    
+        do ii = 1, n_type
+        select case(ttally(ii))
+        case(2)
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%sig_t
+        case(3)
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%sig_a
+        case(4)
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%nusig_f
+        case(12)
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%sig_t/fm(:,:,:)%phi
+        case(13)
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%sig_a/fm(:,:,:)%phi
+        case(14)
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%nusig_f/fm(:,:,:)%phi
+        case default
+            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%phi
+        end select
+        end do
+    
+        !fetnusigf(:,:,:) = fm(:,:,:)%nusig_f
+    
+    end subroutine
 
 	subroutine hf_process(bat,cyc) ! equivalent to PROCESS_FMFD
         use GEOMETRY_HEADER, only: universes
@@ -373,7 +410,6 @@ module hex_fmfd
 		
 		integer :: i, j, k, ii, jj, kk, x, y, z
 	    
-	    
         ! -------------------------------------------------------------------------
         ! data transmission I
         allocate(fsd_MC0(x_max, y_max, z_max))
@@ -388,19 +424,12 @@ module hex_fmfd
         call MPI_REDUCE(fm(:,:,:)%nusig_f,ac%fm(:,:,:)%nusig_f,n_cells_hf,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
         call MPI_REDUCE(fm(:,:,:)%kappa,ac%fm(:,:,:)%kappa,n_cells_hf,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
         call MPI_REDUCE(fm(:,:,:)%phi,ac%fm(:,:,:)%phi,n_cells_hf,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-        !call MPI_REDUCE(fsd_MC,fsd_MC0,n_cells_hf,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
         do ij = 1, 8
-        call MPI_REDUCE(fm(:,:,:)%J0(ij),ac%fm(:,:,:)%J0(ij),n_cells_hf,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-        call MPI_REDUCE(fm(:,:,:)%J1(ij),ac%fm(:,:,:)%J1(ij),n_cells_hf,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+            call MPI_REDUCE(fm(:,:,:)%J0(ij),ac%fm(:,:,:)%J0(ij),n_cells_hf,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+            call MPI_REDUCE(fm(:,:,:)%J1(ij),ac%fm(:,:,:)%J1(ij),n_cells_hf,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
         end do
-
-!        print *, 'ABS', sum(ac%fm(:,:,:,)%sig_a)
-!        print *, 'TOT', sum(ac%fm(:,:,:,)%sig_t)
-!        print *, 'NUF', sum(ac%fm(:,:,:,)%nusig_f)
-!        print *, 'KAP', sum(ac%fm(:,:,:,)%kappa)
-!        print *, 'PHI', sum(ac%fm(:,:,:,)%phi)
-
         tt1 = MPI_WTIME()
+
 	    
         if ( .not. iscore ) then
             deallocate(fsd_MC0)
@@ -480,7 +509,7 @@ module hex_fmfd
             if ( cyc >= n_inact+1 ) print*, "iDTMC2 : ", length
         end if
         end select
-	    
+	   
         ! accumulation
         do ii = 1, nfm(1)
         do jj = 1, nfm(2)
@@ -510,11 +539,7 @@ module hex_fmfd
         end do
         end do
         end do
-	   
-        !do i = 1, n_acc
-        !    print *, i, acc(i)%fm(:,:,:,)%phi
-        !enddo
-
+	    
         where ( fm_avg(:,:,:)%phi /= 0 )
         fm_avg(:,:,:) % sig_t   = fm_avg(:,:,:) % sig_t   / fm_avg(:,:,:) % phi
         fm_avg(:,:,:) % sig_a   = fm_avg(:,:,:) % sig_a   / fm_avg(:,:,:) % phi
@@ -569,802 +594,205 @@ module hex_fmfd
         if ( zigzagon ) call hf_SET_ZERO_FLUX(fm_avg(:,:,:)%phi)
     end subroutine
 	
-	subroutine hf_diffusion
-	    integer :: i, j, k, ii, jj, kk ! coarse mesh and local mesh indices
-		integer :: x, y, z, i1, j1, k1 ! global fine mesh indices
-		integer :: boundaries(8) ! node boundaries; 1 for internal or nonexistent, 0 for assembly edge
-		integer :: neighbours(8) ! do the neighbouring cells exist?
-		real(8) :: vs, vl, ve, es, el, ee ! area-to-length constants for various surface types
-		
-		fmDt(:,:,:,:) = 0d0
-        ! calculate relevant distances between adjacent cells
-		ve = 2d0 * dduct !(dfm(1) + 2d0 * sqrt(3d0) * dfm(1) * dduct + 2d0 * dduct ** 2d0) / (sqrt(3d0) * dfm(1) + 2d0 * dduct)
-		vl = dfm(1) !(dfm(1) + 2d0 * sqrt(3d0) * dfm(1) * dduct + 2d0 * dduct ** 2d0) / (dfm(1) + 2d0 * sqrt(3d0) * dduct)
-		vs = dfm(1) !(dfm(1) + 2d0 * sqrt(3d0) * dfm(1) * dduct + 2d0 * dduct ** 2d0) / (2d0 * dfm(1))
-		ee = 2d0 * dduct !(3d0 * dfm(1) + 4d0 * sqrt(3d0) * dfm(1) * dduct) / (4d0 * sqrt(3d0) * dfm(1))
-		el = dfm(1) !(3d0 * dfm(1) + 4d0 * sqrt(3d0) * dfm(1) * dduct) / (2d0 * dfm(1) + 4d0 * sqrt(3d0) * dduct)
-		es = dfm(1) !(3d0 * dfm(1) + 4d0 * sqrt(3d0) * dfm(1) * dduct) / (4d0 * dfm(1))
-		! iterate over coarse mesh cells
-		do i = 1, ncm(1)
-		    do j = 1, ncm(2)
-			    ! check if the referenced fuel assembly exists
-			    if (hc_in_zz(i, j) .eq. 0) then
-				    cycle
-				end if
-		        do k = 1, ncm(3)
-				    ! check if the neighbouring coarse-mesh cells exist
-					neighbours(:) = 0
-					if (hc_in_zz(i-1, j)) then
-					    neighbours(1) = 1
-					end if
-					if (hc_in_zz(i-1, j+1)) then
-					    neighbours(2) = 1
-					end if
-					if (hc_in_zz(i, j-1)) then
-					    neighbours(3) = 1
-					end if
-					if (k .ne. 1) then
-					    neighbours(4) = 1
-					end if
-					if (k .ne. ncm(3)) then
-					    neighbours(5) = 1
-					end if
-					if (hc_in_zz(i, j+1)) then
-					    neighbours(6) = 1
-					end if
-					if (hc_in_zz(i+1, j-1)) then
-					    neighbours(7) = 1
-					end if
-					if (hc_in_zz(i+1, j)) then
-					    neighbours(8) = 1
-					end if
-					! iterate over fine mesh cells in each coarse mesh cell
-				    do ii = 1, (2*fcr-1)
-					    do jj = 1, (2*fcr-1)
-						    ! check if the fine mesh cell actually exists, and if it's on an assembly edge
-							boundaries(:) = 1
-						    if (ii + jj < fcr + 1) then
-							    cycle
-							else if (ii + jj == fcr + 1) then
-							    boundaries(1) = 0
-							else if (ii + jj > 3*fcr - 1) then
-							    cycle
-							else if (ii + jj == 3*fcr - 1) then
-							    boundaries(8) = 0
-							end if
-							if (ii == 1) then
-							    boundaries(2) = 0
-							else if (ii == (2*fcr - 1)) then
-							    boundaries(7) = 0
-							end if
-							if (jj == 1) then
-							    boundaries(3) = 0
-							else if (jj == (2*fcr - 1)) then
-							    boundaries(6) = 0
-							end if
-							! compute global fine mesh coordinates
-							x = (fcr - 1) * (ncm(2) - 1) + ii + (i - 1) * fcr + (j - 1) * (1 - fcr)
-						    y = jj + (i - 1) * (fcr - 1) + (j - 1) * (2 * fcr - 1)
-						    do kk = 1, fcz
-							    ! compute global fine mesh coordinates
-								z = kk + (k - 1) * fcz
-							    !! DIFFUSION COEFFICIENTS !!
-							    ! vertical
-							    if (k .ne. 1 .or. kk .ne. 1) then
-							        fmDt(x, y, z, 4) = 2d0 * fmD(x, y, z-1) * fmD(x, y, z) / ((fmD(x, y, z-1) + fmD(x, y, z)) * dfm(3))
-							    end if
-							    if (k .ne. ncm(3) .or. kk .ne. fcz) then
-								    fmDt(x, y, z, 5) = 2d0 * fmD(x, y, z+1) * fmD(x, y, z) / ((fmD(x, y, z+1) + fmD(x, y, z)) * dfm(3))
-								end if
-								! radial
-								if (boundaries(1) .eq. 0 .and. boundaries(2) .ne. 0) then
-								    if (boundaries(3) .eq. 1) then
-									    ! edge 1
-								        if (neighbours(1) == 1) fmDt(x, y, z, 1) = 2d0 * fmD(x-1, y, z) * fmD(x, y, z) / ((fmD(x-1, y, z) + fmD(x, y, z)) * ee)
-									    fmDt(x, y, z, 2) = 2d0 * fmD(x-1, y+1, z) * fmD(x, y, z) / ((fmD(x-1, y+1, z) + fmD(x, y, z)) * el)
-									    fmDt(x, y, z, 3) = 0d0
-									    fmDt(x, y, z, 6) = 2d0 * fmD(x, y+1, z) * fmD(x, y, z) / ((fmD(x, y+1, z) + fmD(x, y, z)) * es)
-									    fmDt(x, y, z, 7) = 2d0 * fmD(x+1, y-1, z) * fmD(x, y, z) / ((fmD(x+1, y-1, z) + fmD(x, y, z)) * el)
-									    fmDt(x, y, z, 8) = 2d0 * fmD(x+1, y, z) * fmD(x, y, z) / ((fmD(x+1, y, z) + fmD(x, y, z)) * es)
-									else
-									    ! vertex between 1 and 3
-								        if (neighbours(1) == 1) fmDt(x, y, z, 1) = 2d0 * fmD(x-1, y, z) * fmD(x, y, z) / ((fmD(x-1, y, z) + fmD(x, y, z)) * ve)
-									    fmDt(x, y, z, 2) = 2d0 * fmD(x-1, y+1, z) * fmD(x, y, z) / ((fmD(x-1, y+1, z) + fmD(x, y, z)) * vl)
-									    if (neighbours(3) == 1) fmDt(x, y, z, 3) = 2d0 * fmD(x, y-1, z) * fmD(x, y, z) / ((fmD(x, y-1, z) + fmD(x, y, z)) * ve)
-									    fmDt(x, y, z, 6) = 2d0 * fmD(x, y+1, z) * fmD(x, y, z) / ((fmD(x, y+1, z) + fmD(x, y, z)) * vs)
-									    fmDt(x, y, z, 7) = 0d0
-									    fmDt(x, y, z, 8) = 2d0 * fmD(x+1, y, z) * fmD(x, y, z) / ((fmD(x+1, y, z) + fmD(x, y, z)) * vl)
-									end if
-								else if (boundaries(3) .eq. 0 .and. boundaries(1) .ne. 0) then
-								    if (boundaries(7) .eq. 1) then
-									    ! edge 3
-								        fmDt(x, y, z, 1) = 2d0 * fmD(x-1, y, z) * fmD(x, y, z) / ((fmD(x-1, y, z) + fmD(x, y, z)) * el)
-									    fmDt(x, y, z, 2) = 2d0 * fmD(x-1, y+1, z) * fmD(x, y, z) / ((fmD(x-1, y+1, z) + fmD(x, y, z)) * es)
-									    if (neighbours(3) == 1) fmDt(x, y, z, 3) = 2d0 * fmD(x, y-1, z) * fmD(x, y, z) / ((fmD(x, y-1, z) + fmD(x, y, z)) * ee)
-									    fmDt(x, y, z, 6) = 2d0 * fmD(x, y+1, z) * fmD(x, y, z) / ((fmD(x, y+1, z) + fmD(x, y, z)) * es)
-									    fmDt(x, y, z, 7) = 0d0
-									    fmDt(x, y, z, 8) = 2d0 * fmD(x+1, y, z) * fmD(x, y, z) / ((fmD(x+1, y, z) + fmD(x, y, z)) * el)
-									else
-									    ! vertex between 3 and 7
-								        fmDt(x, y, z, 1) = 2d0 * fmD(x-1, y, z) * fmD(x, y, z) / ((fmD(x-1, y, z) + fmD(x, y, z)) * vl)
-									    fmDt(x, y, z, 2) = 2d0 * fmD(x-1, y+1, z) * fmD(x, y, z) / ((fmD(x-1, y+1, z) + fmD(x, y, z)) * vs)
-									    if (neighbours(3) == 1) fmDt(x, y, z, 3) = 2d0 * fmD(x, y-1, z) * fmD(x, y, z) / ((fmD(x, y-1, z) + fmD(x, y, z)) * ve)
-									    fmDt(x, y, z, 6) = 2d0 * fmD(x, y+1, z) * fmD(x, y, z) / ((fmD(x, y+1, z) + fmD(x, y, z)) * vl)
-									    if (neighbours(7) == 1) fmDt(x, y, z, 7) = 2d0 * fmD(x+1, y-1, z) * fmD(x, y, z) / ((fmD(x+1, y-1, z) + fmD(x, y, z)) * ve)
-									    fmDt(x, y, z, 8) = 0d0
-									end if
-								else if (boundaries(7) .eq. 0 .and. boundaries(3) .ne. 0) then
-								    if (boundaries(8) .eq. 1) then
-									    ! edge 7
-								        fmDt(x, y, z, 1) = 2d0 * fmD(x-1, y, z) * fmD(x, y, z) / ((fmD(x-1, y, z) + fmD(x, y, z)) * es)
-									    fmDt(x, y, z, 2) = 2d0 * fmD(x-1, y+1, z) * fmD(x, y, z) / ((fmD(x-1, y+1, z) + fmD(x, y, z)) * es)
-									    fmDt(x, y, z, 3) = 2d0 * fmD(x, y-1, z) * fmD(x, y, z) / ((fmD(x, y-1, z) + fmD(x, y, z)) * el)
-									    fmDt(x, y, z, 6) = 2d0 * fmD(x, y+1, z) * fmD(x, y, z) / ((fmD(x, y+1, z) + fmD(x, y, z)) * el)
-									    if (neighbours(7) == 1) fmDt(x, y, z, 7) = 2d0 * fmD(x+1, y-1, z) * fmD(x, y, z) / ((fmD(x+1, y-1, z) + fmD(x, y, z)) * ee)
-									    fmDt(x, y, z, 8) = 0d0
-									else
-									    ! vertex between 7 and 8
-								        fmDt(x, y, z, 1) = 2d0 * fmD(x-1, y, z) * fmD(x, y, z) / ((fmD(x-1, y, z) + fmD(x, y, z)) * vs)
-									    fmDt(x, y, z, 2) = 2d0 * fmD(x-1, y+1, z) * fmD(x, y, z) / ((fmD(x-1, y+1, z) + fmD(x, y, z)) * vl)
-									    fmDt(x, y, z, 3) = 2d0 * fmD(x, y-1, z) * fmD(x, y, z) / ((fmD(x, y-1, z) + fmD(x, y, z)) * vl)
-									    fmDt(x, y, z, 6) = 0d0
-									    if (neighbours(7) == 1) fmDt(x, y, z, 7) = 2d0 * fmD(x+1, y-1, z) * fmD(x, y, z) / ((fmD(x+1, y-1, z) + fmD(x, y, z)) * ve)
-									    if (neighbours(8) == 1) fmDt(x, y, z, 8) = 2d0 * fmD(x+1, y, z) * fmD(x, y, z) / ((fmD(x+1, y, z) + fmD(x, y, z)) * ve)
-									end if
-								else if (boundaries(8) .eq. 0 .and. boundaries(7) .ne. 0) then
-								    if (boundaries(6) .eq. 1) then
-									    ! edge 8
-								        fmDt(x, y, z, 1) = 2d0 * fmD(x-1, y, z) * fmD(x, y, z) / ((fmD(x-1, y, z) + fmD(x, y, z)) * es)
-									    fmDt(x, y, z, 2) = 2d0 * fmD(x-1, y+1, z) * fmD(x, y, z) / ((fmD(x-1, y+1, z) + fmD(x, y, z)) * el)
-									    fmDt(x, y, z, 3) = 2d0 * fmD(x, y-1, z) * fmD(x, y, z) / ((fmD(x, y-1, z) + fmD(x, y, z)) * es)
-									    fmDt(x, y, z, 6) = 0d0
-									    fmDt(x, y, z, 7) = 2d0 * fmD(x+1, y-1, z) * fmD(x, y, z) / ((fmD(x+1, y-1, z) + fmD(x, y, z)) * el)
-									    if (neighbours(8) == 1) fmDt(x, y, z, 8) = 2d0 * fmD(x+1, y, z) * fmD(x, y, z) / ((fmD(x+1, y, z) + fmD(x, y, z)) * ee)
-									else
-									    ! vertex between 8 and 6
-								        fmDt(x, y, z, 1) = 2d0 * fmD(x-1, y, z) * fmD(x, y, z) / ((fmD(x-1, y, z) + fmD(x, y, z)) * vl)
-									    fmDt(x, y, z, 2) = 0d0
-									    fmDt(x, y, z, 3) = 2d0 * fmD(x, y-1, z) * fmD(x, y, z) / ((fmD(x, y-1, z) + fmD(x, y, z)) * vs)
-									    if (neighbours(6) == 1) fmDt(x, y, z, 6) = 2d0 * fmD(x, y+1, z) * fmD(x, y, z) / ((fmD(x, y+1, z) + fmD(x, y, z)) * ve)
-									    fmDt(x, y, z, 7) = 2d0 * fmD(x+1, y-1, z) * fmD(x, y, z) / ((fmD(x+1, y-1, z) + fmD(x, y, z)) * vl)
-									    if (neighbours(8) == 1) fmDt(x, y, z, 8) = 2d0 * fmD(x+1, y, z) * fmD(x, y, z) / ((fmD(x+1, y, z) + fmD(x, y, z)) * ve)
-									end if
-								else if (boundaries(6) .eq. 0 .and. boundaries(8) .ne. 0) then
-								    if (boundaries(2) .eq. 1) then
-									    ! edge 6
-								        fmDt(x, y, z, 1) = 2d0 * fmD(x-1, y, z) * fmD(x, y, z) / ((fmD(x-1, y, z) + fmD(x, y, z)) * el)
-									    fmDt(x, y, z, 2) = 0d0
-									    fmDt(x, y, z, 3) = 2d0 * fmD(x, y-1, z) * fmD(x, y, z) / ((fmD(x, y-1, z) + fmD(x, y, z)) * es)
-									    if (neighbours(6) == 1) fmDt(x, y, z, 6) = 2d0 * fmD(x, y+1, z) * fmD(x, y, z) / ((fmD(x, y+1, z) + fmD(x, y, z)) * ee)
-									    fmDt(x, y, z, 7) = 2d0 * fmD(x+1, y-1, z) * fmD(x, y, z) / ((fmD(x+1, y-1, z) + fmD(x, y, z)) * es)
-									    fmDt(x, y, z, 8) = 2d0 * fmD(x+1, y, z) * fmD(x, y, z) / ((fmD(x+1, y, z) + fmD(x, y, z)) * el)
-									else
-									    ! vertex between 6 and 2
-								        fmDt(x, y, z, 1) = 0d0
-									    if (neighbours(2) == 1) fmDt(x, y, z, 2) = 2d0 * fmD(x-1, y+1, z) * fmD(x, y, z) / ((fmD(x-1, y+1, z) + fmD(x, y, z)) * ve)
-									    fmDt(x, y, z, 3) = 2d0 * fmD(x, y-1, z) * fmD(x, y, z) / ((fmD(x, y-1, z) + fmD(x, y, z)) * vl)
-									    if (neighbours(6) == 1) fmDt(x, y, z, 6) = 2d0 * fmD(x, y+1, z) * fmD(x, y, z) / ((fmD(x, y+1, z) + fmD(x, y, z)) * ve)
-									    fmDt(x, y, z, 7) = 2d0 * fmD(x+1, y-1, z) * fmD(x, y, z) / ((fmD(x+1, y-1, z) + fmD(x, y, z)) * vs)
-									    fmDt(x, y, z, 8) = 2d0 * fmD(x+1, y, z) * fmD(x, y, z) / ((fmD(x+1, y, z) + fmD(x, y, z)) * vl)
-									end if
-								else if (boundaries(2) .eq. 0 .and. boundaries(6) .ne. 0) then
-								    if (boundaries(1) .eq. 1) then
-									    ! edge 2
-								        fmDt(x, y, z, 1) = 0d0
-									    if (neighbours(2) == 1) fmDt(x, y, z, 2) = 2d0 * fmD(x-1, y+1, z) * fmD(x, y, z) / ((fmD(x-1, y+1, z) + fmD(x, y, z)) * ee)
-									    fmDt(x, y, z, 3) = 2d0 * fmD(x, y-1, z) * fmD(x, y, z) / ((fmD(x, y-1, z) + fmD(x, y, z)) * el)
-									    fmDt(x, y, z, 6) = 2d0 * fmD(x, y+1, z) * fmD(x, y, z) / ((fmD(x, y+1, z) + fmD(x, y, z)) * el)
-									    fmDt(x, y, z, 7) = 2d0 * fmD(x+1, y-1, z) * fmD(x, y, z) / ((fmD(x+1, y-1, z) + fmD(x, y, z)) * es)
-									    fmDt(x, y, z, 8) = 2d0 * fmD(x+1, y, z) * fmD(x, y, z) / ((fmD(x+1, y, z) + fmD(x, y, z)) * es)
-									else
-									    ! vertex between 2 and 1
-								        if (neighbours(1) == 1) fmDt(x, y, z, 1) = 2d0 * fmD(x-1, y, z) * fmD(x, y, z) / ((fmD(x-1, y, z) + fmD(x, y, z)) * ve)
-									    if (neighbours(2) == 1) fmDt(x, y, z, 2) = 2d0 * fmD(x-1, y+1, z) * fmD(x, y, z) / ((fmD(x-1, y+1, z) + fmD(x, y, z)) * ve)
-									    fmDt(x, y, z, 3) = 0d0
-									    fmDt(x, y, z, 6) = 2d0 * fmD(x, y+1, z) * fmD(x, y, z) / ((fmD(x, y+1, z) + fmD(x, y, z)) * vl)
-									    fmDt(x, y, z, 7) = 2d0 * fmD(x+1, y-1, z) * fmD(x, y, z) / ((fmD(x+1, y-1, z) + fmD(x, y, z)) * vl)
-									    fmDt(x, y, z, 8) = 2d0 * fmD(x+1, y, z) * fmD(x, y, z) / ((fmD(x+1, y, z) + fmD(x, y, z)) * vs)
-									end if
-								else if (sum(boundaries(:)) .eq. 8) then
-								    fmDt(x, y, z, 1) = 2d0 * fmD(x-1, y, z) * fmD(x, y, z) / ((fmD(x-1, y, z) + fmD(x, y, z)) * dfm(1))
-									fmDt(x, y, z, 2) = 2d0 * fmD(x-1, y+1, z) * fmD(x, y, z) / ((fmD(x-1, y+1, z) + fmD(x, y, z)) * dfm(1))
-									fmDt(x, y, z, 3) = 2d0 * fmD(x, y-1, z) * fmD(x, y, z) / ((fmD(x, y-1, z) + fmD(x, y, z)) * dfm(1))
-									fmDt(x, y, z, 6) = 2d0 * fmD(x, y+1, z) * fmD(x, y, z) / ((fmD(x, y+1, z) + fmD(x, y, z)) * dfm(1))
-									fmDt(x, y, z, 7) = 2d0 * fmD(x+1, y-1, z) * fmD(x, y, z) / ((fmD(x+1, y-1, z) + fmD(x, y, z)) * dfm(1))
-									fmDt(x, y, z, 8) = 2d0 * fmD(x+1, y, z) * fmD(x, y, z) / ((fmD(x+1, y, z) + fmD(x, y, z)) * dfm(1))
-								else
-								    print *, "something has gone badly wrong"
-									pause
-								end if
-							end do
-						end do
-					end do
-		        end do
-		    end do
-		end do
-		deltf0 = fmDt
-	end subroutine hf_diffusion
-	
-	subroutine hf_correction_trunc ! use this instead of hf_correction to do FDM with only boundary fixes
-	    integer :: i, j, k, ii, jj, kk ! coarse mesh and local mesh indices
-		integer :: x, y, z, i1, j1, k1 ! global fine mesh indices
-		integer :: boundaries(8) ! node boundaries; 1 for internal or nonexistent, 0 for assembly edge
-		integer :: neighbours(8) ! do the neighbouring cells exist?
-		
-		do i = 1, ncm(1)
-		    do j = 1, ncm(2)
-			    if (hc_in_zz(i, j) .eq. 0) then
-				    cycle
-				end if
-			    do k = 1, ncm(3)
-				    ! check if the neighbouring coarse-mesh cells exist
-					neighbours(:) = 0
-					if (hc_in_zz(i-1, j)) then
-					    neighbours(1) = 1
-					end if
-					if (hc_in_zz(i-1, j+1)) then
-					    neighbours(2) = 1
-					end if
-					if (hc_in_zz(i, j-1)) then
-					    neighbours(3) = 1
-					end if
-					if (k .ne. 1) then
-					    neighbours(4) = 1
-					end if
-					if (k .ne. ncm(3)) then
-					    neighbours(5) = 1
-					end if
-					if (hc_in_zz(i, j+1)) then
-					    neighbours(6) = 1
-					end if
-					if (hc_in_zz(i+1, j-1)) then
-					    neighbours(7) = 1
-					end if
-					if (hc_in_zz(i+1, j)) then
-					    neighbours(8) = 1
-					end if
-				    do ii = 1, (2*fcr-1)
-					    do jj = 1, (2*fcr-1)
-						    ! check if the fine mesh cell actually exists, and if it's on an assembly edge
-							boundaries(:) = 1
-						    if (ii + jj < fcr + 1) then
-							    cycle
-							else if (ii + jj == fcr + 1) then
-							    boundaries(1) = 0
-							else if (ii + jj > 3*fcr - 1) then
-							    cycle
-							else if (ii + jj == 3*fcr - 1) then
-							    boundaries(8) = 0
-							end if
-							if (ii == 1) then
-							    boundaries(2) = 0
-							else if (ii == (2*fcr - 1)) then
-							    boundaries(7) = 0
-							end if
-							if (jj == 1) then
-							    boundaries(3) = 0
-							else if (jj == (2*fcr - 1)) then
-							    boundaries(6) = 0
-							end if
-							! compute global fine mesh coordinates
-							x = (fcr - 1) * (ncm(2) - 1) + ii + (i - 1) * fcr + (j - 1) * (1 - fcr)
-						    y = jj + (i - 1) * (fcr - 1) + (j - 1) * (2 * fcr - 1)
-						    do kk = 1, fcz
-							    ! check if fine mesh cell on assembly axial boundary
-								if (kk == 1) then
-								    boundaries(4) = 0
-								else if (kk == fcz) then
-								    boundaries(5) = 0
-								end if
-							    ! compute global fine mesh coordinates
-								z = kk + (k - 1) * fcz
-								!! CORRECTION FACTORS !!
-                                if (boundaries(2) == 1 .or. boundaries(1) == 0) then
-                                    if (neighbours(1) == 0 .and. boundaries(1) == 0) then
-								        fmDh(x, y, z, 1) = -fmJn(x, y, z, 1) / fphi1(x, y, z)
-                                    end if
-                                end if
-                                if (boundaries(6) == 1 .or. boundaries(2) == 0) then
-								    if (neighbours(2) == 0 .and. boundaries(2) == 0) then
-								        fmDh(x, y, z, 2) = -fmJn(x, y, z, 2) / fphi1(x, y, z)
-                                    end if
-                                end if
-                                if (boundaries(1) == 1 .or. boundaries(3) == 0) then
-								    if (neighbours(3) == 0 .and. boundaries(3) == 0) then
-								        fmDh(x, y, z, 3) = -fmJn(x, y, z, 3) / fphi1(x, y, z)
-                                    end if
-                                end if
-								if (neighbours(4) == 0 .and. boundaries(4) == 0) then
-								    fmDh(x, y, z, 4) = -fmJn(x, y, z, 4) / fphi1(x, y, z)
-								end if
-								if (neighbours(5) == 0 .and. boundaries(5) == 0) then
-								    fmDh(x, y, z, 5) = fmJn(x, y, z, 5) / fphi1(x, y, z)
-                                end if
-                                if (boundaries(8) == 1 .or. boundaries(6) == 0) then 
-								    if (neighbours(6) == 0 .and. boundaries(6) == 0) then
-								        fmDh(x, y, z, 6) = fmJn(x, y, z, 6) / fphi1(x, y, z)
-									end if
-                                end if
-                                if (boundaries(3) == 1 .or. boundaries(7) == 0) then
-								    if (neighbours(7) == 0 .and. boundaries(7) == 0) then
-								        fmDh(x, y, z, 7) = fmJn(x, y, z, 7) / fphi1(x, y, z)
-									end if
-                                end if
-                                if (boundaries(7) == 1 .or. boundaries(8) == 0) then
-								    if (neighbours(8) == 0 .and. boundaries(8) == 0) then
-								        fmDh(x, y, z, 8) = fmJn(x, y, z, 8) / fphi1(x, y, z)
-                                    end if
-                                end if
-							end do
-						end do
-					end do
-				end do
-			end do
+    subroutine hf_diffusion
+        integer :: i, j, k, b, ii, jj, kk, bb ! cell (i, j, k) with boundary b facing (ii, jj, kk), rep. at diag. bb in matrix
+        integer :: boundary ! 1 for internal, 2 for assembly boundary, 3 for reactor boundary
+        real(8) :: d_temp
+        
+        fmDt = 0.0
+        do i = 1, x_max
+            do j = 1, y_max
+                do k = 1, z_max
+                    if (v_hf(i,j,k) == 0.0) cycle ! only consider cells that exist...
+                    do b = 1, 8
+                        if (s_hf(i,j,k,b) == 0.0) then
+						    fmDt(i,j,k,b) = 0.0
+							cycle
+                        end if ! ...and boundaries that exist
+                        ! what type of surface is this?
+                        ! code assumes that internal boundaries and assembly-edge radial boundaries have different areas; throw an error if not
+                        if (s_e == s_s .or. s_e == s_l) print *, "WARNING AREAS OF DIFFERENT BOUNDARY TYPES MATCH"                        
+                        if (s_v == s_s .or. s_v == s_l) print *, "WARNING AREAS OF DIFFERENT BOUNDARY TYPES MATCH"
+                        if (b == 4) then ! code assumes that coarse-mesh and fine-mesh axial boundaries are identical in area
+                            boundary = 1
+                            if (k == 1) boundary = 3
+                        else if (b == 5) then
+                            boundary = 1
+                            if (k == z_max) boundary = 3
+                        else if (s_hf(i,j,k,b) == s_e .or. s_hf(i,j,k,b) == s_v) then
+                            boundary = 2
+                        else if (s_hf(i,j,k,b) == s_s .or. s_hf(i,j,k,b) == s_l) then
+                            boundary = 1
+                        else
+                            print *, "ERROR SURFACE AREA WEIRD ", i, j, k, b
+                            stop
+                        end if
+                        ! find the index of the cell on the other side of the boundary
+                        ii = i
+                        jj = j
+                        kk = k
+                        if (b == 1) then
+                            ii = i - 1
+                        else if (b == 2) then
+                            ii = i - 1
+                            jj = j + 1
+                        else if (b == 3) then
+                            jj = j - 1
+                        else if (b == 4) then
+                            kk = k - 1
+                        else if (b == 5) then
+                            kk = k + 1
+                        else if (b == 6) then
+                            jj = j + 1
+                        else if (b == 7) then
+                            ii = i + 1
+                            jj = j - 1
+                        else if (b == 8) then
+                            ii = i + 1
+                        else
+                            print *, "ERROR INVALID SURFACE INDEX", i, j, k, b
+                            stop
+                        end if
+                        ! if radial assembly edge, check if this is also the reactor boundary
+                        if (boundary == 2) then
+                            ! check if this cell actually exists; if not, then it's a reactor boundary
+                            if (ii < 1 .or. ii > x_max) then
+                                boundary = 3
+                            else if (jj < 1 .or. jj > y_max) then
+                                boundary = 3
+                            else if (kk < 1 .or. kk > z_max) then
+                                boundary = 3
+                            else if (v_hf(ii, jj, kk) == 0.0) then
+                                boundary = 3
+                            end if
+                        end if
+                        ! diffusion coefficient
+                        if (boundary == 1 .or. boundary == 2) then
+                            d_temp = 2.0 * fmD(i,j,k) * fmD(ii,jj,kk) / (fmD(i,j,k) + fmD(ii,jj,kk))
+                        else if (boundary == 3) then
+                            d_temp = 0.0 ! fmD(i,j,k)
+                        else
+                            print *, "ERROR BOUNDARY NOT SET", i, j, k, b, boundary
+                            stop
+                        end if
+                        ! pin pitch adjusted diffusion coefficient
+                        if (boundary == 1) then
+                            if (b == 4 .or. b == 5) then
+                                d_temp = d_temp / dfm(3)
+                            else
+                                d_temp = d_temp / dfm(1)
+                            end if
+                        else if (boundary == 2) then
+                            if (b == 4 .or. b == 5) then
+                                print *, "AXIAL BOUNDARY ODDNESS", i, j, k, b
+                            else
+                                d_temp = d_temp / (2.0 * dduct)
+                            end if
+                        else
+                            if (b == 4 .or. b == 5) then
+                                d_temp = d_temp / (0.5 * dfm(3) + 2.0 * d_temp)
+                            else
+                                d_temp = d_temp / (dduct + 2.0 * d_temp)
+                            end if
+                        end if
+                        ! save results
+                        fmDt(i,j,k,b) = d_temp
+                    end do
+                end do
+            end do
         end do
-	end subroutine hf_correction_trunc
+    end subroutine hf_diffusion
 	
-	subroutine hf_correction ! corresponds to D_PHAT_CALCULATION
-	    integer :: i, j, k, ii, jj, kk ! coarse mesh and local mesh indices
-		integer :: x, y, z, i1, j1, k1 ! global fine mesh indices
-		integer :: boundaries(8) ! node boundaries; 1 for internal or nonexistent, 0 for assembly edge
-		integer :: neighbours(8) ! do the neighbouring cells exist?
-		
-		do i = 1, ncm(1)
-		    do j = 1, ncm(2)
-			    if (hc_in_zz(i, j) .eq. 0) then
-				    cycle
-				end if
-			    do k = 1, ncm(3)
-				    ! check if the neighbouring coarse-mesh cells exist
-					neighbours(:) = 0
-					if (hc_in_zz(i-1, j)) then
-					    neighbours(1) = 1
-					end if
-					if (hc_in_zz(i-1, j+1)) then
-					    neighbours(2) = 1
-					end if
-					if (hc_in_zz(i, j-1)) then
-					    neighbours(3) = 1
-					end if
-					if (k .ne. 1) then
-					    neighbours(4) = 1
-					end if
-					if (k .ne. ncm(3)) then
-					    neighbours(5) = 1
-					end if
-					if (hc_in_zz(i, j+1)) then
-					    neighbours(6) = 1
-					end if
-					if (hc_in_zz(i+1, j-1)) then
-					    neighbours(7) = 1
-					end if
-					if (hc_in_zz(i+1, j)) then
-					    neighbours(8) = 1
-					end if
-				    do ii = 1, (2*fcr-1)
-					    do jj = 1, (2*fcr-1)
-						    ! check if the fine mesh cell actually exists, and if it's on an assembly edge
-							boundaries(:) = 1
-						    if (ii + jj < fcr + 1) then
-							    cycle
-							else if (ii + jj == fcr + 1) then
-							    boundaries(1) = 0
-							else if (ii + jj > 3*fcr - 1) then
-							    cycle
-							else if (ii + jj == 3*fcr - 1) then
-							    boundaries(8) = 0
-							end if
-							if (ii == 1) then
-							    boundaries(2) = 0
-							else if (ii == (2*fcr - 1)) then
-							    boundaries(7) = 0
-							end if
-							if (jj == 1) then
-							    boundaries(3) = 0
-							else if (jj == (2*fcr - 1)) then
-							    boundaries(6) = 0
-							end if
-							! compute global fine mesh coordinates
-							x = (fcr - 1) * (ncm(2) - 1) + ii + (i - 1) * fcr + (j - 1) * (1 - fcr)
-						    y = jj + (i - 1) * (fcr - 1) + (j - 1) * (2 * fcr - 1)
-						    do kk = 1, fcz
-							    ! check if fine mesh cell on assembly axial boundary
-								if (kk == 1) then
-								    boundaries(4) = 0
-								else if (kk == fcz) then
-								    boundaries(5) = 0
-								end if
-							    ! compute global fine mesh coordinates
-								z = kk + (k - 1) * fcz
-								!! CORRECTION FACTORS !!
-                                if (boundaries(2) == 1 .or. boundaries(1) == 0) then
-                                    if (neighbours(1) == 0 .and. boundaries(1) == 0) then
-								        fmDh(x, y, z, 1) = -fmJn(x, y, z, 1) / fphi1(x, y, z)					
-								    else
-								        fmDh(x, y, z, 1) = (fmJ0(x, y, z, 1) - fmDt(x, y, z, 1) * (fphi1(x, y, z))) / fphi1(x, y, z)
-                                    end if
-                                end if
-                                if (boundaries(6) == 1 .or. boundaries(2) == 0) then
-								    if (neighbours(2) == 0 .and. boundaries(2) == 0) then
-								        fmDh(x, y, z, 2) = -fmJn(x, y, z, 2) / fphi1(x, y, z)
-								    else
-								        fmDh(x, y, z, 2) = (fmJ0(x, y, z, 2) - fmDt(x, y, z, 2) * (fphi1(x, y, z))) / fphi1(x, y, z)
-                                    end if
-                                end if
-                                if (boundaries(1) == 1 .or. boundaries(3) == 0) then
-								    if (neighbours(3) == 0 .and. boundaries(3) == 0) then
-								        fmDh(x, y, z, 3) = -fmJn(x, y, z, 3) / fphi1(x, y, z)
-								    else
-								        fmDh(x, y, z, 3) = (fmJ0(x, y, z, 3) - fmDt(x, y, z, 3) * (fphi1(x, y, z))) / fphi1(x, y, z)
-                                    end if
-                                end if
-								if (neighbours(4) == 0 .and. boundaries(4) == 0) then
-								    fmDh(x, y, z, 4) = -fmJn(x, y, z, 4) / fphi1(x, y, z)
-								else
-								    fmDh(x, y, z, 4) = (fmJ0(x, y, z, 4) - fmDt(x, y, z, 4) * (fphi1(x, y, z))) / fphi1(x, y, z)
-								end if
-								if (neighbours(5) == 0 .and. boundaries(5) == 0) then
-								    fmDh(x, y, z, 5) = fmJn(x, y, z, 5) / fphi1(x, y, z)
-								else
-								    fmDh(x, y, z, 5) = (fmJ1(x, y, z, 5) - fmDt(x, y, z, 5) * (fphi1(x, y, z))) / fphi1(x, y, z)
-                                end if
-                                if (boundaries(8) == 1 .or. boundaries(6) == 0) then 
-								    if (neighbours(6) == 0 .and. boundaries(6) == 0) then
-								        fmDh(x, y, z, 6) = fmJn(x, y, z, 6) / fphi1(x, y, z)
-								    else
-								        fmDh(x, y, z, 6) = (fmJ1(x, y, z, 6) - fmDt(x, y, z, 6) * (fphi1(x, y, z))) / fphi1(x, y, z)
-                                    end if
-                                end if
-                                if (boundaries(3) == 1 .or. boundaries(7) == 0) then
-								    if (neighbours(7) == 0 .and. boundaries(7) == 0) then
-								        fmDh(x, y, z, 7) = fmJn(x, y, z, 7) / fphi1(x, y, z)
-								    else
-								        fmDh(x, y, z, 7) = (fmJ1(x, y, z, 7) - fmDt(x, y, z, 7) * (fphi1(x, y, z))) / fphi1(x, y, z)
-                                    end if
-                                end if
-                                if (boundaries(7) == 1 .or. boundaries(8) == 0) then
-								    if (neighbours(8) == 0 .and. boundaries(8) == 0) then
-								        fmDh(x, y, z, 8) = fmJn(x, y, z, 8) / fphi1(x, y, z)
-								    else
-								        fmDh(x, y, z, 8) = (fmJ1(x, y, z, 8) - fmDt(x, y, z, 8) * (fphi1(x, y, z))) / fphi1(x, y, z)
-                                    end if
-                                end if
-							end do
-						end do
-					end do
-				end do
-			end do
+    subroutine hf_correction
+        integer :: i, j, k, b
+        
+        do i = 1, x_max
+            do j = 1, y_max
+                do k = 1, z_max
+                    if (v_hf(i, j, k) == 0.0) cycle ! skip nonexistent cells
+                    do b = 1, 8
+                        if (s_hf(i,j,k,b) == 0) then
+						    fmDh(i,j,k,b) = 0.0
+						    cycle
+                        end if						! skip surfaces with no diffusion
+                        if (b .ge. 5) then
+                            fmDh(i,j,k,b) = fmJ1(i,j,k,b) / fphi1(i,j,k) - fmDt(i,j,k,b)
+                        else
+                            fmDh(i,j,k,b) = fmJ0(i,j,k,b) / fphi1(i,j,k) - fmDt(i,j,k,b)
+                        end if
+                    end do
+                end do
+            end do
         end do
-	end subroutine hf_correction
+    end subroutine hf_correction
 	
-	subroutine hf_matrix ! corresponds to PFMFD_MATRIX
-	    integer :: i, j, k, ii, jj, kk, x, y, z
-		integer :: boundaries(8) ! node boundaries; 1 for internal or nonexistent, 0 for assembly edge
-		integer :: neighbours(8) ! do the neighbouring cells exist?
-		
-		Mfm(:,:,:,:) = 0d0
-		! calculate relevant area-to-edge ratios
-		ve = (dfm(1) + 2d0 * sqrt(3d0) * dfm(1) * dduct + 2d0 * dduct ** 2d0) / (sqrt(3d0) * dfm(1) + 2d0 * dduct)
-		vl = (dfm(1) + 2d0 * sqrt(3d0) * dfm(1) * dduct + 2d0 * dduct ** 2d0) / (dfm(1) + 2d0 * sqrt(3d0) * dduct)
-		vs = (dfm(1) + 2d0 * sqrt(3d0) * dfm(1) * dduct + 2d0 * dduct ** 2d0) / (2d0 * dfm(1))
-		ee = (3d0 * dfm(1) + 4d0 * sqrt(3d0) * dfm(1) * dduct) / (4d0 * sqrt(3d0) * dfm(1))
-		el = (3d0 * dfm(1) + 4d0 * sqrt(3d0) * dfm(1) * dduct) / (2d0 * dfm(1) + 4d0 * sqrt(3d0) * dduct)
-		es = (3d0 * dfm(1) + 4d0 * sqrt(3d0) * dfm(1) * dduct) / (4d0 * dfm(1))
-		do i = 1, ncm(1)
-		    do j = 1, ncm(2)
-			    if (hc_in_zz(i, j) .eq. 0) then
-				    cycle
-				end if
-			    do k = 1, ncm(3)
-				    ! check if the neighbouring coarse-mesh cells exist
-					neighbours(:) = 0
-					if (hc_in_zz(i-1, j)) then
-					    neighbours(1) = 1
-					end if
-					if (hc_in_zz(i-1, j+1)) then
-					    neighbours(2) = 1
-					end if
-					if (hc_in_zz(i, j-1)) then
-					    neighbours(3) = 1
-					end if
-					if (k .ne. 1) then
-					    neighbours(4) = 1
-					end if
-					if (k .ne. ncm(3)) then
-					    neighbours(5) = 1
-					end if
-					if (hc_in_zz(i, j+1)) then
-					    neighbours(6) = 1
-					end if
-					if (hc_in_zz(i+1, j-1)) then
-					    neighbours(7) = 1
-					end if
-					if (hc_in_zz(i+1, j)) then
-					    neighbours(8) = 1
-					end if
-				    do ii = 1, (2*fcr-1)
-					    do jj = 1, (2*fcr-1)
-						    ! check if the fine mesh cell actually exists, and if it's on an assembly edge
-							boundaries(:) = 1
-						    if (ii + jj < fcr + 1) then
-							    cycle
-							else if (ii + jj == fcr + 1) then
-							    boundaries(1) = 0
-							else if (ii + jj > 3*fcr - 1) then
-							    cycle
-							else if (ii + jj == 3*fcr - 1) then
-							    boundaries(8) = 0
-							end if
-							if (ii == 1) then
-							    boundaries(2) = 0
-							else if (ii == (2*fcr - 1)) then
-							    boundaries(7) = 0
-							end if
-							if (jj == 1) then
-							    boundaries(3) = 0
-							else if (jj == (2*fcr - 1)) then
-							    boundaries(6) = 0
-							end if
-							! compute global fine mesh coordinates
-							x = (fcr - 1) * (ncm(2) - 1) + ii + (i - 1) * fcr + (j - 1) * (1 - fcr)
-						    y = jj + (i - 1) * (fcr - 1) + (j - 1) * (2 * fcr - 1)
-						    do kk = 1, fcz
-							    ! check if fine mesh cell on assembly axial boundary
-                                boundaries(4:5) = [1, 1]
-								if (kk == 1) then
-								    boundaries(4) = 0
-								else if (kk == fcz) then
-								    boundaries(5) = 0
-								end if
-							    ! compute global fine mesh coordinates
-								z = kk + (k - 1) * fcz
-								!! MATRIX ENTRIES !!
-							    ! vertical
-							    if (k .ne. 1 .or. kk .ne. 1) then
-								    Mfm(x, y, z, 4) = -(fmDt(x, y, z, 4) + fmDh(x, y, z-1, 5))/dfm(3)
-							    end if
-							    if (k .ne. ncm(3) .or. kk .ne. fcz) then
-								    Mfm(x, y, z, 6) = -(fmDt(x, y, z, 5) + fmDh(x, y, z+1, 4))/dfm(3)
-								end if
-								Mfm(x, y, z, 5) = ((fmDt(x, y, z, 4) + fmDh(x, y, z, 4) + fmDt(x, y, z, 5) + fmDh(x, y, z, 5)) / dfm(3)) + fm_a(x, y, z) ! and absorption
-								! radial
-								if (boundaries(1) .eq. 0 .and. boundaries(2) .ne. 0) then
-								    if (boundaries(3) .eq. 1) then
-									    ! edge 1
-										if (neighbours(1) == 1) then
-										    Mfm(x, y, z, 1) = -(fmDt(x, y, z, 1) + fmDh(x-1, y, z, 8)) / (ee)
-										end if
-										Mfm(x, y, z, 2) = -(fmDt(x, y, z, 2) + fmDh(x-1, y+1, z, 7)) / (el)
-										Mfm(x, y, z, 7) = -(fmDt(x, y, z, 6) + fmDh(x, y+1, z, 3)) / (es)
-										Mfm(x, y, z, 8) = -(fmDt(x, y, z, 7) + fmDh(x+1, y-1, z, 2)) / (el)
-										Mfm(x, y, z, 9) = -(fmDt(x, y, z, 8) + fmDh(x+1, y, z, 1)) / (es)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 1) + fmDh(x, y, z, 1)) / (ee)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 2) + fmDh(x, y, z, 2)) / (el)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 6) + fmDh(x, y, z, 6)) / (es)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 7) + fmDh(x, y, z, 7)) / (el)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 8) + fmDh(x, y, z, 8)) / (es)
-									else
-									    ! vertex between 1 and 3
-										if (neighbours(1) == 1) then
-										    Mfm(x, y, z, 1) = -(fmDt(x, y, z, 1) + fmDh(x-1, y, z, 8)) / (ve)
-										end if
-										Mfm(x, y, z, 2) = -(fmDt(x, y, z, 2) + fmDh(x-1, y+1, z, 7)) / (vl)
-										if (neighbours(3) == 1) then
-										    Mfm(x, y, z, 3) = -(fmDt(x, y, z, 3) + fmDh(x, y-1, z, 6)) / (ve)
-										end if
-										Mfm(x, y, z, 7) = -(fmDt(x, y, z, 6) + fmDh(x, y+1, z, 3)) / (vs)
-										Mfm(x, y, z, 9) = -(fmDt(x, y, z, 8) + fmDh(x+1, y, z, 1)) / (vl)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 1) + fmDh(x, y, z, 1)) / (ve)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 2) + fmDh(x, y, z, 2)) / (vl)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 3) + fmDh(x, y, z, 3)) / (ve)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 6) + fmDh(x, y, z, 6)) / (vs)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 8) + fmDh(x, y, z, 8)) / (vl)
-									end if
-								else if (boundaries(3) .eq. 0 .and. boundaries(1) .ne. 0) then
-								    if (boundaries(7) .eq. 1) then
-									    ! edge 3
-									    Mfm(x, y, z, 1) = -(fmDt(x, y, z, 1) + fmDh(x-1, y, z, 8)) / (el)
-										Mfm(x, y, z, 2) = -(fmDt(x, y, z, 2) + fmDh(x-1, y+1, z, 7)) / (es)
-										if (neighbours(3) == 1) then
-										    Mfm(x, y, z, 3) = -(fmDt(x, y, z, 3) + fmDh(x, y-1, z, 6)) / (ee)
-										end if
-										Mfm(x, y, z, 7) = -(fmDt(x, y, z, 6) + fmDh(x, y+1, z, 3)) / (es)
-										Mfm(x, y, z, 9) = -(fmDt(x, y, z, 8) + fmDh(x+1, y, z, 1)) / (el)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 1) + fmDh(x, y, z, 1)) / (el)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 2) + fmDh(x, y, z, 2)) / (es)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 3) + fmDh(x, y, z, 3)) / (ee)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 6) + fmDh(x, y, z, 6)) / (es)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 8) + fmDh(x, y, z, 8)) / (el)
-									else
-									    ! vertex between 3 and 7
-									    Mfm(x, y, z, 1) = -(fmDt(x, y, z, 1) + fmDh(x-1, y, z, 8)) / (vl)
-										Mfm(x, y, z, 2) = -(fmDt(x, y, z, 2) + fmDh(x-1, y+1, z, 7)) / ( vs)
-										if (neighbours(3) == 1) then
-										    Mfm(x, y, z, 3) = -(fmDt(x, y, z, 3) + fmDh(x, y-1, z, 6)) / (ve)
-										end if
-										Mfm(x, y, z, 7) = -(fmDt(x, y, z, 6) + fmDh(x, y+1, z, 3)) / (vl)
-										if (neighbours(7) == 1) then
-										    Mfm(x, y, z, 8) = -(fmDt(x, y, z, 7) + fmDh(x+1, y-1, z, 2)) / (ve)
-										end if
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 1) + fmDh(x, y, z, 1)) / (vl)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 2) + fmDh(x, y, z, 2)) / (vs)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 3) + fmDh(x, y, z, 3)) / (ve)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 6) + fmDh(x, y, z, 6)) / (vl)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 7) + fmDh(x, y, z, 7)) / (ve)
-									end if
-								else if (boundaries(7) .eq. 0 .and. boundaries(3) .ne. 0) then
-								    if (boundaries(8) .eq. 1) then
-									    ! edge 7
-										Mfm(x, y, z, 1) = -(fmDt(x, y, z, 1) + fmDh(x-1, y, z, 8)) / (es)
-										Mfm(x, y, z, 2) = -(fmDt(x, y, z, 2) + fmDh(x-1, y+1, z, 7)) / (es)
-										Mfm(x, y, z, 3) = -(fmDt(x, y, z, 3) + fmDh(x, y-1, z, 6)) / (el)
-										Mfm(x, y, z, 7) = -(fmDt(x, y, z, 6) + fmDh(x, y+1, z, 3)) / (el)
-										if (neighbours(7) == 1) then
-										    Mfm(x, y, z, 8) = -(fmDt(x, y, z, 7) + fmDh(x+1, y-1, z, 2)) / (ee)
-										end if
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 1) + fmDh(x, y, z, 1)) / (es)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 2) + fmDh(x, y, z, 2)) / (es)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 3) + fmDh(x, y, z, 3)) / (el)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 6) + fmDh(x, y, z, 6)) / (el)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 7) + fmDh(x, y, z, 7)) / (ee)
-									else
-									    ! vertex between 7 and 8
-										Mfm(x, y, z, 1) = -(fmDt(x, y, z, 1) + fmDh(x-1, y, z, 8)) / (vs)
-										Mfm(x, y, z, 2) = -(fmDt(x, y, z, 2) + fmDh(x-1, y+1, z, 7)) / (vl)
-										Mfm(x, y, z, 3) = -(fmDt(x, y, z, 3) + fmDh(x, y-1, z, 6)) / ( vl)
-										if (neighbours(7) == 1) then
-										    Mfm(x, y, z, 8) = -(fmDt(x, y, z, 7) + fmDh(x+1, y-1, z, 2)) / (ve)
-										end if
-										if (neighbours(8) == 1) then
-										    Mfm(x, y, z, 9) = -(fmDt(x, y, z, 8) + fmDh(x+1, y, z, 1)) / (ve)
-										end if
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 1) + fmDh(x, y, z, 1)) / (vs)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 2) + fmDh(x, y, z, 2)) / (vl)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 3) + fmDh(x, y, z, 3)) / (vl)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 7) + fmDh(x, y, z, 7)) / (ve)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 8) + fmDh(x, y, z, 8)) / (ve)
-									end if
-								else if (boundaries(8) .eq. 0 .and. boundaries(7) .ne. 0) then
-								    if (boundaries(6) .eq. 1) then
-									    ! edge 8
-										Mfm(x, y, z, 1) = -(fmDt(x, y, z, 1) + fmDh(x-1, y, z, 8)) / (es)
-										Mfm(x, y, z, 2) = -(fmDt(x, y, z, 2) + fmDh(x-1, y+1, z, 7)) / (el)
-										Mfm(x, y, z, 3) = -(fmDt(x, y, z, 3) + fmDh(x, y-1, z, 6)) / (es)
-										Mfm(x, y, z, 8) = -(fmDt(x, y, z, 7) + fmDh(x+1, y-1, z, 2)) / (el)
-										if (neighbours(8) == 1) then
-										    Mfm(x, y, z, 9) = -(fmDt(x, y, z, 8) + fmDh(x+1, y, z, 1)) / (ee)
-										end if
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 1) + fmDh(x, y, z, 1)) / (es)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 2) + fmDh(x, y, z, 2)) / (el)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 3) + fmDh(x, y, z, 3)) / (es)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 7) + fmDh(x, y, z, 7)) / (el)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 8) + fmDh(x, y, z, 8)) / (ee)
-									else
-									    ! vertex between 8 and 6
-										Mfm(x, y, z, 1) = -(fmDt(x, y, z, 1) + fmDh(x-1, y, z, 8)) / (vl)
-										Mfm(x, y, z, 3) = -(fmDt(x, y, z, 3) + fmDh(x, y-1, z, 6)) / (vs)
-										if (neighbours(6) == 1) then
-										    Mfm(x, y, z, 7) = -(fmDt(x, y, z, 6) + fmDh(x, y+1, z, 3)) / (ve)
-										end if
-										Mfm(x, y, z, 8) = -(fmDt(x, y, z, 7) + fmDh(x+1, y-1, z, 2)) / (vl)
-										if (neighbours(8) == 1) then
-										    Mfm(x, y, z, 9) = -(fmDt(x, y, z, 8) + fmDh(x+1, y, z, 1)) / (ve)
-										end if
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 1) + fmDh(x, y, z, 1)) / (vl)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 3) + fmDh(x, y, z, 3)) / (vs)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 6) + fmDh(x, y, z, 6)) / (ve)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 7) + fmDh(x, y, z, 7)) / (vl)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 8) + fmDh(x, y, z, 8)) / (ve)
-									end if
-								else if (boundaries(6) .eq. 0 .and. boundaries(8) .ne. 0) then
-								    if (boundaries(2) .eq. 1) then
-									    ! edge 6
-										Mfm(x, y, z, 1) = -(fmDt(x, y, z, 1) + fmDh(x-1, y, z, 8)) / (el)
-										Mfm(x, y, z, 3) = -(fmDt(x, y, z, 3) + fmDh(x, y-1, z, 6)) / (es)
-										if (neighbours(6) == 1) then
-										    Mfm(x, y, z, 7) = -(fmDt(x, y, z, 6) + fmDh(x, y+1, z, 3)) / (ee)
-										end if
-										Mfm(x, y, z, 8) = -(fmDt(x, y, z, 7) + fmDh(x+1, y-1, z, 2)) / (es)
-										Mfm(x, y, z, 9) = -(fmDt(x, y, z, 8) + fmDh(x+1, y, z, 1)) / (el)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 1) + fmDh(x, y, z, 1)) / (el)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 3) + fmDh(x, y, z, 3)) / (es)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 6) + fmDh(x, y, z, 6)) / (ee)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 7) + fmDh(x, y, z, 7)) / (es)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 8) + fmDh(x, y, z, 8)) / (el)
-									else
-									    ! vertex between 6 and 2
-										if (neighbours(2) == 1) then
-										    Mfm(x, y, z, 2) = -(fmDt(x, y, z, 2) + fmDh(x-1, y+1, z, 7)) / (ve)
-										end if
-										Mfm(x, y, z, 3) = -(fmDt(x, y, z, 3) + fmDh(x, y-1, z, 6)) / (vl)
-										if (neighbours(6) == 1) then
-										    Mfm(x, y, z, 7) = -(fmDt(x, y, z, 6) + fmDh(x, y+1, z, 3)) / (ve)
-										end if
-										Mfm(x, y, z, 8) = -(fmDt(x, y, z, 7) + fmDh(x+1, y-1, z, 2)) / (vs)
-										Mfm(x, y, z, 9) = -(fmDt(x, y, z, 8) + fmDh(x+1, y, z, 1)) / (vl)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 2) + fmDh(x, y, z, 2)) / (ve)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 3) + fmDh(x, y, z, 3)) / (vl)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 6) + fmDh(x, y, z, 6)) / (ve)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 7) + fmDh(x, y, z, 7)) / (vs)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 8) + fmDh(x, y, z, 8)) / (vl)
-									end if
-								else if (boundaries(2) .eq. 0 .and. boundaries(6) .ne. 0) then
-								    if (boundaries(1) .eq. 1) then
-									    ! edge 2
-										if (neighbours(2) == 1) then
-										    Mfm(x, y, z, 2) = -(fmDt(x, y, z, 2) + fmDh(x-1, y+1, z, 7)) / (ee)
-										end if
-										Mfm(x, y, z, 3) = -(fmDt(x, y, z, 3) + fmDh(x, y-1, z, 6)) / (el)
-										Mfm(x, y, z, 7) = -(fmDt(x, y, z, 6) + fmDh(x, y+1, z, 3)) / (el)
-										Mfm(x, y, z, 8) = -(fmDt(x, y, z, 7) + fmDh(x+1, y-1, z, 2)) / (es)
-										Mfm(x, y, z, 9) = -(fmDt(x, y, z, 8) + fmDh(x+1, y, z, 1)) / (es)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 2) + fmDh(x, y, z, 2)) / (ee)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 3) + fmDh(x, y, z, 3)) / (el)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 6) + fmDh(x, y, z, 6)) / (el)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 7) + fmDh(x, y, z, 7)) / (es)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 8) + fmDh(x, y, z, 8)) / (es)
-									else
-									    ! vertex between 2 and 1
-										if (neighbours(1) == 1) then
-										    Mfm(x, y, z, 1) = -(fmDt(x, y, z, 1) + fmDh(x-1, y, z, 8)) / (ve)
-										end if
-										if (neighbours(2) == 1) then
-										    Mfm(x, y, z, 2) = -(fmDt(x, y, z, 2) + fmDh(x-1, y+1, z, 7)) / (ve)
-										end if
-										Mfm(x, y, z, 7) = -(fmDt(x, y, z, 6) + fmDh(x, y+1, z, 3)) / (vl)
-										Mfm(x, y, z, 8) = -(fmDt(x, y, z, 7) + fmDh(x+1, y-1, z, 2)) / (vl)
-										Mfm(x, y, z, 9) = -(fmDt(x, y, z, 8) + fmDh(x+1, y, z, 1)) / (vs)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 1) + fmDh(x, y, z, 1)) / (ve)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 2) + fmDh(x, y, z, 2)) / (ve)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 6) + fmDh(x, y, z, 6)) / (vl)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 7) + fmDh(x, y, z, 7)) / (vl)
-										Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 8) + fmDh(x, y, z, 8)) / (vs)
-									end if
-								else if ((sum(boundaries(1:3)) + sum(boundaries(6:8))) .eq. 6) then
-								    Mfm(x, y, z, 1) = -(fmDt(x, y, z, 1) + fmDh(x-1, y, z, 8)) / (dfm(1) * (3d0/2d0))
-									Mfm(x, y, z, 2) = -(fmDt(x, y, z, 2) + fmDh(x-1, y+1, z, 7)) / (dfm(1) * (3d0/2d0))
-									Mfm(x, y, z, 3) = -(fmDt(x, y, z, 3) + fmDh(x, y-1, z, 6)) / (dfm(1) * (3d0/2d0))
-									Mfm(x, y, z, 7) = -(fmDt(x, y, z, 6) + fmDh(x, y+1, z, 3)) / (dfm(1) * (3d0/2d0))
-									Mfm(x, y, z, 8) = -(fmDt(x, y, z, 7) + fmDh(x+1, y-1, z, 2)) / (dfm(1) * (3d0/2d0))
-									Mfm(x, y, z, 9) = -(fmDt(x, y, z, 8) + fmDh(x+1, y, z, 1)) / (dfm(1) * (3d0/2d0))
-								    Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 1) + fmDh(x, y, z, 1)) / (dfm(1) * (3d0/2d0))
-									Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 2) + fmDh(x, y, z, 2)) / (dfm(1) * (3d0/2d0))
-									Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 3) + fmDh(x, y, z, 3)) / (dfm(1) * (3d0/2d0))
-									Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 6) + fmDh(x, y, z, 6)) / (dfm(1) * (3d0/2d0))
-									Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 7) + fmDh(x, y, z, 7)) / (dfm(1) * (3d0/2d0))
-									Mfm(x, y, z, 5) = Mfm(x, y, z, 5) + (fmDt(x, y, z, 8) + fmDh(x, y, z, 8)) / (dfm(1) * (3d0/2d0))
-								else
-								    print *, "something has gone badly wrong"
-                                    print *, [x, y, z]
-                                    print *, [ii, jj, kk]
-                                    print *, boundaries
-									pause
-								end if
-							end do
-						end do
-					end do
-				end do
-			end do
-		end do
-	end subroutine hf_matrix
+    subroutine hf_matrix
+        integer :: i, j, k, b, ii, jj, kk, bb
+        integer :: boundary
+        
+        Mfm = 0.0
+        do i = 1, x_max
+            do j = 1, y_max
+                do k = 1, z_max
+                    if (v_hf(i,j,k) == 0.0) cycle ! if the cell doesn't exist, cycle
+                    Mfm(i,j,k,5) = fm_a(i,j,k) ! ABSORPTION
+                    do b = 1, 8
+                        if (s_hf(i,j,k,b) == 0.0) cycle ! if the boundary doesn't exist, cycle
+                        ! find the index of the cell on the other side of the boundary
+                        ii = i
+                        jj = j
+                        kk = k
+                        if (b == 1) then
+                            ii = i - 1
+                        else if (b == 2) then
+                            ii = i - 1
+                            jj = j + 1
+                        else if (b == 3) then
+                            jj = j - 1
+                        else if (b == 4) then
+                            kk = k - 1
+                        else if (b == 5) then
+                            kk = k + 1
+                        else if (b == 6) then
+                            jj = j + 1
+                        else if (b == 7) then
+                            ii = i + 1
+                            jj = j - 1
+                        else if (b == 8) then
+                            ii = i + 1
+                        else
+                            print *, "ERROR INVALID SURFACE INDEX", i, j, k, b
+                            stop
+                        end if
+                        ! check if the cell on the other side exists
+                        boundary = 1
+                        if (ii < 1 .or. ii > x_max) boundary = 0
+                        if (jj < 1 .or. jj > y_max) boundary = 0
+                        if (kk < 1 .or. kk > z_max) boundary = 0
+                        if (boundary == 1) then
+                            if (v_hf(ii, jj, kk) == 0.0) boundary = 0
+                        end if
+                        bb = b
+                        if (b .ge. 5) bb = b + 1 ! save space for the middle diagonal
+                        if (boundary == 1) Mfm(i,j,k,bb) = Mfm(i,j,k,bb) - s_hf(i,j,k,b) * (fmDt(ii,jj,kk,9-b) + fmDh(ii,jj,kk,9-b)) / v_hf(i,j,k) ! INCOMING PARTIAL FLUX
+                        Mfm(i,j,k,5) = Mfm(i,j,k,5) + s_hf(i,j,k,b) * (fmDt(i,j,k,b) + fmDh(i,j,k,b)) / v_hf(i,j,k) ! OUTGOING PARTIAL FLUX
+                    end do
+                end do
+            end do
+        end do
+    end subroutine hf_matrix
 	
-	subroutine hf_init
-	    integer :: n_cells
-		
-	    if (allocated(A_hf)) then
-		    deallocate(A_hf)
-			deallocate(b_hf)
-			deallocate(b_hf_old)
-			deallocate(x_hf)
-		end if
-		x_max = (fcr - 1) * (ncm(2) - 1) + (2 * fcr - 1) + (ncm(1) - 1) * fcr
-		y_max = (2 * fcr - 1) + (ncm(1) - 1) * (fcr - 1) + (ncm(2) - 1) * (2 * fcr - 1)
-		z_max = fcz * ncm(3)
+    subroutine hf_init
+        integer :: n_cells
+        
 		n_cells = x_max * y_max * z_max
-		allocate(A_hf(n_cells, 9))
-		allocate(b_hf(n_cells))
-		allocate(b_hf_old(n_cells))
-		allocate(x_hf(n_cells))
+		if (.not. allocated(A_hf)) then
+            allocate(A_hf(n_cells, 9))
+		    allocate(b_hf(n_cells))
+		    allocate(b_hf_old(n_cells))
+		    allocate(x_hf(n_cells))
+        end if
+		if (.not. allocated(Mfm)) allocate(Mfm(x_max, y_max, z_max, 9))
 		diags_hf(5) =   0
 		diags_hf(4) = - 1
 		diags_hf(6) =   1
@@ -1374,10 +802,10 @@ module hex_fmfd
 		diags_hf(8) =   (y_max - 1) * z_max
 		diags_hf(1) = - y_max * z_max
 		diags_hf(9) =   y_max * z_max
-	end subroutine hf_init
+        Mfm = 0.0
+    end subroutine hf_init
 	
 	! expand 4-D matrix with fine mesh coordinates into a 2-D matrix with mesh cell indices
-	! also contains source update
 	subroutine hf_expansion
 	    integer :: x, y, z, idx
 		
@@ -1406,7 +834,20 @@ module hex_fmfd
 				end do
 			end do
 		end do
-	end subroutine hf_interpretation
+    end subroutine hf_interpretation
+	
+    ! source vector update
+    subroutine hf_source
+        integer :: x, y, z, idx
+		do x = 1, x_max
+		    do y = 1, y_max
+		    	do z = 1, z_max
+		    		idx = (x - 1) * y_max * z_max + (y - 1) * z_max + z
+		    		b_hf(idx) = fphi1(x, y, z) * fm_nf(x, y, z)
+		    	end do
+		    end do
+		end do
+    end subroutine hf_source
 	
 	! DEBUGGING FUNCTION
 	subroutine hf_printvals
@@ -1449,7 +890,9 @@ module hex_fmfd
 		end do
 	end subroutine hf_printvals
 	
-	subroutine hf_fmfd(k_eff)
+    ! MAIN FMFD SUBOUTINE
+    subroutine hf_fmfd(k_eff, corr)
+        logical, intent(in) :: corr
 	    real(8), intent(inout) :: k_eff
 	    real(8) :: k_eff_old
 		real(8) :: rel_err
@@ -1458,53 +901,35 @@ module hex_fmfd
         
         call hf_init
 		
-		!call hf_printvals ! TEST REMOVE
-		
 		i = 0
 		k_eff = 1d0
 		rel_err = 1d0
-		do x = 1, x_max
-		    do y = 1, y_max
-			    do z = 1, z_max
-				    idx = (x - 1) * y_max * z_max + (y - 1) * z_max + z
-					b_hf(idx) = fphi1(x, y, z) * fm_nf(x, y, z)
-				end do
-			end do
-		end do
+		call hf_source ! set initial source
 		b_hf_old = b_hf
 	    call hf_diffusion
-		call hf_correction
+		if (corr) call hf_correction
 		call hf_matrix
-		do while (rel_err > 1d-5 .and. i < 2)
-		    !call hf_correction
-			!call hf_matrix
+		fphi0 = fphi1 ! save initial MC flux
+		do while (rel_err > 1d-8 .and. i < 500)
 		    i = i + 1
 			call hf_expansion
             b_hf_old = b_hf
 			b_hf = b_hf / k_eff
 			call hex_sor(A_hf, diags_hf, b_hf, x_hf) ! SOLVE
 			call hf_interpretation
-			do x = 1, x_max ! SOURCE UPDATE
-		        do y = 1, y_max
-		    	    do z = 1, z_max
-		    		    idx = (x - 1) * y_max * z_max + (y - 1) * z_max + z
-		    			b_hf(idx) = fphi1(x, y, z) * fm_nf(x, y, z)
-		    		end do
-		    	end do
-		    end do
+            call hf_source
             k_eff_old = k_eff
 			k_eff = k_eff * sum(b_hf * b_hf_old) / sum(b_hf_old * b_hf_old) ! K UPDATE
-            rel_err = abs(k_eff - k_eff_old) ! CONVERGENCE TEST
-			print *, "FMFD ", k_eff, rel_err
+            rel_err = sum(abs(b_hf - b_hf_old)) / sum(b_hf_old) ! CONVERGENCE TEST
         end do
-		do x = 1, x_max
-		    do y = 1, y_max
-			    do z = 1, z_max
-				    print *, x, y, z
-					print *, fphi1(x, y, z)
-				end do
-			end do
-		end do
+		!do i = 1, x_max ! TEST REMOVE
+		!    do j = 1, y_max
+		!	    do k = 1, z_max
+		!		    if (v_hf(i,j,k) == 0.0) cycle
+		!			print "(2E12.4)", fphi0(i,j,k) / (sum(fphi0 * v_hf) / sum(v_hf)), fphi1(i,j,k) / (sum(fphi1 * v_hf) / sum(v_hf))
+		!		end do
+		!	end do
+		!end do
 	end subroutine hf_fmfd
 	
     subroutine hf_WEIGHT_UPDATE(bat,cyc,k_eff,phi2) ! TODO: verify this subroutine!
@@ -1518,6 +943,7 @@ module hex_fmfd
                                fsd_FM3(:,:,:) ! for inactive CMFD
         integer:: ix0, ix1, iy0, iy1, iz0, iz1
         logical:: update
+		integer :: i, j, k, ii, jj, kk, x, y, z
     
         if ( inactive_cmfd .and. .not. allocated(fsd3) ) then
             allocate(fsd3(ncm(1),ncm(2),ncm(3)))
@@ -1531,71 +957,98 @@ module hex_fmfd
         if ( isnan(k_eff) .or. ( k_eff < 1D-2 .or. k_eff > 2D0 ) ) update = .false.
         if ( .not. fmfd2mc .and. n_batch == 1 .and. cyc > n_inact ) update = .false.
         if ( .not. fmfd2mc .and. n_batch > 1 .and. bat >= 1 ) update = .false.
-    
+        if ( .not. inactive_CMFD .and. cyc <= n_inact) update = .false.
+        !        ADDITIONAL: no update for no inactive CMFD
+
         if ( update ) then
-        if ( inactive_CMFD ) then
-            do ii = 1, ncm(1); ix1 = ii*fcr; ix0 = ix1-fcr+1
-            do jj = 1, ncm(2); iy1 = jj*fcr; iy0 = iy1-fcr+1
-            do kk = 1, ncm(3); iz1 = kk*fcz; iz0 = iz1-fcz+1
-                fsd_MC3(ii,jj,kk) = sum(fsd_MC(ix0:ix1,iy0:iy1,iz0:iz1))
-            end do
-            end do
-            end do
-    
-            fsd_FM3 = cm_nf*cphi1
-            fsd_MC3 = fsd_MC3 / sum(fsd_MC3)
-            fsd_FM3 = fsd_FM3 / sum(fsd_FM3)
-            fsd3 = fsd_FM3 / fsd_MC3
-        else
-            fsd_FM = fm_nf*fphi1
-            fsd_MC = fsd_MC / sum(fsd_MC)
-            fsd_FM = fsd_FM / sum(fsd_FM)
-            fsd = fsd_FM / fsd_MC
-        if ( dual_fmfd .and. present(phi2) ) then
-            fsd_FM = fm_nf*phi2
-            fsd_FM = fsd_FM / sum(fsd_FM)
-            fsd2 = fsd_FM / fsd_MC
-        end if
-        end if
+            if ( inactive_CMFD ) then
+			
+			    fsd_MC3 = 0.0 ! LINKPOINT - sum up the Monte Carlo fission source distribution!
+			    do i = 1, ncm(1)
+				    do j = 1, ncm(2)
+					    if (.not. hc_in_zz(i, j)) cycle ! skip nonexistent fuel assemblies
+					    do k = 1, ncm(3)
+						    do ii = 1, (2*fcr-1)
+							    do jj = 1, (2*fcr-1)
+						            if (ii + jj < fcr + 1) then ! skip nonexistent fuel pins
+							            cycle
+							        else if (ii + jj > 3*fcr - 1) then
+							            cycle
+							        end if
+								    do kk = 1, fcz
+							            x = (fcr - 1) * (ncm(2) - 1) + ii + (i - 1) * fcr + (j - 1) * (1 - fcr)
+						                y = jj + (i - 1) * (fcr - 1) + (j - 1) * (2 * fcr - 1)
+							            z = kk + (k - 1) * fcz
+										fsd_MC3(i,j,k) = fsd_MC3(i,j,k) + fsd_MC(x,y,z)
+									end do
+								end do
+							end do
+						end do
+					end do
+				end do
+        
+                fsd_FM3 = hc_nf*hcphi1
+				fsd_MC3 = hc_nf*hcphi0
+                fsd_FM3 = fsd_FM3 / sum(fsd_FM3)
+                fsd_MC3 = fsd_MC3 / sum(fsd_MC3)
+                fsd3 = fsd_FM3 / fsd_MC3
+				
+				do i = 1, ncm(1)
+				    do j = 1, ncm(2)
+					    if (.not. hc_in_zz(i,j)) fsd3(i,j,:) = 1.0
+					end do
+				end do
+            else
+                fsd_FM = fm_nf*fphi1
+                fsd_MC = fsd_MC / sum(fsd_MC)
+                fsd_FM = fsd_FM / sum(fsd_FM)
+                fsd = fsd_FM / fsd_MC
+                if ( dual_fmfd .and. present(phi2) ) then
+                    fsd_FM = fm_nf*phi2
+                    fsd_FM = fsd_FM / sum(fsd_FM)
+                    fsd2 = fsd_FM / fsd_MC
+                end if
+            end if
         end if
         end if
         call MPI_BCAST(update,1,MPI_LOGICAL,score,MPI_COMM_WORLD,ierr)
     
         if ( update ) then
         if ( inactive_cmfd .and. cyc <= n_inact ) then
-        call MPI_BCAST(fsd3,ncm(1)*ncm(2)*ncm(3),MPI_REAL8,score,MPI_COMM_WORLD,ierr)
-        do ii = 1, bank_size
-            id = CM_ID(fission_bank(ii)%xyz)
-            if ( id(1) < 1 .or. id(1) > ncm(1) ) cycle
-            if ( id(2) < 1 .or. id(2) > ncm(2) ) cycle
-            if ( id(3) < 1 .or. id(3) > ncm(3) ) cycle
-            fission_bank(ii)%wgt = fission_bank(ii)%wgt * fsd3(id(1),id(2),id(3))
-        enddo
+            call MPI_BCAST(fsd3,ncm(1)*ncm(2)*ncm(3),MPI_REAL8,score,MPI_COMM_WORLD,ierr)
+            do ii = 1, bank_size
+                id = hc_cmfd_coords(fission_bank(ii)%xyz, fm0, dcm, fcr) ! CM_ID(fission_bank(ii)%xyz)
+                if ( id(1) < 1 .or. id(1) > ncm(1) ) cycle
+                if ( id(2) < 1 .or. id(2) > ncm(2) ) cycle
+                if ( id(3) < 1 .or. id(3) > ncm(3) ) cycle
+				if ( .not. hc_in_zz(id(1), id(2))  ) cycle
+                fission_bank(ii)%wgt = fission_bank(ii)%wgt * fsd3(id(1),id(2),id(3))
+            enddo
         else
-        call MPI_BCAST(fsd,n_cells_hf,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
-        if ( dual_fmfd ) then
-        call MPI_BCAST(fsd2,n_cells_hf,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
-        allocate(fwgt(bank_size))
-        fwgt(:) = fission_bank(:)%wgt
-        do ii = 1, bank_size
-            id = FM_ID(fission_bank(ii)%xyz)
-            if ( id(1) < 1 .or. id(1) > nfm(1) ) cycle
-            if ( id(2) < 1 .or. id(2) > nfm(2) ) cycle
-            if ( id(3) < 1 .or. id(3) > nfm(3) ) cycle
-            fission_bank(ii)%wgt = fission_bank(ii)%wgt * fsd2(id(1),id(2),id(3))
-            if ( dual_fmfd ) &
-            fwgt(ii) = fwgt(ii) * fsd(id(1),id(2),id(3))
-        enddo
-        return
-        end if
+            call MPI_BCAST(fsd,n_cells_hf,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
+            if ( dual_fmfd ) then
+                call MPI_BCAST(fsd2,n_cells_hf,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
+                allocate(fwgt(bank_size))
+                fwgt(:) = fission_bank(:)%wgt
+                do ii = 1, bank_size
+                    id = FM_ID(fission_bank(ii)%xyz)
+                    if ( id(1) < 1 .or. id(1) > nfm(1) ) cycle
+                    if ( id(2) < 1 .or. id(2) > nfm(2) ) cycle
+                    if ( id(3) < 1 .or. id(3) > nfm(3) ) cycle
+                    fission_bank(ii)%wgt = fission_bank(ii)%wgt * fsd2(id(1),id(2),id(3))
+                    if ( dual_fmfd ) &
+                    fwgt(ii) = fwgt(ii) * fsd(id(1),id(2),id(3))
+                enddo
+                return
+            end if
     
-        do ii = 1, bank_size
-            id = FM_ID(fission_bank(ii)%xyz)
-            if ( id(1) < 1 .or. id(1) > nfm(1) ) cycle
-            if ( id(2) < 1 .or. id(2) > nfm(2) ) cycle
-            if ( id(3) < 1 .or. id(3) > nfm(3) ) cycle
-            fission_bank(ii)%wgt = fission_bank(ii)%wgt * fsd(id(1),id(2),id(3))
-        enddo
+            do ii = 1, bank_size
+                id = FM_ID(fission_bank(ii)%xyz)
+                if ( id(1) < 1 .or. id(1) > nfm(1) ) cycle
+                if ( id(2) < 1 .or. id(2) > nfm(2) ) cycle
+                if ( id(3) < 1 .or. id(3) > nfm(3) ) cycle
+                fission_bank(ii)%wgt = fission_bank(ii)%wgt * fsd(id(1),id(2),id(3))
+            enddo
         end if
         end if
     
@@ -1614,7 +1067,7 @@ module hex_fmfd
 		integer:: lc
 		real(8):: aa
 		real(8):: tt0, tt1, tt2
-		integer :: i, j, k
+		integer :: i, j, k, b, ii, jj, kk
 
 		! parameter initialization
 		!tt1 = MPI_WTIME()
@@ -1634,11 +1087,10 @@ module hex_fmfd
 			fm_nf(:,:,:)   = ac%fm(:,:,:)%nusig_f 
 			end where
 			do ii = 1, 8
-			aa = dble(ngen)*a_fm(ii)
-			where ( fphi1 /= 0 ) 
-			fmJ0(:,:,:,ii) = ac%fm(:,:,:)%J0(ii)/aa
-			fmJ1(:,:,:,ii) = ac%fm(:,:,:)%J1(ii)/aa
-			end where
+			    where ( fphi1 /= 0 ) 
+			        fmJ0(:,:,:,ii) = ac%fm(:,:,:)%J0(ii)/(dble(ngen)*s_hf(:,:,:,ii))
+			        fmJ1(:,:,:,ii) = ac%fm(:,:,:)%J1(ii)/(dble(ngen)*s_hf(:,:,:,ii))
+			    end where
 			end do
 			nullify(ac)
 		
@@ -1646,7 +1098,7 @@ module hex_fmfd
 			fm_t   = fm_t  / fphi1
 			fm_a   = fm_a  / fphi1
 			fm_nf  = fm_nf / fphi1
-			fphi1  = fphi1 / (dble(ngen)*v_fm*2D0)
+			fphi1  = fphi1 / (dble(ngen)*v_hf*2D0)
 			end where
 
 		else
@@ -1662,7 +1114,51 @@ module hex_fmfd
 			fmJ1(:,:,:,ii)  = fm_avg(:,:,:)%J1(ii)
 			end where 
 			end do
+
+!            do ii = 1,8
+!            do j = 1, y_max
+!                print '(A,I2,<x_max>E15.5)', 'Jn', ii, (fmJ1(i,j,1,ii)-fmJ0(i,j,1,ii), i=1,x_max)
+!            enddo
+!            print *, ' '
+!            enddo
+            
+!            do ii = 1,8
+!            do j = 1, y_max
+!                print '(A,I2,<x_max>E15.5)', 'J1', ii, (fmJ1(i,j,1,ii), i=1,x_max)
+!            enddo
+!            print *, ' '
+!            enddo
+!            print *, 'PHI', fphi1(5,6,1)
+!            print '(A,8E15.5)', 'J0', (fmJ0(5,6,1,i), i=1,8)
+!            print '(A,8E15.5)', 'J1', (fmJ1(5,6,1,i), i=1,8)
 		end if
+		! CALCULATE INCOMING PARTIAL FLUXES
+		! (TODO): check if redundant
+		do i = 1, x_max
+		    do j = 1, y_max
+			    do k = 1, z_max
+				    if (v_hf(i,j,k) == 0.0) then
+					    fmJ0(i,j,k,:) = 0.0
+						fmJ1(i,j,k,:) = 0.0
+					end if
+					do b = 1, 8
+				        ii = i
+					    jj = j
+						kk = k
+				        if (k == 1 .or. k == 2) ii = i - 1
+					    if (k == 7 .or. k == 8) ii = i + 1
+						if (k == 4)             kk = k - 1
+						if (k == 5)             kk = k + 1
+					    if (k == 3 .or. k == 7) jj = j - 1
+					    if (k == 2 .or. k == 6) jj = j + 1
+						if (ii < 1 .or. ii > x_max .or. jj < 1 .or. jj > y_max .or. kk < 1 .or. kk > z_max) cycle
+						if (v_hf(ii,jj,kk) == 0.0) cycle
+						if (b .le. 4) fmJ1(i,j,k,b) = fmJ1(ii,jj,kk,9-b)
+						if (b .ge. 5) fmJ0(i,j,k,b) = fmJ0(ii,jj,kk,9-b)
+					end do
+				end do
+			end do
+		end do
 		fmJn = fmJ1-fmJ0
 		fmD  = 1D0 / (3D0 * fm_t)
 		where( fphi1 == 0 ) fmD = 0
@@ -1679,37 +1175,26 @@ module hex_fmfd
 		!tt2 = MPI_WTIME()
 		!if ( iscore ) print*, " - FMFD parameter reading : ", tt2-tt1
 
-		if ( inactive_cmfd ) then ! (TODO): implement pCMFD
-			!if ( curr_cyc <= n_inact ) then
-			!call CMFD_CALCULATION(k_eff)
-			!else
-			!call ONE_NODE_CMFD(k_eff,1D-9)
-			!end if
-		elseif ( cmfdon ) then ! (TODO): implement one-node pCMFD
-			!if ( icore == score ) then
-			!if ( .not. allocated(fmF) ) allocate(fmF(nfm(1),nfm(2),nfm(3),6))
-			!fmF = 2D0*(fmJ1+fmJ0)
-			!end if
-			!call ONE_NODE_CMFD(k_eff,1D-9)
-		else
+		if ( inactive_cmfd .and. curr_cyc <= n_inact ) then
+		    if ( iscore ) then ! LINKPOINT
+			    call hc_cmfd(k_eff, .true.)
+			end if
+		else if ( curr_cyc > n_inact) then
 			if ( iscore ) then
-			call hf_diffusion ! D_TILDA_CALCULATION
-			if ( .not. pfmfdon ) then ! (TODO): implement FMFD
-				!call D_HAT_CALCULATION
-				!call FMFD_MATRIX
-			else
-				call hf_correction ! D_PHAT_CALCULATION
-				call hf_matrix ! PFMFD_MATRIX
-				write(*,*) 'PFMFD', sum(fmDh)
-			endif 
-			if ( zigzagon ) call hf_SET_ZERO_FLUX(fphi1) ! SET_ZERO_M
-			call hf_fmfd(k_eff) ! POWER
+			    call hf_diffusion ! D_TILDA_CALCULATION
+			    if ( pfmfdon ) then
+			    	call hf_correction ! D_PHAT_CALCULATION
+			    	call hf_matrix ! PFMFD_MATRIX
+			    	write(*,*) 'PFMFD', sum(fmDh)
+			    endif 
+			    if ( zigzagon ) call hf_SET_ZERO_FLUX(fphi1) ! SET_ZERO_M
+			    call hf_fmfd(k_eff, .true.) ! POWER
 			end if
 		end if
 		
 		! weight update
 		call hf_WEIGHT_UPDATE(bat,cyc,k_eff)
-		if(iscore) print *, 'keff_nopert', k_eff
+		!if(iscore) print *, 'keff_nopert', k_eff ! REMOVE: reimplement these print statements!
 	   
 		! error quantification by 1st order perturbation
 		tt1 = MPI_WTIME()
@@ -1717,10 +1202,10 @@ module hex_fmfd
 		
 
 		tt2 = MPI_WTIME()
-		if ( iscore ) print*, " - perturbation total : ", tt2-tt1
+		!if ( iscore ) print*, " - perturbation total : ", tt2-tt1
 
 		if ( icore /= score ) return
-		print*, "keff ", k_eff
+		!print*, "keff ", k_eff
 		!if (perton) write(*,*) "COSAMPLING", AVG(k_real(bat,cyc,:))
 
 		!> CMFD feedback (modulation)

@@ -161,7 +161,7 @@ contains
         else
             write(*,'(4a)') " Error in CARD ", trim(Card_Type),", ",trim(Char_Temp)
         end if    
-        stop
+		stop 
     end subroutine
 
 

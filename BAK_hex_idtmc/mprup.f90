@@ -18,21 +18,34 @@ module MPRUP
 ! 
 ! =============================================================================
 subroutine GENSIZE(bat,cyc)
-    use FMFD_HEADER, only: acc, n_acc, k_mprup
-    use ENTROPY, only: mprupon
+    use FMFD_HEADER, only: acc, n_acc
     implicit none
     integer, intent(in) :: bat,cyc
+    integer:: ii, jj 
 
     ! FMFD divergence
-    if ( cyc > 1 .and. fmfdon ) then
-    if ( isnan(k_mprup) .or. k_mprup < 1D-1 .or. k_mprup > 2D0 ) then
-        call GENSIZEUP
-        return
-    end if
-    end if
+!    if ( cyc > 1 .and. fmfdon ) then
+!    if ( isnan(k_fmfd(bat,cyc-1)) .or. &
+!        ( k_fmfd(bat,cyc-1) < 0D0 .or. k_fmfd(bat,cyc-1) > 2D0 ) ) then
+!        do ii = 2, n_acc
+!        acc(ii)%fm(:,:,:)%phi     = 0
+!        acc(ii)%fm(:,:,:)%sig_t   = 0
+!        acc(ii)%fm(:,:,:)%sig_a   = 0
+!        acc(ii)%fm(:,:,:)%nusig_f = 0
+!        do jj = 1, 6
+!        acc(ii)%fm(:,:,:)%Jn(jj)  = 0
+!        acc(ii)%fm(:,:,:)%J0(jj)  = 0
+!        acc(ii)%fm(:,:,:)%J1(jj)  = 0
+!        end do
+!        end do
+!        call GENSIZEUP
+!        return
+!    end if
+!    end if
 
     if ( genup ) then
     ! 1 convergence test
+    !print*, "dsh", crt1, dshannon
     select case(ccrt)
     case(1); if ( dshannon > crt1 ) return
     case(2); if ( cyc == 1 .or. mod(cyc-1,int(crt1)) /= 0 ) return
@@ -41,46 +54,33 @@ subroutine GENSIZE(bat,cyc)
     ! 2 stationary point
     select case(scrt)
     case(1)
-        if ( dual_fmfd ) then
-        entrp1 = sum(shannon(1:elength))/dble(elength)
-        entrp2 = sum(shannon_(1:elength))/dble(elength)
-        dentrp = abs(entrp2-entrp1)/entrp2
-        !print*, "dentrp", dentrp, crt2
-        if ( dentrp < crt2 ) then
-            genup = .false.
-            return
-        end if
-        else
         entrp2 = sum(shannon(1:elength))/dble(elength)
         dentrp = abs(entrp2-entrp1)/entrp2
+        !print*, "den", crt2, dentrp
         if ( dentrp < crt2 ) then
             genup = .false.
             return
         end if
         entrp1 = entrp2
-        end if
 
         call GENSIZEUP
-        return
 
     case(2)
-        if ( ngen >= crt2 ) then
+        if ( ngen == crt2 ) then
             genup = .false.
             return
         end if
         call GENSIZEUP
-        return
 
     end select
 
     ! 3 stopping test
     else
-        !print*, dshannon, crt3
-        if ( dshannon < crt3 .or. curr_cyc == crt4c ) then
+        !print*, "dsh1", crt3, dshannon
+        if ( dshannon < crt3 ) then
             up_sign = .true.
             mprupon = .false.
             genup = .true.
-            return
         end if
     end if
 
@@ -123,29 +123,19 @@ subroutine GENSIZEUP
 end subroutine
 
 ! =============================================================================
-! CYCLECHANGE goes to active cycle
+! CYCLECHANGE
 ! =============================================================================
 subroutine CYCLECHANGE(cyc)
     use VARIABLES, only: n_batch
-    use FMFD_HEADER, only: fake_MC, n_fake, inactive_CMFD
+    use FMFD_HEADER, only: fake_MC, n_fake
     implicit none
     integer, intent(in):: cyc
 
     if ( .not. fake_MC ) then
     n_inact = cyc + 3
     else
-    if ( inactive_CMFD ) then
-    if ( .not. do_burn ) then
-    n_inact = cyc + 8
-    n_fake  = cyc + 8
-    else
-    n_inact = cyc + 3
-    n_fake  = cyc + 3
-    end if
-    else
-    n_inact = cyc + 7
+    n_inact = cyc + 5
     n_fake  = cyc
-    end if
     end if
     genup = .false.
     if ( n_batch == 1 ) then
@@ -167,7 +157,6 @@ subroutine MPRUP_DIST(sz,source_bank)
     type(Bank):: source_bank(:)
     integer:: TP
     integer:: WOR
-    integer:: ii
 
     TP = MPI_REAL8
     WOR = MPI_COMM_WORLD

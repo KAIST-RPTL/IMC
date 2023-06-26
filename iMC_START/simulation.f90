@@ -83,6 +83,7 @@ subroutine simulate_history(bat,cyc)
     if (allocated(prompt_bank)) deallocate(prompt_bank)
     allocate(prompt_bank(0))
 
+
     !$omp parallel private(p) shared(source_bank, fission_bank, temp_bank, prec_bank)
       thread_bank(:)%wgt = 0; bank_idx = 0; prec_idx = 0 ; init_idx = 0
       if ( tallyon .and. .not. fmfdon ) call TALLY_THREAD_INITIAL(cyc)
@@ -1229,7 +1230,6 @@ subroutine bank_initialize(this)
                 
             else 
                 if ( fmfdon ) then
-                print *, 'FMFD INIT'
                 search_CMFD: do while ( found == .false. ) 
                     do j0 = 1, 3
                         this(i0) % xyz(j0) = rang()*(max(j0)-min(j0)) + min(j0)
@@ -1308,7 +1308,7 @@ subroutine draw_geometry()
     integer :: i, j, i_plot
     integer :: univ_idx, cell_idx
     real(8) :: x, y, z, xyz(3) 
-    integer :: mat_rgb(n_materials, 3), rgb_blk(3) 
+    integer :: mat_rgb(3, n_materials), rgb_blk(3) 
     real(8) :: rn 
     type(rgbimage) :: im
     character(24) :: plottitle
@@ -1321,7 +1321,7 @@ subroutine draw_geometry()
     do i = 1, n_materials
         do j = 1, 3
             call random_number(rn) 
-            mat_rgb(i,j) = floor(rn*255)
+            mat_rgb(j,i) = floor(rn*255)
         enddo 
     enddo 
     rgb_blk(1:3) = 0
@@ -1330,6 +1330,7 @@ subroutine draw_geometry()
     
     do i_plot = 1, n_plot
     !> make bitmap 
+    print *, 'DRAWING', i_plot
     select case (plottype(i_plot)) 
     case(1) 
         call im%init(plt_nx(i_plot), plt_ny(i_plot))
@@ -1343,7 +1344,7 @@ subroutine draw_geometry()
                 if (cells(cell_idx)%mat_idx < 1) then 
                     call im%set_pixel(i, j, rgb_blk)
                 else 
-                    call im%set_pixel(i, j, mat_rgb(cells(cell_idx)%mat_idx,:))
+                    call im%set_pixel(i, j, mat_rgb(1:3,cells(cell_idx)%mat_idx))
                 endif 
             enddo 
         enddo 
@@ -1360,7 +1361,7 @@ subroutine draw_geometry()
                 if (cells(cell_idx)%mat_idx < 1) then 
                     call im%set_pixel(i, j, rgb_blk)
                 else 
-                    call im%set_pixel(i, j, mat_rgb(cells(cell_idx)%mat_idx,:))
+                    call im%set_pixel(i, j, mat_rgb(1:3,cells(cell_idx)%mat_idx))
                 endif 
             enddo 
         enddo 
@@ -1376,7 +1377,7 @@ subroutine draw_geometry()
                 if (cells(cell_idx)%mat_idx < 1) then 
                     call im%set_pixel(i, j, rgb_blk)
                 else 
-                    call im%set_pixel(i, j, mat_rgb(cells(cell_idx)%mat_idx,:))
+                    call im%set_pixel(i, j, mat_rgb(1:3,cells(cell_idx)%mat_idx))
                 endif 
             enddo 
         enddo 

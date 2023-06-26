@@ -7,30 +7,30 @@ module material_header
         integer              :: mat_type       ! 1 fuel 2 clad 3 coolant (cool)
         integer              :: n_iso = 0      ! number of isotopes (nuclides)
         integer, allocatable :: ace_idx(:)     ! index in nuclides array
-        integer, allocatable :: ace_idx0(:)    ! index storage for pre-cor
-        integer, allocatable :: ace_idx1(:)    ! index storage for pre-cor
         real(8), allocatable :: numden(:)      ! nuclide atom density (#/b-cm)
         real(8), allocatable :: full_numden(:) ! AD for all inventory (#/b-cm)
-        real(8), allocatable :: full_numden0(:)! storage for predictor-corrector
-        real(8), allocatable :: full_numden1(:)! storage for predictor-corrector
-        real(8)              :: temp           ! temperature (MeV)
-        real(8)              :: density_gpcc   ! total density in g/cm^3
-        real(8)              :: vol            ! material volume (cm^3)
+        real(8)              :: temp = 0       ! temperature (MeV)
+        real(8)              :: density_gpcc ! total density in g/cm^3
+        real(8)              :: vol          ! material volume (cm^3)
+        real(8)              :: rgb(3)       ! Color for PLOT option
         
         ! Does this material contain fissionable nuclides? Is it depletable?
         logical :: fissionable = .false.
         logical :: depletable = .false.
-        real(8) :: flux = 0.0d0
-        real(8) :: flux0                       ! data stoage for pre-cor
-        real(8) :: flux1                       ! data stoage for pre-cor
-        real(8) :: kappa                       ! kappa X fission XS
-        real(8), allocatable :: ogxs(:,:)
-        real(8), allocatable :: ogxs0(:,:)     ! data storage for pre-cor
-        real(8), allocatable :: ogxs1(:,:)     ! data storage for pre-cor
-        !integer, allocatable :: n_dtmc(:)      ! node index for iDTMC burnup
 
-        ! for iDTMC calculation
-        integer, allocatable:: dtmc(:)
+        ! DUPLICABLE
+        logical :: duplicable = .false.
+        integer :: geom_count = 0
+
+        real(8) :: flux = 0.0d0
+        real(8) :: pwr  = 0.0d0
+        real(8), allocatable :: ogxs(:,:)
+
+        !(21/10/12) eflux testing...
+        real(8), allocatable :: eflux(:), e2flux(:)
+
+        !(21/11/23) materialwise-fratio
+        real(8), allocatable :: fratio(:,:)
 
         !ogxs(:,1) = One-group Volume-integrated (n,g)  // mt 102 (ENDF)
         !ogxs(:,2) = One-group Volume-integrated (n,2n) // mt 16 (ENDF)
@@ -48,6 +48,11 @@ module material_header
 
         ! Doppler broadening
         logical :: db = .false.
+
+        ! UEG treatment
+        real(8), allocatable :: macro_ueg(:,:)
+        logical, allocatable :: ures(:)
+        integer, allocatable :: uresidx(:)
         
     end type Material_CE
     

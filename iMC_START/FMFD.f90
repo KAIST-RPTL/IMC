@@ -1109,7 +1109,7 @@ subroutine BASE_FMFD_CALCULATION(bat,cyc,phi1)
 
     ! weight update
     call WEIGHT_UPDATE(bat,cyc,k_eff)
-    if(iscore) print *, 'keff_nopert', k_eff
+    if(iscore .and. cyc>n_inact) print *, 'keff_nopert', k_eff
    
     ! error quantification by 1st order perturbation
     tt1 = MPI_WTIME()
@@ -1117,7 +1117,7 @@ subroutine BASE_FMFD_CALCULATION(bat,cyc,phi1)
     
 
     tt2 = MPI_WTIME()
-    if ( iscore ) print*, " - perturbation total : ", tt2-tt1
+    if ( iscore .and. cyc>n_inact .and. perton) print*, " - perturbation total : ", tt2-tt1
 
     if ( icore /= score ) return
     print*, "keff ", k_eff

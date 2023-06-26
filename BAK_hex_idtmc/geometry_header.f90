@@ -35,7 +35,6 @@ module geometry_header
         
         integer         :: nsurf      !> number of surfaces of this cell
         integer         :: filltype
-        integer         :: dtmc = 0
         character(20), allocatable :: list_of_surface_IDs(:)
         integer, allocatable :: neg_surf_idx(:), pos_surf_idx(:)
         
@@ -77,7 +76,6 @@ module geometry_header
                                            !> 2 :: vertical hexgon lattice
                                            !> 3 :: horizontal hexgon lattice
         real(8) :: xyz(3)                  !> Universe translation 
-        real(8) :: xyz0(3)                 !> starting coordinates
         integer :: n_xyz(3)                !> no of repetitions in x y direction
         integer, allocatable :: lat(:,:,:) !> index in the universes array
         real(8) :: pitch(3)
@@ -179,11 +177,9 @@ module geometry_header
                         + real((this%n_xyz(2)-1.0),8)*this%pitch(2)*0.25d0
             xyz_tr(2) = xyz_tr(2) + real((this%n_xyz(2)-1.0),8)*this%pitch(2)*val*0.5d0
             xyz_tr(3) = xyz_tr(3) + real((this%n_xyz(3)-1.0),8)*this%pitch(3)*0.5d0
-            !print *, '1',xyz_tr(:)
             ixy(1) = xyz_tr(1)-xyz_tr(2)*0.5d0/val
             ixy(2) = xyz_tr(2)/val
             ixy(3) = xyz_tr(3)
-            !print *, '2',ixy(:)
             do i = 1,3
                 coord_lat(i) = floor(ixy(i)/this%pitch(i))
             enddo
@@ -471,6 +467,7 @@ module geometry_header
             do i = 1, 3 
                 if(abs(xyz_(i)) > this%pitch(i)*0.5d0) d_surf = INFINITY
 		    enddo 
+!            if(ANY(abs(xyz_(1:3))-this%pitch(1:3)*5d-1 > 0)) d_surf = INFINITY
         elseif(this%lat_type==2) then
             tmp = sqrt(3.d0)*0.5d0
             if(abs(xyz_(1)) > this%pitch(1)*0.5d0) d_surf = INFINITY

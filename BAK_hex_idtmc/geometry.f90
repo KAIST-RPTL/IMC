@@ -4,7 +4,6 @@ module geometry
     use geometry_header
     use particle_header
     use omp_lib
-	use variables, only: icore, curr_cyc
 
     implicit none
     
@@ -52,6 +51,7 @@ module geometry
         if (c%operand_flag >= 0) then   !> and 
             in_cell = .true.
             n = size(c%neg_surf_idx)
+            !print *, 'TST', xyz(:)
             do i = 1, n
                 if (surf_neg_or_pos(surfaces(c%neg_surf_idx(i)),xyz) == .false.) in_cell = .false.
             enddo
@@ -125,11 +125,9 @@ module geometry
             ! select cells based on whether we are searching a universe or a provided
             ! list of cells (this would be for lists of neighbor cells)
             i_cell = universes(idx)%cell(i)
-            if(i_cell == 0) &
-                print *, idx, universes(idx)%univ_id, universes(idx) % cell(:)
             ! Move on to the next cell if the particle is not inside this cell
-            !print *, 'POS', curr_cyc, i_cell, cells(i_cell) % pos_surf_idx(:)
-            !print *, 'NEG', curr_cyc, i_cell, cells(i_cell) % neg_surf_idx(:)
+            !print *, i, cells(i_cell)%cell_id
+            !print *, p%coord(1)%xyz
             if(cell_contains(cells(i_cell), p)) then
                 ! Set cell on this level
                 p % coord(j) % cell = i_cell
@@ -372,7 +370,7 @@ module geometry
         class(Surface), pointer :: surf
         class(Surface), pointer :: surf2 ! periodic partner surface
         integer :: i, i_cell, i_cell_prev
-		!print *, 'DEAD', p%coord(1)%xyz(1:2), surface_crossed, surfaces(surface_crossed)%bc
+		!print *, p%n_cross, p%coord(1)%xyz(1:2)
         if (p%n_cross > 10000) then
             !print *, 'OVER',p%coord(1)%xyz(1:2)
             p%alive = .false. 
@@ -395,7 +393,7 @@ module geometry
 			
             p % n_coord = 1
             !p % coord(1) % xyz(:) = p % coord(1) % xyz(:) - 1.0d-9 * p % coord(1) % uvw(:)
-            p % coord(1) % xyz(:) = p % coord(1) % xyz(:) - 100*TINY_BIT * uvw
+            p % coord(1) % xyz(:) = p % coord(1) % xyz(:) - 10*TINY_BIT * uvw
 			!if(p%n_cross>1000) print *, 'BC',p%coord(1)%xyz(1:2)
 			
             !p%last_material = p%material
@@ -403,7 +401,7 @@ module geometry
         else
             p % n_coord = 1
             !p % coord(1) % xyz = p % coord(1) % xyz + 0.1*TINY_BIT * p % coord(1) % uvw
-            p % coord(1) % xyz = p % coord(1) % xyz + 10*TINY_BIT * p % coord(1) % uvw
+            p % coord(1) % xyz = p % coord(1) % xyz + TINY_BIT * p % coord(1) % uvw
         endif
         call find_cell(p, found)
 		!print *, 'material ', p%material
@@ -617,6 +615,7 @@ module geometry
                         ! Determine lattice indices
                         !i_xyz = lat % get_indices(p % coord(j) % xyz + TINY_BIT * p % coord(j) % uvw)
                         i_xyz = lattice_coord(latptr, xyz)!latptr%lat_pos(xyz)
+                        if(latptr%lat_type==2) print *, 'XYZ', xyz, i_xyz
                         !print *, 'lattice coordinate :', i_xyz(1:2)
                         ! Store lower level coordinates
                         tmp = xyz

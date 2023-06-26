@@ -10,6 +10,8 @@ module hex_variables
 	
     use FMFD_header
 	
+	implicit none
+	
     real(8) :: dduct ! distance between the centreline of an edge pin and the corresponding assembly boundary
 	real(8), allocatable :: s_hf(:,:,:,:) ! area of each fine-mesh surface
 	real(8), allocatable :: v_hf(:,:,:) ! volume of each fine-mesh cell
@@ -18,11 +20,25 @@ module hex_variables
 	! hex zigzag
 	integer, allocatable :: hc_zmin(:)
 	integer, allocatable :: hc_zmax(:)
+    
+    !! CMFD VARIABLES !!
+    real(8) :: hc_v, hc_sr, hc_sa ! coarse mesh node sizes
+    
+    real(8), allocatable :: hc_t(:,:,:), hcD(:,:,:), hc_a(:,:,:), hc_nf(:,:,:) ! cross-sections
+    real(8), allocatable :: hcphi0(:,:,:), hcphi1(:,:,:), hcJ0(:,:,:,:), hcJ1(:,:,:,:), hcJn(:,:,:,:) ! fluxes and correction factors
+    real(8), allocatable :: hcDt(:,:,:,:), hcDh(:,:,:,:), Mhc(:,:,:,:) ! FMFD elements
+    
+    real(8), allocatable :: s_hc(:,:,:,:), v_hc(:,:,:) ! fine-mesh cell sizes
+    
+	real(8), allocatable :: A_hc(:,:) ! linear equations solver variables
+	real(8), allocatable :: b_hc(:), x_hc(:), b_hc_old(:)
+	integer :: diags_hc(9)
 	
     contains
 	
 	! function hc_in_zz(i, j) to check if coarse mesh cell (i, j) falls within the reactor area
     logical function hc_in_zz(i, j)
+        integer, intent(in) :: i, j
 	    if (i < 1 .or. i > size(hc_zmin)) then
 		    hc_in_zz = .false.
 			return
@@ -93,45 +109,10 @@ module hex_variables
         fm_thread(:,:,:) % nusig_f = 0 
         fm_thread(:,:,:) % kappa   = 0 
         do i = 1, 8
-            fm_thread(:,:,:) % J0(ij)  = 0 
-            fm_thread(:,:,:) % J1(ij)  = 0 
+            fm_thread(:,:,:) % J0(i)  = 0 
+            fm_thread(:,:,:) % J1(i)  = 0 
         end do 
 	end subroutine hf_initialise_thread
-	
-    subroutine hf_FMFD_TO_MC(bat,cyc,fm) ! TODO: verify this!
-        use TALLY, only: ttally, MC_tally, n_type
-        use ENTROPY, only: fetnusigf
-        implicit none
-        integer, intent(in):: bat, cyc
-        type(FMFD_parameters), intent(in):: fm(:,:,:)
-        integer:: acyc
-    
-        if ( cyc <= n_inact ) return
-        if ( bat == 0 ) return
-        acyc = cyc - n_inact
-    
-        do ii = 1, n_type
-        select case(ttally(ii))
-        case(2)
-            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%sig_t
-        case(3)
-            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%sig_a
-        case(4)
-            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%nusig_f
-        case(12)
-            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%sig_t/fm(:,:,:)%phi
-        case(13)
-            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%sig_a/fm(:,:,:)%phi
-        case(14)
-            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%nusig_f/fm(:,:,:)%phi
-        case default
-            MC_tally(bat,acyc,ii,1,:,:,:) = fm(:,:,:)%phi
-        end select
-        end do
-    
-        !fetnusigf(:,:,:) = fm(:,:,:)%nusig_f
-    
-    end subroutine
 	
 	subroutine hf_norm(cyc) ! equivalent to NORM_FMFD()
         implicit none
@@ -154,6 +135,8 @@ module hex_variables
                 end do
             end do
         end do
+        !print '(A,8F15.5)', 'CHK', fm(5,6,1)%J0(1:4), fm(5,6,1)%J1(5:8)
+        !print '(A,8F15.5)', 'THD', fm_thread(5,6,1)%J0(1:4), fm_thread(5,6,1)%J1(5:8)
 	end subroutine hf_norm
 	
     subroutine hf_SET_ZERO_FLUX(mat)

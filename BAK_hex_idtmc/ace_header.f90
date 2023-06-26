@@ -88,20 +88,61 @@ type, extends (TabularDataForm) :: PrecursorDataForm
 end type
 
 type UNRtype 
+    logical :: URES = .false.    !> Logical indicator that the XS has probability table
     integer :: N        !> Number of incident energies where there is a probability table
     integer :: M        !> Length of table; i.e., number of probabilities, typically 20
     integer :: INT      !> Interpolation parameter between tables =2 lin-lin; =5 log-log
-    integer :: ILF      !> Inelastic competition flag
-    integer :: IOA      !> Other absorption flag
+    integer :: ILF, ILFidx       !> Inelastic competition flag
+    integer :: IOA, IOAidx       !> Other absorption flag
     integer :: IFF      !> Factors flag
-    integer, allocatable :: E(:), P(:,:,:)
+    real(8), allocatable :: E(:), P(:,:,:)
+    real(8) :: Emin, Emax
+    integer :: unridx
 endtype 
 
+
+real(8) :: EUmin, EUmax !> Min/Max Energy for whole UNR
+
+integer :: n_unr = 0
+integer, allocatable :: uresiso(:)
+integer :: nueg  = 0
+real(8) :: UEGMAX = 3D1
+
+!> 22/08/05 ~ UNIONIZED ENERGY GRID
+type UNITED
+  integer, allocatable ::  Egrid(:) 
+!real, allocatable ::   sigt(:) !> Total XS in united grid
+!real, allocatable ::  sigel(:) !> Elastic XS in ...
+!real, allocatable ::  sig2n(:) !> (n,2n) XS in ...
+!real, allocatable ::  sig3n(:) !> (n,3n) XS in ...
+!real, allocatable ::  sig4n(:) !> (n,4n) XS in ...
+!real, allocatable ::   sigd(:) !> (n,gamma) XS
+!real, allocatable ::   sigf(:) !> Fission XS in ...
+!real, allocatable :: signuf(:) !> Fission Neutron Production
+!real, allocatable ::  sigqf(:) !> Fission heating ..
+!real, allocatable ::  sigal(:) !> (n,Alpha) XS
+!real, allocatable ::   sigp(:) !> (n,p) XS
+!real, allocatable :: sig2n2(:) !> (n,2nx) XS
+!real, allocatable :: sig3n2(:) !> (n,3nx) XS
+!real, allocatable :: sig4n2(:) !> (n,4nx) XS
+
+real(8), allocatable ::   sigt(:) !> Total XS in united grid
+real(8), allocatable ::  sigel(:) !> Elastic XS in ...
+real(8), allocatable ::  sig2n(:) !> (n,2n) XS in ...
+real(8), allocatable ::  sig3n(:) !> (n,3n) XS in ...
+real(8), allocatable ::  sig4n(:) !> (n,4n) XS in ...
+real(8), allocatable ::   sigd(:) !> (n,gamma) XS
+real(8), allocatable ::   sigf(:) !> Fission XS in ...
+real(8), allocatable :: signuf(:) !> Fission Neutron Production
+real(8), allocatable ::  sigqf(:) !> Fission heating ..
+real(8), allocatable ::  sigal(:) !> (n,Alpha) XS
+real(8), allocatable ::   sigp(:) !> (n,p) XS
+endtype
 
 
 !Nuclear data library in ace format
 type AceFormat
-  character(20) :: library       !> name of library for each isotope
+  character(200) :: library       !> name of library for each isotope
   integer :: ZAID                !> ZAID number
   logical :: excited             !> True if excited
   integer :: NXS(1:16)           !> number array in ace format
@@ -110,6 +151,7 @@ type AceFormat
   real(8) :: atn                 !> ratio of atomic mass to neutron mass
   integer :: sab_iso = 0         !> not zero, which isotope considered S(a,b)
   integer :: resonant = 0        !> resonant isotope?
+  character(20) :: xslib         !> xslib indicator (.80c, ...)
 
   !Data blocks in ace format
   !> ESZ_Block // FIS_Block
@@ -165,24 +207,35 @@ type AceFormat
 
   !> UNR Block
   type(UNRtype) :: UNR
+
+  !> UNIONIZED ENERGY GRID
+  type(UNITED) :: UEG
   
 
   integer :: isab
   integer :: iso0K
+
+
 end type
 type (AceFormat), allocatable, target :: ace(:)
-integer :: num_iso              !> total number of isotopes
+integer :: num_iso = 0              !> total number of isotopes
 
 
 ! Hash-based Energy Search algorithm 
-real(8) :: Emax, Emin 
+real(8) :: Emin, Emax = 0D0
 integer, allocatable :: ugrid(:,:),&     !Lethargy-grid for hash-based search
                       & ugrid0K(:,:),&   !Lethargy-grid for hash-based search
                       & ugridsab(:,:)
 real(8) :: udelta 
 integer :: nugrid
 
+! Hash-based E-search for UEG
+integer, allocatable :: unigrid(:)
+integer :: nuni = 8192
+real(8) :: unidel
 
+
+real(8), allocatable :: ueggrid(:)
 
 
 ! Doppler broadening
@@ -352,17 +405,37 @@ real(8),parameter :: wghq2(1:16) = (/1.42451415249E-02, &
     function find_ACE_iso_idx_zaid (zaid) result (idx) 
         integer, intent(in) :: zaid 
         integer :: i, idx
+        integer :: hund
+        !do i = 1, num_iso
+        !    if ((ace(i)%zaid == zaid/10) .and. ((mod(zaid,10)/=0) .eqv. ace(i)%excited)) then 
+        !        idx = i 
+        !        return 
+        !    endif
+        !enddo
         
-        do i = 1, num_iso
-            if ((ace(i)%zaid == zaid/10) .and. ((mod(zaid,10)/=0) .eqv. ace(i)%excited)) then 
-                idx = i 
-                return 
-            endif
-        enddo
-        
+        if(mod(zaid,10)==0) then !stable
+            do i = 1,num_iso
+                if(ace(i)%zaid==zaid/10) then
+                    idx = i
+                    return
+                endif
+            enddo
+        elseif(mod(zaid,10)==1) then !1st meta.
+            do i = 1,num_iso
+                if(.not. ace(i)%excited) cycle
+                hund = 3-mod(zaid/1000,10)
+                if(ace(i)%zaid-hund*100==zaid/10) then
+                    idx = i
+                    return
+                endif
+            enddo
+        endif
+
         idx = 0 
         !print *, "ERROR :: no such isotope ZAID number : ", zaid 
         !stop 
         
     end function 
+
+
 end module 

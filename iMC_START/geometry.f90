@@ -381,6 +381,8 @@ module geometry
             !p % n_coord = 1
             !p % coord(1) % xyz(:) = p % coord(1) % xyz(:) - 0.1*TINY_BIT * p % coord(1) % uvw(:)
             !call find_cell(p, found, i_cell)
+
+            !print *, 'CHECK', p%coord(1)%xyz, surfaces(surface_crossed)%surf_id
             
             uvw = p%coord(1)%uvw
             call reflective_bc(p%coord(1)%uvw, p%coord(1)%xyz, surface_crossed)
@@ -437,8 +439,10 @@ module geometry
                 uvw(1) = -uvw(1) 
             else 
                 print *, 'particle is not on the surface'
-                print *, 'xyz', xyz
+                print *, 'xyz', xyz_
+                print *, 'uvw', uvw
 				print *, 'Surface ID : ', surfaces(surface_crossed)%surf_id
+                print *, 'SURF DATA', surfaces(surface_crossed)%parmtrs(1:3)
                 stop 
             end if
             

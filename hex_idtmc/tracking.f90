@@ -87,7 +87,6 @@ subroutine transport(p)
     if ( p%material == 0 ) then
         p%alive = .false. 
 		data_handle = hf_fmfd_coords(p%coord(1)%xyz(:), fm0(:), dcm(:), dfm(:), fcr)
-        ! if (hc_in_zz(data_handle(1), data_handle(2))) print*, p%coord(1)%xyz, "this?" ! LINKPOINT; REMOVE; boundaries not always defined in a hex geometry
         return
     end if
 	
@@ -119,7 +118,8 @@ subroutine transport(p)
     
     !> Surface distance(boundary)
     call distance_to_boundary(p, d_boundary, surface_crossed)
-	!print *, "AAAA", d_boundary
+	
+	if (d_boundary == 0) stop
 	
 	!> Sample a distance to collision
 	val = 1.0d0
@@ -160,7 +160,6 @@ subroutine transport(p)
 			else if (v_hf(i_xyz(1), i_xyz(2), i_xyz(3)) == 0.0) then
 			    inside_mesh = .FALSE.
 			end if
-			print *, "BBBB", d_mesh, v_hf(i_xyz(1), i_xyz(2), i_xyz(3)) ! PRINT REMOVE
 		end if
 	end if
 
@@ -267,8 +266,6 @@ subroutine transport(p)
     end if
     end if
 
-	! TEST REMOVE
-	!print "(A, 3E10.2, 3I4, 5E10.3, 3E10.2)", "T", p%coord(1)%xyz(:), i_xyz(:), macro_xs, d_boundary, d_collision, d_mesh
 
     !> Advance particle
     do j = 1, p % n_coord
@@ -278,6 +275,9 @@ subroutine transport(p)
 !    found_cell = .false.
 !    call find_cell(p, found_cell, i_cell)
 
+	! TEST REMOVE
+	!print "(A, 6E10.2, 3E11.3)", "T", p%coord(1)%xyz(:), p%coord(2)%xyz(:), d_boundary, d_collision, d_mesh
+	
     if ( distance == d_collision ) then ! collision 
     
 !        if ( do_PCQS .and. curr_cyc > n_inact ) n_col = n_col + 1
@@ -318,6 +318,7 @@ subroutine transport(p)
         !if ( tallyon .and. .not. fmfdon .and. cyc > n_inact ) &
         !    call MC_COL(p%E,p%wgt,distance,macro_xs,i_xyz)
         !print *, 'FLAG2', curr_cyc, cells(7) % pos_surf_idx(1)
+		!print *, "COLLISION ", materials(p%material)%mat_name
 
     elseif  ( distance == d_mesh ) then 
         !print *, 'FLAG3', curr_cyc, cells(7) % pos_surf_idx(1)
@@ -339,6 +340,7 @@ subroutine transport(p)
         end if
         !if(i_xyz(1)==5 .and. i_xyz(2)==6) print '(A,3F15.5,I3)', 'CHK', p % coord(1) % xyz, i_surf
         !print *, 'FLAG4', curr_cyc, cells(7) % pos_surf_idx(1)
+		print *, "MESH ", materials(p%material)%mat_name
         
     elseif (abs(distance-d_boundary) < TINY_BIT) then
         p%n_cross = p%n_cross + 1 
@@ -348,6 +350,7 @@ subroutine transport(p)
             loss_vrc = loss_vrc + p%wgt! * exp(-macro_xs(1)*d_boundary)
         endif 
         !print *, 'FLAG5', curr_cyc, cells(7) % pos_surf_idx(1)
+		!print *, "BOUNDARY ", materials(p%material)%mat_name, surfaces(surface_crossed)%surf_id
         
 !    elseif (abs(distance - d_gmsh) < TINY_BIT) then 
 !    
@@ -428,6 +431,7 @@ subroutine transport(p)
 !        !if (p%tet .le. 0) p%in_tet = .false.
         
     endif
+	!print *, cells(p%coord(1:3)%cell)%cell_id ! PRINT REMOVE
 
     if ( p%n_cross > 3000 ) then
         if ( p%n_cross == 3050 ) p%alive = .false.

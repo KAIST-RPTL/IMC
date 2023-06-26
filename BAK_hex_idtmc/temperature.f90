@@ -1,5 +1,4 @@
 module TEMPERATURE
-    use mpi
     use TH_HEADER
     use VARIABLES, only: Nominal_Power, icore, score
     use CONSTANTS, only: K_B, PI
@@ -141,7 +140,7 @@ subroutine PROCESS_TH()
     ! MPI data gathering
     dsize = nth(1)*nth(2)*nth(3)
     pp_mpi = 0
-    call MPI_REDUCE(pp,pp_mpi,dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+    call MPI_REDUCE(pp,pp_mpi,dsize,15,MPI_SUM,score,0,ierr)
     pp = pp_mpi
 
 end subroutine

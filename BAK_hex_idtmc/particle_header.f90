@@ -1,8 +1,10 @@
 module particle_header
 
     use constants
+    use variables
     use geometry_header,     only: base_univ, universe
     use bank_header
+    use ace_header,          only: n_unr
 
     implicit none
 
@@ -54,6 +56,7 @@ module particle_header
         real(8)    :: last_E ! pre-collision energy
         integer    :: g      ! post-collision energy group (MG only)
         integer    :: last_g ! pre-collision energy group (MG only)
+        !integer    :: ep     ! (ONLY in UEG): Egrid
         
         ! Other physical data
         real(8)    :: wgt           ! particle weight
@@ -105,20 +108,27 @@ module particle_header
 
         ! VRC trace
         logical :: vrc_traced = .false.
+		
+		! Tetrahedron 
+		integer :: tet_face
+		logical :: in_tet = .false. 
+		integer :: tet
+		integer :: tet_prev
+		
+		integer :: iso 
         
-        ! Tetrahedron 
-        integer :: tet_face
-        logical :: in_tet = .false. 
-        integer :: tet
-        integer :: tet_prev
-        
-        integer :: iso 
-        
-        real(8) :: time = 0d0
+		real(8) :: time = 0d0
         ! Secondary particles created
         !integer(8) :: n_secondary = 0
         !type(Bank) :: secondary_bank(MAX_SECONDARY)
+        !integer, allocatable :: urn(:)
+        real(8), allocatable :: urn(:)
         
+        ! ADJOINT : IFP related
+        integer :: delayedarr(1:latent)
+        real(8) :: delayedlam(1:latent)
+        real(8) :: nlifearr(1:latent)
+        real(8) :: trvltime ! Traveled distance of the neutron from its born:  Modified to time
     contains
         procedure :: clear
         procedure :: initialize
@@ -177,7 +187,7 @@ contains
         !this % fission           = .false.
         !this % delayed_group     = 0
         !this % n_delayed_bank(:) = 0
-        this % g = NONE
+        this % g = 1
         
         ! Set up base level coordinates
         this % coord(1) % universe = base_univ
@@ -185,12 +195,37 @@ contains
         this % last_n_coord = 1
         
         this % vrc_traced = .false.
-        this % time = 0
-        
-        this % in_tet = .false. 
-        this % tet = 0 
-        this % tet_prev = 0
-        
+		this % time = 0
+		
+		this % in_tet = .false. 
+		this % tet = 0 
+		this % tet_prev = 0
+
+        this % delayedarr(1:latent) = 0
+        this % delayedlam(1:latent) = ZERO
+        this % nlifearr(1:latent)   = ZERO
+        this % trvltime             = ZERO
+        if(.not. allocated(this%urn)) then
+            allocate(this % urn(1:n_unr)); this % urn = 0D0
+!            do i = 1, n_unr
+!                iso = uresiso(i) 
+!                do ierg = 1, ace(iso) % UNR % N-1
+!                    if(p%E >= ace(iso) % UNR % E(ierg) .and. &
+!                        p%E < ace(iso) % UNR % E(ierg+1)) exit
+!                enddo
+!        
+!                r = rang()
+!                column = ace(iso) % UNR % M
+!                do mm = 1, ace(iso) % UNR % M-1
+!                    if( r >= ace(iso) % UNR % P(ierg,1,mm) .and. &
+!                        r <  ace(iso) % UNR % P(ierg,1,mm+1)) column = mm
+!                enddo
+!                p % urn(i) = column
+!                
+!        !        p % urn(i) = rang()
+!            enddo
+        endif
+
     end subroutine initialize
   
 !===============================================================================
@@ -200,6 +235,7 @@ contains
     subroutine SET_PARTICLE(this, source)
         class(Particle) :: this
         type(bank)        :: source
+        integer :: zidx,ridx
         
         this % coord(1) % xyz(:) = source % xyz(:)
         this % coord(1) % uvw(:) = source % uvw(:)
@@ -207,6 +243,21 @@ contains
         this % E                 = source % E
         this % G                 = source % G
         this % time              = source % time
+        !this % ep                = source % ep
+		
+        this % delayedarr  = source % delayedarr
+        this % delayedlam  = source % delayedlam
+        this % nlifearr    = source % nlifearr
+        this % trvltime          = 0.D0
+
+        ! MSR
+        !if(source%delayed) print *, 'PREC', source%xyz(1:3), source%G, this%wgt
+        if(do_fuel_mv .and. source % delayed .and. curr_cyc > n_inact ) then
+            zidx = floor((this%coord(1)%xyz(3)-core_base)/(core_height/real(N_core_axial,8)))+1
+            !ridx = floor((this%coord(1)%xyz(1)**2+this%coord(1)%xyz(2)**2)/core_radius**2*real(n_core_radial,8))+1
+            !print *, 'prec', this%coord(1)%xyz(3)-core_base, zidx, source%G
+            core_prec(source%G,zidx,1) = core_prec(source%G,zidx,1) + this % wgt
+        endif
     end subroutine SET_PARTICLE
     
     

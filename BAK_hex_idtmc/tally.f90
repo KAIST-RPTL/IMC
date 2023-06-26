@@ -1,10 +1,9 @@
 module tally
-    use mpi
     use geometry_header 
     use constants
     use particle_header, only : Particle
-    use FMFD_HEADER, only: dfm, fm0, fm1, dcm, p_dep_mc, p_dep_dt
-    use VARIABLES, only: n_inact, curr_cyc, do_gmsh, do_burn
+    use FMFD_HEADER, only: dfm, fm0, fm1
+    use VARIABLES, only: n_inact, curr_cyc, do_gmsh
     
     implicit none
     
@@ -38,20 +37,18 @@ module tally
     logical:: meshon  = .false.
     integer:: n_type    ! # of tally types
     integer:: n_tgroup  ! # of tally groups
-    integer:: n_tcycle  ! # of tally cycles
     real(8), allocatable:: k_eff(:,:)                 ! (n_batch,n_tot)
     real(8), allocatable:: MC_tally(:,:,:,:,:,:,:)    ! (batches,cycles,types,groups,x,y,z)
     real(8), allocatable:: MC_thread(:,:,:,:,:)       ! (types,groups,x,y,z)
     integer, allocatable:: ttally(:)                  ! (types)
     real(8), allocatable:: tgroup(:)                  ! (groups)
-    integer, allocatable:: tcycle(:)                  ! (cycles)
     real(8), allocatable:: MC_stally(:,:,:,:,:,:,:,:) ! (batches,cycles,2,groups,x,y,z,6)
     real(8), allocatable:: MC_sthread(:,:,:,:,:,:)    ! (2,groups,x,y,z,6)
     real(8), allocatable:: MC_scat(:,:,:,:,:,:,:)     ! (batches,cycles,groups,groups,x,y,z)
     real(8), allocatable:: MC_scatth(:,:,:,:,:)       ! (groups,groups,x,y,z)
     logical :: meshon_tet_vrc = .false. 
-    real(8) :: mesh_power 
-    
+	real(8) :: mesh_power 
+	
     contains
     
     elemental subroutine reset_coord(this)
@@ -59,7 +56,7 @@ module tally
         
         this % cell     = NONE
         this % universe = NONE
-        this % lattice   = NONE
+        this % lattice     = NONE
         this % lattice_x = NONE
         this % lattice_y = NONE
         this % lattice_z = NONE
@@ -78,7 +75,7 @@ module tally
             !if (p%n_coord /= TallyCoord(i_bin)%n_coord) cycle Bin
             do i_coord = 1, TallyCoord(i_bin)%n_coord-1! p%n_coord-1
                 A(1) = p%coord(i_coord)%cell
-                A(2) = p%coord(i_coord)%universe 
+                A(2) = p%coord(i_coord)%universe
                 A(3) = p%coord(i_coord)%lattice
                 A(4) = p%coord(i_coord)%lattice_x
                 A(5) = p%coord(i_coord)%lattice_y
@@ -97,10 +94,10 @@ module tally
             i_coord = TallyCoord(i_bin)%n_coord !p%n_coord
             A(1) = p%coord(i_coord)%cell     * TallyCoord(i_bin)%flag
             A(2) = p%coord(i_coord)%universe * TallyCoord(i_bin)%flag
-            if (do_gmsh) then 
-                A(1) = 0
-                A(2) = p%coord(i_coord)%universe
-            endif 
+			if (do_gmsh) then 
+				A(1) = 0
+				A(2) = p%coord(i_coord)%universe
+			endif 
             A(3) = p%coord(i_coord)%lattice
             A(4) = p%coord(i_coord)%lattice_x
             A(5) = p%coord(i_coord)%lattice_y
@@ -112,8 +109,13 @@ module tally
             B(4) = TallyCoord(i_bin)%coord(i_coord)%lattice_x
             B(5) = TallyCoord(i_bin)%coord(i_coord)%lattice_y
             B(6) = TallyCoord(i_bin)%coord(i_coord)%lattice_z
-
+			
+			!print *, i_coord
+			!print '(6I)', A(:) 
+			!print '(6I)', B(:) 
+			
             C(:) = abs(A(:)-B(:))
+			
             if (sum(C) /= 0) cycle Bin
             idx(1) = i_bin
             idx(2:4) = B(4:6)
@@ -128,15 +130,11 @@ module tally
 ! SET_MC_TALLY
 ! =============================================================================
 subroutine SET_MC_TALLY
-    use VARIABLES, only: icore, score, n_batch, n_act, t_totcyc, n_totcyc
+    use VARIABLES, only: icore, score, n_batch, n_act, n_totcyc
     use FMFD_HEADER, only: nfm
     implicit none
 
-    if ( n_batch == 1 ) then
     allocate(k_eff(n_batch,n_totcyc))
-    else
-    allocate(k_eff(n_batch,t_totcyc))
-    end if
     if ( tallyon ) then
         allocate(MC_tally(n_batch,n_act,n_type, &
                           n_tgroup,nfm(1),nfm(2),nfm(3)))
@@ -151,6 +149,7 @@ subroutine SET_MC_TALLY
 !        MC_scatth = 0
 !        MC_stally = 0
 !        MC_scat = 0
+
     end if
 
 end subroutine
@@ -237,17 +236,6 @@ function FM_ID(fmxyz) result(fmid)
 end function
 
 ! =============================================================================
-! CM_ID finds the x, y, z indice in the fine mesh grid
-! =============================================================================
-function CM_ID(fmxyz) result(fmid)
-    real(8), intent(in):: fmxyz(:)  ! coordinate
-    integer:: fmid(3)               ! indice
-       
-    fmid(:) = floor((fmxyz(:)-fm0(:))/dcm(:))+1
-
-end function
-
-! =============================================================================
 ! FMFD_ID finds the x, y, z indice in the FMFD mesh grid
 ! =============================================================================
 function INSIDE(fmxyz) result(inside_mesh)
@@ -276,7 +264,6 @@ subroutine TALLY_THREAD_INITIAL(cyc)
     if ( cyc > n_inact ) then
     acyc = cyc - n_inact
     MC_thread = 0D0
-    MC_tally  = 0D0
 !    MC_sthread = 0D0
 !    MC_scatth = 0D0
     end if
@@ -312,6 +299,7 @@ subroutine MC_TRK(E0,wgt,distance,macro_xs,id)
     end select
     MC_thread(ii,E2G(E0),id(1),id(2),id(3)) = & 
     MC_thread(ii,E2G(E0),id(1),id(2),id(3)) + flux * xs
+	
     end do
     
 end subroutine
@@ -529,6 +517,9 @@ subroutine PROCESS_TALLY(bat,cyc)
 !    allocate(MC_temps0(n_tgroup,n_tgroup,nfm(1),nfm(2),nfm(3)))
 !    allocate(MC_temps1(n_tgroup,n_tgroup,nfm(1),nfm(2),nfm(3)))
     MC_temp0  = MC_tally(bat,acyc,:,:,:,:,:)
+	
+	
+	
     MC_temp1  = 0D0
 !    MC_stemp0 = MC_stally(bat,acyc,:,:,:,:,:,:)
 !    MC_stemp1 = 0D0
@@ -536,7 +527,7 @@ subroutine PROCESS_TALLY(bat,cyc)
 !    MC_temps1 = 0D0
     dsize = nfm(1)*nfm(2)*nfm(3)*n_type*n_tgroup
     call MPI_REDUCE(MC_temp0(:,:,:,:,:),MC_temp1(:,:,:,:,:), &
-                    dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+                    dsize,15,MPI_SUM,score,0,ierr)
 !    dsize = nfm(1)*nfm(2)*nfm(3)*2*n_tgroup*6
 !    call MPI_REDUCE(MC_stemp0(:,:,:,:,:,:),MC_stemp1(:,:,:,:,:,:), &
 !                    dsize,15,MPI_SUM,score,0,ierr)
@@ -550,6 +541,8 @@ subroutine PROCESS_TALLY(bat,cyc)
 !    MC_temps1(:,ii,:,:,:) / MC_temp1(n_type,:,:,:,:)
 !    end do
     MC_tally(bat,acyc,:,:,:,:,:) = MC_temp1(:,:,:,:,:)/(dble(ngen)*v_fm)
+	 
+	 
 !    do ii = 1, 6
 !    MC_stally(bat,acyc,:,:,:,:,:,ii) = &
 !        MC_stemp1(:,:,:,:,:,ii) / (dble(ngen) * a_fm(ii))
@@ -564,10 +557,8 @@ subroutine PROCESS_TALLY(bat,cyc)
     MC_tally(bat,acyc,ii,:,:,:,:) = &
     MC_tally(bat,acyc,ii,:,:,:,:) / MC_tally(bat,acyc,n_type,:,:,:,:)
     end do
+	
     end if
-
-    if ( do_burn .and. icore == score .and. ttally(1) == 5 ) &
-        p_dep_mc(acyc,:,:,:) = MC_tally(bat,acyc,1,1,:,:,:)
 
 end subroutine 
 

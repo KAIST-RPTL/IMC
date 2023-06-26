@@ -177,29 +177,29 @@ module surface_header
             xyz_tr(1) = xyz(1) - this%parmtrs(1)
             xyz_tr(2) = xyz(2) - this%parmtrs(2)
             r = this%parmtrs(3)
-            
+			
             ! idx = 1
             if (xyz_tr(2) > r) return
-            
+			
             ! idx = 2
-            val = -2.0*xyz_tr(1) + 2.0*r 
+            val = -sqrt(3.0)*xyz_tr(1) + 2.0*r 
             if (xyz_tr(2) > val) return
-            
+			
             ! idx = 3
-            val = 2.0*xyz_tr(1) - 2.0*r 
+            val = sqrt(3.0)*xyz_tr(1) - 2.0*r 
             if (xyz_tr(2) < val) return
-            
+			
             ! idx = 4
-            val = 2.0*xyz_tr(1) + 2.0*r 
-            if (xyz_tr(2) < val) return
-            
-            ! idx = 5
-            val = -2.0*xyz_tr(1) - 2.0*r 
+            val = sqrt(3.0)*xyz_tr(1) + 2.0*r 
             if (xyz_tr(2) > val) return
-            
+			
+            ! idx = 5
+            val = -sqrt(3.0)*xyz_tr(1) - 2.0*r 
+            if (xyz_tr(2) < val) return
+			
             ! idx = 6
             if (xyz_tr(2) < -r) return
-            
+			
             neg = .true.
             
         end select
@@ -270,7 +270,8 @@ module surface_header
     function surf_cylz(surf,xyz,uvw) result(dist)
         type(surface) :: surf
         real(8), intent(in) :: xyz(3), uvw(3)
-        real(8) :: dist 
+        real(8) :: dist
+		real(8) :: temp
         real(8) :: a, k, c, xyz_(3), val 
         integer :: i 
         
@@ -286,12 +287,12 @@ module surface_header
         
         if ((a == 0).or.(val < 0)) then 
             dist = INFINITY
-        elseif (c < 0) then
-            dist = (-k + sqrt(val))/a
-            
-        elseif (c > 0) then
-            dist = (-k - sqrt(val))/a
-        endif
+		else
+		    temp = (-k + sqrt(val))/a
+			if (temp > 0) dist = temp
+			temp = (-k - sqrt(val))/a
+			if (temp > 0 .and. temp < dist) dist = temp
+		end if
         
         if (dist<0) dist = INFINITY
         
@@ -382,6 +383,13 @@ module surface_header
         xyz_(1:2) = xyz(1:2) - surf%parmtrs(1:2) 
         xyz_(3)   = xyz(3)  
         r          = surf%parmtrs(3)
+		
+            ! index  1 
+            !       ---
+            !     4 /   \ 2
+            !    5 \   / 3
+            !       ---
+            !         6
         
         dist = INFINITY
         
@@ -393,43 +401,39 @@ module surface_header
         d_temp(1)=temp
         
         ! idx = 2
-        a = 2; b = 1; d = 2.0*r
+        a = sqrt(3.0); b = 1; d = 2.0*r
         temp = (d-a*xyz_(1)-b*xyz_(2))/(a*uvw(1)+b*uvw(2))
         val  = xyz_(2)+uvw(2)*temp
         if (temp < 0 .or. val < 0 .or. val > r) temp = INFINITY 
         d_temp(2)=temp
         
-        
         ! idx = 3
-        a = -2; b = 1; d = -2.0*r
+        a = -sqrt(3.0); b = 1; d = -2.0*r
         temp = (d-a*xyz_(1)-b*xyz_(2))/(a*uvw(1)+b*uvw(2))
         val  = xyz_(2)+uvw(2)*temp
         if (temp < 0 .or. val < -r .or. val > 0) temp = INFINITY 
         d_temp(3)=temp
         
-        
         ! idx = 4
-        a = -2; b = 1; d = 2.0*r
+        a = -sqrt(3.0); b = 1; d = 2.0*r
         temp = (d-a*xyz_(1)-b*xyz_(2))/(a*uvw(1)+b*uvw(2))
         val  = xyz_(2)+uvw(2)*temp
         if (temp < 0 .or. val < 0 .or. val > r) temp = INFINITY 
         d_temp(4)=temp
         
-        
         ! idx = 5
-        a = 2; b = 1; d = -2.0*r
+        a = sqrt(3.0); b = 1; d = -2.0*r
         temp = (d-a*xyz_(1)-b*xyz_(2))/(a*uvw(1)+b*uvw(2))
         val  = xyz_(2)+uvw(2)*temp
         if (temp < 0 .or. val < -r .or. val > 0) temp = INFINITY 
         d_temp(5)=temp
-        
+		
         ! idx = 6
         a = 0; b = 1; d = -r
         temp = (d-a*xyz_(1)-b*xyz_(2))/(a*uvw(1)+b*uvw(2))
         val  = xyz_(1)+uvw(1)*temp
         if (temp < 0 .or. val < -r/sqrt(3.0) .or. val > r/sqrt(3.0)) temp = INFINITY 
-        d_temp(5)=temp
-        
+        d_temp(6)=temp
         
         
         dist = minval(d_temp(:))

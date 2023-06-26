@@ -351,7 +351,6 @@ module geometry
         
         !dist = minval(p%coord(:)%dist)
         
-        
     end subroutine
     
     
@@ -471,7 +470,7 @@ module geometry
             uvw(3) = uvw(3) - 2*(xyz_(1)*uvw(1) + xyz_(2)*uvw(2) + xyz_(3)*uvw(3))*xyz_(3) &
                         /(surfaces(surface_crossed)%parmtrs(4))**2
 
-        case (11) !> hexxc
+        case (12) !> hexxc
             ! NOTICE: xyz_ for hexagonal surface /= xyz_ for others
             tmp = sqrt(3.d0)*0.5d0
             xyz_(1) = abs(xyz(1)-surfaces(surface_crossed)%parmtrs(1))
@@ -494,13 +493,13 @@ module geometry
                 uvw(1) = uvw(1)-0.5d0*a
                 uvw(2) = uvw(2)-tmp*a
             else ! EXCEPTION MSG
-                print *, 'particle not on surface'
+                print *, 'particle not on surface - hexxc'
                 print *, 'ixyz', xyz_(1)-r,xyz_(2)-r,xyz_(3)-r
                 print *, 'tolerance',400*TINY_BIT
                 stop
             endif
         
-        case(12) !> hexyc
+        case(11) !> hexyc
             ! NOTICE: xyz_ for hexagonal surface /= xyz_ for others
             tmp = sqrt(3.d0)*0.5d0
             xyz_(1) = abs((xyz(1)-surfaces(surface_crossed)%parmtrs(1))*tmp &
@@ -523,7 +522,7 @@ module geometry
             elseif((xyz_(3)>=r-200*TINY_BIT).and.(xyz_(3)<=r+200*TINY_BIT)) then
                 uvw(2) = -uvw(2)
             else ! EXCEPTION MSG
-                print *, 'particle not on surface'
+                print *, 'particle not on surface - hexyc'
                 print *, 'ixyz', xyz_(1)-r,xyz_(2)-r,xyz_(3)-r
                 print *, 'tolerance',400*TINY_BIT
                 stop
@@ -558,6 +557,7 @@ module geometry
         integer :: i_universe           ! index in universes array
         integer,         intent(inout) :: idx_univ
         real(8) :: tmp(3) 
+		
         n = universes(idx_univ)%ncell; found = .false.
         CELL_LOOP: do i = 1, n
 
@@ -583,7 +583,7 @@ module geometry
                     ! ======================================================================
                     ! AT LOWEST UNIVERSE, TERMINATE SEARCH
                     !print *, 'FILL_MATERIAL : ', c%cell_id,  c%mat_idx
-                    
+					
                     if (present(cell_idx)) then 
                         cell_idx = i_cell
                     endif

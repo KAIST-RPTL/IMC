@@ -3,6 +3,8 @@ module hex_solve
     !! NOTE !!
     ! neither of the BiCG algorithms work for larger matrices
     ! SOR algorithm appended at the end as a temporary patch
+	
+	implicit none
     
     contains
     
@@ -86,6 +88,6 @@ module hex_solve
                 exit
             end if
         end do
-		print *, "SOR REL ERROR ", rel_err
+		!print *, "SOR REL ERROR ", rel_err
     end subroutine hex_sor
 end module hex_solve

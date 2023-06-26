@@ -778,6 +778,7 @@ subroutine fissionSite_CE (p, iso, micro_xs)
             print *, '**************************   law not selected'
             print *, F, ace(iso)%xslib, iMT, rn, pt1,  ipfac, i_source, n
             print *, (p%wgt*(micro_xs(5)/micro_xs(1))*(1.0/keff)), iso, micro_xs(5), ace(iso)%zaid
+            print *, 'TST', eg%nlaw
             stop
         endif 
         erg_out = p%E
@@ -806,7 +807,6 @@ subroutine fissionSite_CE (p, iso, micro_xs)
                 thread_bank(bank_idx)%time= -log(rang())/lambda
                 call MSR_treatment(thread_bank(bank_idx)%xyz, thread_bank(bank_idx)%time,alive)
                 if(.not. alive) bank_idx = bank_idx - 1
-                print *, 'TEST', alive, bank_idx, icore
             endif
         else !prompt
             thread_bank(bank_idx)%delayedarr(latent) = 0
@@ -829,14 +829,12 @@ subroutine MSR_treatment(xyz, t_emit, alive)
     real(8) :: rn1, rn2
     integer :: zidx
     logical, intent(out)  :: alive
-    alive = .false.
-    return
+    alive = .true.
     if(.not. do_fuel_mv) return
     if(fuel_speed <= 0.d0) return
     t_end   = (core_height-(xyz(3)-core_base)) / fuel_speed
     n_recirc= max(0,floor((t_emit-t_end)/(t_rc + (core_height/fuel_speed))))
     t_res   = t_emit - t_end - n_recirc * (t_rc + core_height/fuel_speed)
-    alive   = .true.
     if(t_emit < t_end) then ! decays before hits top
         xyz(3) = xyz(3) + fuel_speed * t_emit
     elseif(t_res<=t_rc) then ! decays out of the core: exterminates

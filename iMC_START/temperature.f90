@@ -508,7 +508,6 @@ subroutine TEMP_CONVERGE(err)
     real(8):: err
     
     if ( icore /= score ) return
-    print *, t_fuel
     err = norm2(t_fuel-t_save)/norm2(t_fuel)
     t_save = t_fuel
 

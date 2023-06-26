@@ -4,7 +4,7 @@ module TH_HEADER
     logical:: th_on = .false.   ! T/H feedback on?
     logical:: th_cycle = .true.
 
-    integer :: th_iter_max = 1
+    integer :: th_iter_max = 5
     integer :: th_iter     = 0
     real(8) :: th_cvg_crit = 1E-2 ! TH Convergence
 
@@ -55,7 +55,9 @@ module TH_HEADER
     real(8), allocatable :: dthx(:), dthy(:), dthz(:)
                                     ! Difference with dth: not uniform
     real(8) :: pitch(3)
-    real(8), allocatable :: fuel_th(:,:), rad_th(:,:), cld_th(:,:), gap_th(:,:)
+    !real(8), allocatable :: fuel_th(:,:), rad_th(:,:), cld_th(:,:), gap_th(:,:)
+    real(8), allocatable :: rad_th(:,:)
+    real(8) :: fuel_th, cld_th, gap_th
     real(8), allocatable :: power_th(:,:)
     real(8) :: margin(3) ! Margin between boundary mesh and actual mesh
     integer :: n_rod

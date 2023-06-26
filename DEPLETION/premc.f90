@@ -15,7 +15,7 @@ subroutine premc
     !use TALLY, only: p_MC, e_MC
     
     implicit none
-    integer :: iwork1, iwork2, mm, i, iso
+    integer :: iwork1, iwork2, mm, i, j, iso
     
     !===========================================================================
     !Read input geometry and cross section data
@@ -141,5 +141,18 @@ subroutine premc
     !write(*,'(I6, F17.7,F12.5,F12.5,F12.5)') ace(1)%zaid, ace(1)%E(i)*1E6, ace(1)%sigt(i), ace(1)%sigd(i), ace(1)%sigf(i)
     !enddo
     !endif
+
+    !i = find_ACE_iso_idx_zaid(571380)
+    !print *, ace(i)%MT(:)
+
+    if(icore==score) then
+        do i = 1, size(materials)
+            print *, materials(i)%mat_name
+            do j = 1, materials(i)%n_iso
+                print *, ace(materials(i)%ace_idx(j))%zaid, materials(i)%numden(j)
+            enddo
+        enddo
+    endif
+
 
 end subroutine

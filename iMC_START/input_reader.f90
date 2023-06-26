@@ -1313,7 +1313,6 @@ end subroutine READ_CTRL
                 a_fm(6) = a_fm(5)
                 v_fm    = dfm(1)*dfm(2)*dfm(3)
                 n_nodes = nfm(1)*nfm(2)*nfm(3)
-                print *, fm0(:), fm1(:), dfm(:)
 
             case("MESH_GRID_TET_VRC")
                 do_gmsh_vrc = .true.
@@ -2654,10 +2653,9 @@ end function
                 endif    
                 ! ALLOCATE for RADIUS/THICKNESS of PIN
                 allocate(rad_th(nth(1), nth(2))); rad_th = 0d0
-
-                allocate(fuel_th(nth(1), nth(2))); fuel_th = 0d0
-                allocate(cld_th(nth(1), nth(2))); cld_th = 0d0
-                allocate(gap_th(nth(1), nth(2))); gap_th = 0d0
+                !allocate(fuel_th(nth(1), nth(2))); fuel_th = 0d0
+                !allocate(cld_th(nth(1), nth(2))); cld_th = 0d0
+                !allocate(gap_th(nth(1), nth(2))); gap_th = 0d0
             case("GRID")
                 backspace(rd_coup)
                 read(rd_coup, *, iostat=File_Error) Char_Temp, Equal, nth(1), nth(2), nth(3)
@@ -2670,21 +2668,27 @@ end function
 
                 ! ALLOCATE for RADIUS/THICKNESS of PIN
                 allocate(rad_th(nth(1), nth(2))); rad_th = 0d0
-                allocate(fuel_th(nth(1),nth(2))); fuel_th= 0d0
-                allocate(cld_th(nth(1), nth(2))); cld_th = 0d0
-                allocate(gap_th(nth(1), nth(2))); gap_th = 0d0
+                !allocate(fuel_th(nth(1),nth(2))); fuel_th= 0d0
+                !allocate(cld_th(nth(1), nth(2))); cld_th = 0d0
+                !allocate(gap_th(nth(1), nth(2))); gap_th = 0d0
             case("FUEL")
-                do iy = nth(2), 1, -1
-                    read(rd_coup,*,iostat=File_Error) (fuel_th(ix, iy), ix = 1, nth(1))
-                enddo
+                !do iy = nth(2), 1, -1
+                !    read(rd_coup,*,iostat=File_Error) (fuel_th(ix, iy), ix = 1, nth(1))
+                !enddo
+                backspace(rd_coup)
+                read(rd_coup, *, iostat=File_Error) Char_Temp, Equal, fuel_th
             case("CLAD")
-                do iy = nth(2), 1, -1
-                    read(rd_coup,*,iostat=File_Error) (cld_th(ix, iy), ix = 1, nth(1))
-                enddo
+!                do iy = nth(2), 1, -1
+!                    read(rd_coup,*,iostat=File_Error) (cld_th(ix, iy), ix = 1, nth(1))
+!                enddo
+                backspace(rd_coup)
+                read(rd_coup, *, iostat=File_Error) Char_Temp, Equal, cld_th
             case("GAP")
-                do iy = nth(2), 1, -1
-                    read(rd_coup,*,iostat=File_Error) (gap_th(ix, iy), ix = 1, nth(1))
-                enddo
+!                do iy = nth(2), 1, -1
+!                    read(rd_coup,*,iostat=File_Error) (gap_th(ix, iy), ix = 1, nth(1))
+!                enddo
+                backspace(rd_coup)
+                read(rd_coup, *, iostat=File_Error) Char_Temp, Equal, gap_th
             case("TEMPERATURE_INLET")
                 backspace(rd_coup)
                 read(rd_coup, *, iostat=File_Error) Char_Temp, Equal, t_in
@@ -2731,7 +2735,7 @@ end function
 
         ! CONSTRUCT TH qty. from START
         allocate(t_comm_cool(nth(3)+1, (nth(1)+1)*(nth(2)+1)))
-        allocate(t_comm_fuel(nth(3), (nth(1))*(nth(2)+1)))
+        allocate(t_comm_fuel(nth(3), (nth(1))*(nth(2))))
         allocate(rho_comm_cool(nth(3)+1, (nth(1)+1)*(nth(2)+1)))
         allocate(rho_comm_fuel(nth(3), (nth(1)*nth(2))))
         
@@ -2746,7 +2750,7 @@ end function
         ! Assign UNIFORM POWER
         do i = 1, nth(1)
             do j = 1, nth(2)
-                if(fuel_th(i,j)>0d0) then
+                if(fuel_th>0d0) then
                     pp(i,j,1:nth(3)) = 1d0
                     n_rod = n_rod + 1
                 endif
@@ -2958,7 +2962,6 @@ end function
                 !* (1d0+refl_th_w) * (1d0+refl_th_n)
             ch_neighbor  = 2
             rod_neighbor = 1
-            if(wet_peri==0d0) print *, 'WTF?', rad_th(xx,yy-1), fuel_th(xx,yy-1), cld_th(xx,yy-1), gap_th(xx,yy-1), refl_th_w, refl_th_n
         elseif(xx==nth(1)+1 .and. yy==1) then ! Southeast
             flow_area = ((dth(1)*0.5d0+margin(1))*(dth(2)*0.5d0+margin(2)) - 0.25d0 * pi * (rad_th(xx-1,yy)**2)) 
                 !* (1d0+refl_th_s) * (1d0+refl_th_e)

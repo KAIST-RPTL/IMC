@@ -466,7 +466,7 @@ module geometry_header
             end associate
         enddo 
         !print *, 'DIST',d_surf
-        xyz_(:) = xyz(:) + d_surf*uvw(:) 
+        xyz_(:) = xyz(:) + d_surf*uvw(:)
 		if(this%lat_type==1) then
             do i = 1, 3 
                 if(abs(xyz_(i)) > this%pitch(i)*0.5d0) d_surf = INFINITY

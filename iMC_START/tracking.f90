@@ -394,14 +394,16 @@ subroutine transport(p)
 !        call TALLY_SURF(inside_mesh, income_mesh,i_surf, i_xyz, p%E, &
 !                        p%coord(1)%uvw, p%wgt, surfaces(surface_crossed)%bc)
 
-!        if ( fm_crossed ) then
+        !print *, 'CROSS2', p%coord(1)%xyz(:), surfaces(surface_crossed)%surf_id, d_boundary 
+        if ( fm_crossed ) then
             call cross_surface(p, surface_crossed)
-!        else
-!            p%coord(1)%xyz = p%coord(1)%xyz + TINY_BIT * p%coord(1)%uvw
-!        end if
+        else
+            p%coord(1)%xyz = p%coord(1)%xyz + TINY_BIT * p%coord(1)%uvw
+        end if
         
     elseif (abs(distance-d_boundary) < TINY_BIT) then
         p%n_cross = p%n_cross + 1 
+        !print *, 'CROSS', p%coord(1)%xyz(:), surfaces(surface_crossed)%surf_id, d_boundary 
         if (surface_crossed > 0) call cross_surface(p, surface_crossed)
         if(p%alive == .false.) then 
             !$omp atomic

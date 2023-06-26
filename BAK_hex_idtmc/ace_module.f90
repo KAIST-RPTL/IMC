@@ -2,52 +2,75 @@ module ace_module
 
 use variables
 use ace_header 
+use strings, only : parse
 
 implicit none 
 
-integer :: err_val
-
 contains
 
-subroutine SET_ACE
+subroutine set_ace_iso(iso, lib)
 
 !==============================================================================
 implicit none
+integer, intent(in) :: iso
+character(*), intent(in) :: lib
 integer :: i, j, k
 integer :: line
-integer :: iso, iso0K
+integer :: iso0K
 integer :: pt1, pt2
 integer :: anum, mnum
 integer :: ix, lmt 
 integer, parameter :: ace_read_handler = 20171116
-real :: val
+integer :: ierr
 
 integer :: min_egrid, max_egrid, num_egrid, loc1, loc2, loc3, max_len
+character(100) :: tmp1, args(100)
+integer :: nargs
  
 if(E_mode==0) return
 
-if(icore==score) print *, "   Start reading ace-format nuclear data"
+!if(icore==score) print *, "   Start reading ace-format nuclear data"
 
 !Ace-format data
-Emax = 0.d0
-READ_ACE_ISO:Do iso = 1, num_iso
   !Open ace format library
   if(icore==score) print *, iso, trim(ace(iso)%library)
 
-  open(ace_read_handler, file=trim(library_path)//trim(ace(iso)%library), action="read")
+  open(ace_read_handler, file=trim(ace(iso)%library), action="read")
   
   ! excited state if mnum > 300
-  read(ace(iso)%library(1:5), '(f)') val
-  i = mod(int(val), 1000)
-  if (i > 300) then 
-    ace(iso)%excited = .true. 
-  else 
-    ace(iso)%excited = .false. 
-  endif 
-  
+  !read(ace(iso)%library(1:5), '(f)') val
+  !i = mod(int(val), 1000)
+!  write(*,*) iso, (ace(iso)%library)
+!  if(ace(iso)%library(5:5)=='.') then
+!      read(ace(iso)%library(1:4),'(i)') val
+!  else
+!      read(ace(iso)%library(1:5),'(i)') val
+!  endif
+!  i = mod(val,1000)
+!  if (i > 300) then 
+!    ace(iso)%excited = .true.
+!  else 
+!    ace(iso)%excited = .false. 
+!  endif 
+
+  do
+    read(ace_read_handler,*) tmp1
+    call parse(tmp1,' ',args, nargs) 
+    if(trim(args(1)) == lib) exit
+  enddo
+  backspace(ace_read_handler)
+
+
   !1st line
   read(ace_read_handler,'(i6, 4X, f12.6, es12.4)') ace(iso)%ZAID, ace(iso)%atn, ace(iso)%temp
+  
 
+  i = mod(ace(iso)%ZAID,1000)
+  if (i > 300) then
+      ace(iso)%excited = .true.
+  else
+      ace(iso)%excited = .false.
+  endif
 
   !2~6 line
   Do line=2,6
@@ -89,7 +112,209 @@ READ_ACE_ISO:Do iso = 1, num_iso
   call set_DLW( iso, ace(iso)%NXS, ace(iso)%JXS, 3 )
   call set_NYD( iso, ace(iso)%NXS, ace(iso)%JXS )
   call set_FIS( iso, ace(iso)%NXS, ace(iso)%JXS )
-  !call set_UNR(iso, ace(iso)%NXS, ace(iso)%JXS )
+  if(do_ures) call set_UNR(iso, ace(iso)%NXS, ace(iso)%JXS )
+
+  !Maximum energy in XSS table
+  if( Emax < XSS(ace(iso)%NXS(3)) ) Emax = XSS(ace(iso)%NXS(3))
+  
+  !Set recoverable energy per fission [MeV]
+  !Ref. Eq. (7.19) in Nuclear Engineering Fundamentals: A Practical Perspective
+  !First proposed by Unik and Ginlder [1970]
+  
+  if(ace(iso)%JXS(21)/=0) then
+    anum = ace(iso)%NXS(2)/1000
+    mnum = ace(iso)%NXS(2) - anum*1000
+    !ace(iso)%qval = 1.29927d-3*(anum**2)*sqrt(dble(mnum))+33.12d0
+    do i=1,ace(iso)%NXS(4)
+        if(ace(iso)%MT(i)==18) then
+        ace(iso)%qval = ace(iso)%Q(i)*1.0458343d0
+        ! ADJUST Qval with Reference U-235 Heating (Serpent method)
+!        if(icore==score) print *, 'KAPPA', anum*1000+mnum, ace(iso)%qval
+        exit
+        endif
+    enddo
+  else
+    ace(iso)%qval = 0.d0
+  end if
+
+  !Find (n,g) reaction cross section location (MT=102 or ENDF_NG) for burnup
+  !JXS(28) is used to store location onum)%frac
+  ace(iso)%JXS(28) = 0 !initialization of (n,g) pointer
+  lmt = ace(iso)%JXS(3) - 1  !location of MTR Block
+  do ix = 1, ace(iso)%NXS(4) !find MT=102 among reactions excluding elastic rx
+    if( XSS( lmt + ix ) == ENDF_NG ) then
+      ace(iso)%JXS(28) = ace(iso)%JXS(7) + &
+&                 nint( XSS( ace(iso)%JXS(6) + ix - 1 ) ) 
+      !XSS( JXS(28)-1 ) := first energy grid index for MT=102 (IE)
+      !XSS( JXS(28) )   := number of consecutive energies for MT=102 (NE)
+      !XSS( JXS(28)+IC ) := cross section for MT=102 at relative energy index IC
+      !Since IE for (n,g) is 1, absolute energy grid index is used for IC.
+      exit
+    end if
+  end do
+  if(ace(iso)%JXS(28) == 0 ) then
+    if(icore==score) print *, ace(iso)%ZAID, "(n,g) cross section is not found" 
+  end if 
+
+  !Deallocate XSS array for current isotope
+  deallocate( XSS )
+  !Close file handler for current isotope
+  close(ace_read_handler)
+
+  !open(ace_read_handler, file="../ACE_293K/94236.70c_0293", action="read")
+  !close(ace_read_handler)
+  
+
+10 format(8i9/8i9/8i9/8i9/8i9/8i9)
+
+
+end subroutine set_ace_iso
+
+subroutine set_sab_iso(iso)
+  implicit none
+  integer, intent(in) :: iso
+  integer :: i, j, k
+  integer :: line
+  integer :: pt1, pt2
+  integer :: anum, mnum
+  integer :: ix, lmt 
+  integer, parameter :: ace_read_handler = 20171116
+  !real :: val
+  integer :: val
+  integer :: ierr
+  
+  integer :: min_egrid, max_egrid, num_egrid, loc1, loc2, loc3, max_len
+
+  !Open ace format library
+  if(icore==score) print *, iso, trim(sab(iso)%library)
+
+  open(ace_read_handler, file=trim(sab(iso)%library), action="read", iostat= ierr)
+  
+  !1~6 line
+  Do line=1,6
+    read(ace_read_handler,*)  
+  Enddo
+  
+  
+  !7~12 line
+  read(ace_read_handler,10) sab(iso)%NXS(1:16), sab(iso)%JXS(1:32)
+  !Allocate XSS array 
+  if( allocated ( XSS ) ) deallocate ( XSS )
+  allocate( XSS(1:sab(iso)%NXS(1)) )
+  
+  
+  !Read XSS array 
+  pt1 = 1
+  pt2 = 4
+  do
+    if (pt2 >= sab(iso)%NXS(1)) then
+      read(ace_read_handler,*) XSS(pt1:sab(iso)%NXS(1))
+      exit
+    end if
+    read(ace_read_handler,*) XSS(pt1:pt2)
+    pt1 = pt1 + 4
+    pt2 = pt2 + 4
+  end do
+  
+  call set_ITIE( iso, sab(iso)%NXS, sab(iso)%JXS )
+  call set_ITCE( iso, sab(iso)%NXS, sab(iso)%JXS )
+  call set_ITXE( iso, sab(iso)%NXS, sab(iso)%JXS )
+  call set_ITCA( iso, sab(iso)%NXS, sab(iso)%JXS )
+
+  deallocate(XSS)
+  close(ace_read_handler)
+10 format(8i9/8i9/8i9/8i9/8i9/8i9)
+
+end subroutine set_sab_iso
+
+subroutine set_ace
+
+!==============================================================================
+implicit none
+integer :: i, j, k
+integer :: line
+integer :: iso, iso0K
+integer :: pt1, pt2
+integer :: anum, mnum
+integer :: ix, lmt 
+integer, parameter :: ace_read_handler = 20171116
+!real :: val
+integer :: val
+integer :: ierr
+
+integer :: min_egrid, max_egrid, num_egrid, loc1, loc2, loc3, max_len
+ 
+if(E_mode==0) return
+
+if(icore==score) print *, "   Start reading ace-format nuclear data"
+
+!Ace-format data
+Emax = 0.d0
+READ_ACE_ISO:Do iso = 1, num_iso
+  !Open ace format library
+  if(icore==score) print *, iso, trim(ace(iso)%library)
+
+  open(ace_read_handler, file=trim(library_path)//trim(ace(iso)%library), action="read")
+  
+  ! excited state if mnum > 300
+  !read(ace(iso)%library(1:5), '(f)') val
+  !i = mod(int(val), 1000)
+!  if(ace(iso)%library(5:5)=='.') then
+!      read(ace(iso)%library(1:4),'(i)') val
+!  else
+!      read(ace(iso)%library(1:5),'(i)') val
+!  endif
+!  i = mod(val,1000)
+!  if (i > 300) then 
+!    ace(iso)%excited = .true.
+!  else 
+!    ace(iso)%excited = .false. 
+!  endif 
+  
+  !1st line
+  read(ace_read_handler,'(i6, 4X, f12.6, es12.4)') ace(iso)%ZAID, ace(iso)%atn, ace(iso)%temp
+
+  !2~6 line
+  Do line=2,6
+    read(ace_read_handler,*)  
+  Enddo
+  
+  
+  !7~12 line
+  read(ace_read_handler,10) (ace(iso)%NXS(i), i=1,16), (ace(iso)%JXS(i),i=1,32)
+  !Allocate XSS array 
+  if( allocated ( XSS ) ) deallocate ( XSS )
+  allocate( XSS( 1 : ace(iso)%NXS(1)+4 ) )
+  
+  
+  !Read XSS array 
+  pt1 = 1
+  pt2 = 4
+  do
+    if (pt2 >= ace(iso)%NXS(1)) then
+      read(ace_read_handler,*) XSS(pt1:ace(iso)%NXS(1))
+      exit
+    end if
+    read(ace_read_handler,*) XSS(pt1:pt2)
+    pt1 = pt1 + 4
+    pt2 = pt2 + 4
+  end do
+  !print *,iso, trim(ace(iso)%library), ace(iso)%NXS(3), ace(iso)%JXS(21)+1, xss(ace(iso)%jxs(21))
+  
+
+  call set_ESZ( iso, ace(iso)%NXS, ace(iso)%JXS )
+  call set_NU(  iso, ace(iso)%NXS, ace(iso)%JXS )
+  call set_MTR( iso, ace(iso)%NXS, ace(iso)%JXS )
+  call set_LQR( iso, ace(iso)%NXS, ace(iso)%JXS )
+  call set_TYR( iso, ace(iso)%NXS, ace(iso)%JXS )
+  call set_SIG( iso, ace(iso)%NXS, ace(iso)%JXS )
+  call set_AND( iso, ace(iso)%NXS, ace(iso)%JXS )
+  call set_DLW( iso, ace(iso)%NXS, ace(iso)%JXS, 1 )
+  call set_DLW( iso, ace(iso)%NXS, ace(iso)%JXS, 2 )
+  call set_DLW( iso, ace(iso)%NXS, ace(iso)%JXS, 3 )
+  call set_NYD( iso, ace(iso)%NXS, ace(iso)%JXS )
+  call set_FIS( iso, ace(iso)%NXS, ace(iso)%JXS )
+  if(do_ures) call set_UNR(iso, ace(iso)%NXS, ace(iso)%JXS )
 
   
   !Maximum energy in XSS table
@@ -98,24 +323,25 @@ READ_ACE_ISO:Do iso = 1, num_iso
   !Set recoverable energy per fission [MeV]
   !Ref. Eq. (7.19) in Nuclear Engineering Fundamentals: A Practical Perspective
   !First proposed by Unik and Ginlder [1970]
+  
   if(ace(iso)%JXS(21)/=0) then
     anum = ace(iso)%NXS(2)/1000
     mnum = ace(iso)%NXS(2) - anum*1000
-    ace(iso)%qval = 1.29927d-3*(anum**2)*sqrt(dble(mnum))+33.12d0
-!    do i = 1, ace(iso)%NXS(4)
-!    if (ace(iso) % MT( i ) == 18) then 
-!        ace(iso)%qval = ace(iso) % Q (i) 
-!        !print *, 'meanwhile', ace(iso)%qval
-!        exit 
-!    endif 
-!    enddo 
+    !ace(iso)%qval = 1.29927d-3*(anum**2)*sqrt(dble(mnum))+33.12d0
+    do i=1,ace(iso)%NXS(4)
+        if(ace(iso)%MT(i)==18) then
+        ace(iso)%qval = ace(iso)%Q(i)*1.0458343d0
+        ! ADJUST Qval with Reference U-235 Heating (Serpent method)
+!        if(icore==score) print *, 'KAPPA', anum*1000+mnum, ace(iso)%qval
+        exit
+        endif
+    enddo
   else
     ace(iso)%qval = 0.d0
   end if
 
-
   !Find (n,g) reaction cross section location (MT=102 or ENDF_NG) for burnup
-  !JXS(28) is used to store location of CX table for MT=102
+  !JXS(28) is used to store location onum)%frac
   ace(iso)%JXS(28) = 0 !initialization of (n,g) pointer
   lmt = ace(iso)%JXS(3) - 1  !location of MTR Block
   do ix = 1, ace(iso)%NXS(4) !find MT=102 among reactions excluding elastic rx
@@ -143,7 +369,6 @@ READ_ACE_ISO:Do iso = 1, num_iso
   
 End do READ_ACE_ISO
 
-
 if ( sab_iso /= 0 ) then
 if ( icore == score ) print *, "   Read S(a,b) scattering law tables"
 READ_SAB_ISO : do iso = 1, sab_iso
@@ -151,7 +376,7 @@ READ_SAB_ISO : do iso = 1, sab_iso
   !Open ace format library
   if(icore==score) print *, iso, trim(sab(iso)%library)
 
-  open(ace_read_handler, file=trim(library_path)//trim(sab(iso)%library), action="read")
+  open(ace_read_handler, file=trim(library_path)//trim(sab(iso)%library), action="read", iostat= ierr)
   
   !1~6 line
   Do line=1,6
@@ -242,6 +467,8 @@ end if
 
 
 end subroutine set_ace
+
+
 
 !==============================================================================
 
@@ -506,8 +733,9 @@ if( JXS(24) > 0 ) then
 	idx = idx + (3+2*NR+2*NE)
 	
   end do
+  
 else 
-        ac % nu_del_block_exist = .false. 
+  ac % nu_del_block_exist = .false. 
 end if
 end subroutine set_NU
 
@@ -527,6 +755,7 @@ integer, intent(in) :: JXS(1:32)
 if( NXS(4) == 0 ) return
 allocate( ace(iso) % MT( 1 : NXS(4) ) )
 ace(iso) % MT( 1 : NXS(4) ) = XSS( JXS(3) : JXS(3)+NXS(4)-1 )
+
 
 end subroutine set_MTR
 
@@ -1268,7 +1497,7 @@ allocate( ace(iso) % nyd( 1 : NXS(4) ) )
 do ii = 1, NXS(4)
   if( abs( ace(iso) % TY(ii) ) > 100 ) then  !> neutron yields Y(E) provieded as function of neutron energy
     !set pointer
-    if ( icore == score ) print *, '   WARNING :: NYD block exists'
+    if ( icore == score ) print *, '         WARNING :: NYD block exists'
     
     ny => ace(iso) % nyd(ii)
 
@@ -1339,26 +1568,18 @@ ac => ace(iso)
 if ( JXS(21) /= 0 ) then
     IE = XSS(JXS(21)); NE = XSS(JXS(21)+1);
     allocate( ac % sigf( 1 : NXS(3) ) )
-	if (err_val /= 0) print *, "ALLOCATE FAIL - SET_FIS AC%SIGF"
     ac % sigf( : ) = 0 
     ac % sigf( IE : IE+NE-1 ) = XSS( JXS(21)+2 : JXS(21)+2+NE-1 )
-    
-    !do IE = 1, NXS(3)
-    !    if (ac%library(1:5) == '92235') print *, IE, ac%E(IE), ac%sigf(IE)
-    !enddo 
-    !if (ac%library(1:5) == '92235') stop
-    
     
 else 
     nfis = 0 
     do iMT = 1, nxs(4)
         if (ac % ty(iMT) /= 19) cycle
         nfis = nfis+1
-    enddo 
+    enddo
     if (nfis == 0) return
     
-    allocate(temp_XS(1:nfis, 1:NXS(3)), stat = err_val)
-	if (err_val /= 0) print *, "ALLOCATE FAIL - SET_FIS TEMP_XS"
+    allocate(temp_XS(1:nfis, 1:NXS(3)))
     temp_XS(:,:) = 0 
     nfis = 0 
     do iMT = 1, nxs(4)
@@ -1370,8 +1591,7 @@ else
         temp_XS(nfis,IE:IE+NE-1) = XSS( JXS(7)+LOCA+1 : JXS(7)+LOCA+NE )
     enddo 
     
-    allocate( ac % sigf( 1 : NXS(3) ) , stat = err_val )
-	if (err_val /= 0) print *, "ALLOCATE FAIL - SET_FIS AC%SIGF"
+    allocate( ac % sigf( 1 : NXS(3) ) )
     ac % sigf( : ) = 0 
     do IE = 1, NXS(3)
         ac % sigf (IE) = sum(temp_XS(:,IE)) 
@@ -1395,7 +1615,7 @@ integer, intent(in) :: iso
 integer, intent(in) :: NXS(1:16)
 integer, intent(in) :: JXS(1:32)
 
-integer :: I, J, K
+integer :: I, J, K, ii
 integer :: pt1, pt2, N, M
 type (AceFormat), pointer :: ac 
 
@@ -1403,6 +1623,9 @@ type (AceFormat), pointer :: ac
 ac => ace(iso)
 
 !Set parameters
+
+if(JXS(23)==0) return
+
 ac % UNR % N   = XSS(JXS(23)  )
 ac % UNR % M   = XSS(JXS(23)+1)
 ac % UNR % INT = XSS(JXS(23)+2)
@@ -1410,27 +1633,64 @@ ac % UNR % ILF = XSS(JXS(23)+3)
 ac % UNR % IOA = XSS(JXS(23)+4)
 ac % UNR % IFF = XSS(JXS(23)+5)
 
+if(ac % UNR % ILF > 0) then
+    do ii = 1, ac % NXS(4)
+        if(ac % MT(ii) == ac % UNR % ILF) then
+        !if(ac % MT(ii) == 4) then
+            ac % UNR % ILFidx = ii
+            exit
+        endif
+    enddo
+endif
+
+if(ac % UNR % IOA > 0) then
+    do ii = 1, ac % NXS(4)
+        if(ac % MT(ii) == ac % UNR % IOA) then
+            ac % UNR % IOAidx = ii
+            exit
+        endif
+    enddo
+endif
 
 !Allocate arrays 
 N = ac % UNR % N
 M = ac % UNR % M
-allocate( ac % UNR % E(1:N) , stat = err_val )
-allocate( ac % UNR % P(1:N, 1:6, 1:M) , stat = err_val )
-if (err_val /= 0) print *, "ALLOCATE FAIL - SET_UNR"
+
+if(M<1D0 .or. N<1D0) return
+!if(.not. ac % ZAID == 92238) return
+
+n_unr = n_unr + 1
+ac % UNR % unridx = n_unr
+
+if(icore==score) write(*,*) '        UNR DATA FOUND for', ac % ZAID, n_unr
+
+ac % UNR % URES = .true.
+allocate( ac % UNR % E(1:N) )
+allocate( ac % UNR % P(1:N, 1:6, 1:M) )
 
 !Fill E 
-ac % UNR % E (1:N) = XSS(JXS(23)+6:JXS(23)+N-1)
+ac % UNR % E (1:N) = XSS(JXS(23)+6:JXS(23)+5+N)
+
+ac % UNR % Emin    = ac % UNR % E(1)
+ac % UNR % Emax    = ac % UNR % E(N)
+
+if(EUmin > ac % UNR % Emin) EUmin = ac % UNR % Emin
+if(EUmax < ac % UNR % Emax) EUmax = ac % UNR % Emax
 
 !Fill P table
 pt1 = JXS(23)+6+N;
 pt2 = pt1 + M - 1
 do I = 1, N
+    !write(*,*) ac%zaid, I, ac%UNR%E(I)
     do J = 1, 6 
         ac % UNR % P (I,J,1:M) = XSS(pt1:pt2)
         pt1 = pt2 + 1
         pt2 = pt1 + M - 1
+        !write(*,'(I2,I2,<M>F10.4)') I, J, (ac%UNR%P(I,J,ii), ii=1,M)
     enddo 
 enddo
+
+if(icore==score) print *, ac % UNR % Emin, ac % UNR % Emax
 
 end subroutine set_UNR
 
@@ -1454,8 +1714,7 @@ ab => sab(iso)%itie
 !Allocate arrays 
 ab % ne = xss(jxs(1))
 ne = ab % ne
-allocate( ab % erg(1:ne) , ab % xs(1:ne) , stat = err_val)
-if (err_val /= 0) print *, "ALLOCATE FAIL - SET_ITIE"
+allocate( ab % erg(1:ne) , ab % xs(1:ne) )
 
 !Energies
 pt1 = JXS(1)+1
@@ -1492,8 +1751,7 @@ ab => sab(iso)%itce
 ! allocate arrays 
 ab % ne = xss(jxs(4))
 ne = ab % ne
-allocate( ab % erg(1:ne) , ab % xs(1:ne) , stat = err_val )
-if (err_val /= 0) print *, "ALLOCATE FAIL - SET_ITCE"
+allocate( ab % erg(1:ne) , ab % xs(1:ne) )
 
 ! energies
 pt1 = jxs(4)+1
@@ -1532,9 +1790,8 @@ ie => sab(iso)%itie
 ne1 = ie % ne    ! incoming energy
 ne2 = nxs(4)     ! outgoing energy
 na  = nxs(3)+1   ! outgoing angle
-allocate( ab % erg(ne1,ne2) , stat = err_val )
-allocate( ab % ang(ne1,ne2,na) , stat = err_val ) 
-if (err_val /= 0) print *, "ALLOCATE FAIL - SET_ITXE AB"
+allocate( ab % erg(ne1,ne2) )
+allocate( ab % ang(ne1,ne2,na) ) 
 
 ! energies & angles
 do i = 1, ne1
@@ -1583,8 +1840,7 @@ ie => sab(iso)%itie
 ! allocate arrays 
 ne = ie % ne    ! incoming energy
 na = nxs(3)+1   ! outgoing angle
-allocate( ab % ang(ne,na) , stat = err_val)
-if (err_val /= 0) print *, "ALLOCATE FAIL - SET_ITCA AB%ANG" 
+allocate( ab % ang(ne,na) ) 
 
 ! energies & angles
 do i = 1, ne
@@ -1599,5 +1855,44 @@ end subroutine
 !  call set_LDLW(iso, ace(iso)%NXS, ace(iso)%JXS )
 !  call set_DLW(iso, ace(iso)%NXS, ace(iso)%JXS )
 !  call set_YP(iso, ace(iso)%NXS, ace(iso)%JXS )
+
+
+subroutine find_ACE(this,line, iso_)
+    use variables, only: libpath, libname
+    type(AceFormat) :: this(:) 
+    character(*), intent(in) :: line
+    integer, intent(out) :: iso_
+    integer :: i , j, length
+    iso_ = 0
+    do i = 1, num_iso
+        if(trim(line) == trim(ace(i) % xslib)) then
+            iso_ = i
+            return
+        endif
+    enddo
+    
+    ! libname: list of .80c, .81c, ...
+    ! libpath: list of .711nc, .710nc, ...
+    if(iso_ == 0) then
+        do j = 1, size(libname)
+            if(trim(line) == trim(libname(j))) then
+                length = len_trim(line)
+                select case(line(length:length))
+                case('c') ! XS
+                num_iso = num_iso + 1
+                ace(num_iso) % xslib   = trim(line)
+                ace(num_iso) % library = trim(libpath(j))
+                iso_ = num_iso
+                call set_ace_iso(iso_, trim(line))
+                acerecord(j) = .false.
+               end select
+                return
+            endif
+        enddo
+    endif
+
+    if(iso_ == 0) write(*,*) 'Unknown Nuclide: ', line
+
+end subroutine
 
 end module

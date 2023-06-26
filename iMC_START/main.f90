@@ -30,7 +30,7 @@ character(100) :: filename
 real(8) :: kavg, kstd
 real(8) :: time1, time2, time3, time4
 real(8) :: err
-integer :: ix, iy, iz
+integer :: ix, iy, iz, tmp
 
 !> Preparation for parallelization ===============================================
 !call omp_set_num_threads(13)
@@ -44,12 +44,14 @@ call MPI_COMM_SIZE(core,ncore,ierr)
 !> PreMC : Read input / Initialize / Set Random Seed etc. ========================
 call premc
 if(do_child) then
-    if(icore==score) call INIT_CHILD
+    call INIT_CHILD
 
     call MPI_BARRIER(MPI_COMM_WORLD, ierr)
     
     call MPI_BCAST(t_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(t_comm_fuel, nth(1)*nth(2)*nth(3), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
     call MPI_BCAST(rho_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
+    print *, 'BCAST WELL', sum(t_comm_cool)/dble(n_channels*(nth(3)+1)), sum(t_comm_fuel)/dble(nth(1)*nth(2)*nth(3)), sum(rho_comm_cool), icore
 
     call TH_ASSIGN_GRID
 
@@ -182,17 +184,12 @@ TH : do
         !close(prt_wgt)
     endif 
     
-    if( do_child) then
-        if(icore==score) call INIT_CHILD
-    endif
-    
     call MPI_BARRIER(MPI_COMM_WORLD, ierr)
     
     call MPI_BCAST(t_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(t_comm_fuel, nth(1)*nth(2)*nth(3), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
     call MPI_BCAST(rho_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
 
-    if(do_child .and. icore==score) call END_CHILD(intercomm)
-    
     !> PCQS Transient MC =============================================================================
     if (.not. do_PCQS) goto 99
     !open(prt_dynamic,file="PCQS.out",action="write",status="replace")
@@ -265,7 +262,7 @@ TH : do
 99  if (do_gmsh_vrc) close(prt_tet_vrc)
 
     call CYCLE_TALLY_MSG(curr_bat)
-    
+    call MPI_BARRIER(MPI_COMM_WORLD, ierr)    
     if ( th_on ) then
         if ( icore == score ) then
         allocate(ttemp(nfm(1),nfm(2),nfm(3)))
@@ -284,39 +281,52 @@ TH : do
         end if
 
     elseif(do_child .and. th_iter < th_iter_max) then !START OPTION
+        if(icore==score) print *, 'THITER', th_iter, th_iter_max
         th_iter = th_iter + 1
-        
-        t_save  = t_fuel
-        ! ASSIGN POWER
-        call TEMP_CONVERGE(err)
-
-        call MPI_BCAST(err, 1, MPI_REAL8, score, MPI_COMM_WORLD, ierr)
-        if(icore==score) print *, 'ERROR', th_iter, err
-        if(err < th_cvg_crit) exit TH
-        
-        call POWER_NORM_START
         if(icore==score) then
-            do iz = 1, nth(3)
-                print *, 'POWERZ', iz, th_iter
-                do iy = 1, nth(2)
-                    write(*,'(<nth(1)>F10.3)') (pp(ix, iy, iz), ix = 1,nth(1))
+            
+            t_save  = t_fuel
+            ! ASSIGN POWER
+    
+            !if(err < th_cvg_crit) exit TH
+    
+            allocate(ttemp(nfm(1),nfm(2),nfm(3)))
+            do ii = 1, nfm(1)
+            do jj = 1, nfm(2)
+            do kk = 1, nfm(3)
+                ttemp(ii,jj,kk) = AVG(p_fmfd(curr_bat,:,ii,jj,kk))
+            end do
+            end do
+            end do
+            call DET_POWER(ttemp(:,:,:))
+            
+            call POWER_NORM_START
+            if(icore==score) then
+                do iz = 1, nth(3)
+                    print *, 'POWERZ', iz, th_iter
+                    do iy = 1, nth(2)
+                        write(*,'(<nth(1)>F10.3)') (pp(ix, iy, iz), ix = 1,nth(1))
+                    enddo
                 enddo
-            enddo
+            endif
+            call POWER_IMC_TO_START
+    
+            pp = 0d0 ; pp_thread = 0d0
+        
+    
         endif
-        call POWER_IMC_TO_START
-
-        pp = 0d0 ; pp_thread = 0d0
-    
-
-        if(icore==score) call INIT_CHILD
-    
-        call MPI_BARRIER(MPI_COMM_WORLD, ierr)
+            call INIT_CHILD
+            call TEMP_CONVERGE(err)
+            call MPI_BCAST(err, 1, MPI_REAL8, score, MPI_COMM_WORLD, ierr)
+            !if(icore==score) print *, 'ERROR', th_iter, err
         
         call MPI_BCAST(t_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
+        call MPI_BCAST(t_comm_fuel, nth(1)*nth(2)*nth(3), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
         call MPI_BCAST(rho_comm_cool, n_channels * (nth(3)+1), MPI_REAL8, score, MPI_COMM_WORLD, ierr)
-    
-        call TH_ASSIGN_GRID
+            
 
+        call TH_ASSIGN_GRID
+        if(allocated(ttemp)) deallocate(ttemp)
     else
         exit
     end if

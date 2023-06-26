@@ -1,23 +1,116 @@
 module ace_xs
-    use omp_lib
 
 use constants, only : barn
 use variables, only : E_mode, k_steady
 use material_header 
 use ace_header 
 use ace_module 
+use mpi
 
 implicit none
     real(8), parameter:: inv_sqrt_pi = 0.564189583547756D0 ! 1/sqrt(pi)
+    integer, allocatable :: mpiace(:,:)
+    integer :: nace
 
 contains
 
-function getMacroXS (mat, erg,kT) result (macro_xs)
+function getMacroXS_UEG(mat, erg, kT, urn) result (macro_xs)
+    use constants, only : k_b
+    implicit none
+    type(Material_CE), intent(in) :: mat
+    real(8), intent(in) :: erg, kT
+    real(8), intent(in) :: urn(1:n_unr)
+    real(8) :: macro_xs(3)
+    real(8) :: xs(4), micro_xs(6)
+
+    real(8) :: dtemp ! OTF DB
+
+    integer :: ierg, i, iso, iff, ierg0
+    real(8) :: ipfac, ipfac0
+
+    ! 1. Find ierg in UEG grid
+    call getiueg(erg, ierg)
+
+    ! 2. Find Interpolation factor
+    if(ierg > nueg) ierg = nueg
+    if(ierg < 1   ) ierg = 1
+    ipfac = max(0D0,min(1D0,(erg-ueggrid(ierg))/(ueggrid(ierg+1)-ueggrid(ierg))))
+
+    ! 3. Interpolate
+    !dtemp = abs(mat % acetemp - kT)
+    !if(mat % db .and. dtemp > K_B .and. erg < 1d0) then
+    !    ! CONDITION OBTAINED FROM CONVENTIONAL MACRO XS
+    !    macro_xs(:) = get_OTF_DB_UEG(mat, ierg, dtemp)
+    !else ! NO OTF_DB
+        macro_xs(:) = (mat % macro_ueg(ierg,:) &
+            + ipfac * (mat % macro_ueg(ierg+1,:) - mat % macro_ueg(ierg,:)))
+    !endif
+
+    ! 4. ADDITIONAL XS: URES
+    if(n_unr == 0) return
+    if(erg < Eumin .or. erg > Eumax) return
+
+    do i = 1, n_unr
+        iso = uresiso(i)
+        !if(erg < ace(iso) % UNR % Emin .or. erg > ace(iso) % UNR % Emax) cycle
+        ! MAC: Tot, Abs, Fis, NuF, QF 
+        ! MIC: Tot, Ela, Sigd, Fis, Nuf, Qf
+        if(.not. mat % ures(i)) cycle
+        if(erg < ace(iso) % UNR % Emin .or. erg > ace(iso) % UNR % Emax) cycle
+
+        micro_xs = 0D0
+        micro_xs(1) = (ace(iso) % UEG % sigt(ierg) * (1D0-ipfac) &
+            + ace(iso) % UEG % sigt(ierg+1) * ipfac)
+        if(allocated(ace(iso)%UEG%sigel)) &
+            micro_xs(2) = (ace(iso) % UEG % sigel(ierg) * (1D0-ipfac) &
+            + ace(iso) % UEG % sigel(ierg+1) * ipfac)
+        if(allocated(ace(iso)%UEG%sigd)) &
+            micro_xs(3) = (ace(iso) % UEG % sigd(ierg) * (1D0-ipfac) &
+            + ace(iso) % UEG % sigd(ierg+1) * ipfac)
+        if(allocated(ace(iso)%UEG%sigf)) then
+            micro_xs(4) = (ace(iso) % UEG % sigf(ierg) * (1D0-ipfac) &
+                + ace(iso) % UEG % sigf(ierg+1) * ipfac)
+            micro_xs(5) = micro_xs(4) * dble(getnu(iso,erg))
+        endif
+
+        if(erg >= ace(iso) % UNR % Emin .and. erg <= ace(iso) % UNR % Emax) then
+            call URES_PTABLE(iso, erg, xs, iff, urn(ace(iso) % UNR % unridx))
+            micro_xs(1) = xs(1)
+            micro_xs(2) = xs(2)
+            micro_xs(4) = xs(3)
+            micro_xs(5) = xs(3) * getnu(iso,erg)
+            micro_xs(3) = xs(4)
+            !micro_xs(1) = xs(2) + xs(3) + xs(4)
+        endif
+
+        micro_xs(6) = micro_xs(4) * ace(iso) % qval
+
+        macro_xs(1) = macro_xs(1) + micro_xs(1) * mat % numden( mat % uresidx(i) ) * barn
+        !macro_xs(2) = macro_xs(2) + micro_xs(3) * mat % numden( mat % uresidx(i) ) * barn
+        if(micro_xs(4) == 0) cycle
+        !macro_xs(3) = macro_xs(3) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn
+        macro_xs(2) = macro_xs(2) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn * getnu(iso, erg)
+        macro_xs(3) = macro_xs(3) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn * ace(iso) % qval
+
+    enddo
+
+!    tmp = getMacroXS(mat, erg, kT, urn)
+!    if(abs(tmp(1)-macro_xs(1))>1E-9 .or. abs(tmp(4)-macro_xs(4)) > 1E-9) then
+!    print *, 'XX', tmp(1:5)
+!    print *, 'YY', macro_xs(1:5)
+!    print *, 'ZZ', sum(tmp-macro_xs)
+!    endif
+    ! TODO: SAB, OTFDB, URES
+
+end function
+
+function getMacroXS (mat, erg,kT, urn) result (macro_xs)
     use CONSTANTS, only: K_B
     implicit none
     type(Material_CE), intent(in) :: mat
     real(8), intent(in) :: erg
     real(8), intent(in) :: kT
+    real(8), intent(in) :: urn(1:n_unr)
     real(8) :: macro_xs(5)
     
     integer :: i 
@@ -25,10 +118,10 @@ function getMacroXS (mat, erg,kT) result (macro_xs)
     integer :: pt1, pt2, pt3, pt4
     real(8) :: ipfac
     real(8) :: micro_t, micro_d, micro_f, micro_nuf, micro_a, micro_el, micro_xn
-    real(8) :: macro_t, macro_f, macro_nuf, macro_a, macro_qf, kappa
+    real(8) :: macro_t, macro_f, macro_nuf, macro_a, macro_qf
     real(8) :: xn_xs(4)
     real(8) :: xs(5)
-    integer :: isab
+    integer :: isab, iff
     real(8) :: dtemp    ! temperautre difference | library - material |
     macro_t   = 0.0d0
     macro_a   = 0.0d0
@@ -37,6 +130,7 @@ function getMacroXS (mat, erg,kT) result (macro_xs)
     macro_qf  = 0.0d0
     xn_xs(:)  = 0.0d0
 
+    !print *, mat%mat_name, mat%n_iso
     do i_iso = 1, mat%n_iso     ! isotope number in the material
     
         iso_ = mat%ace_idx(i_iso)   ! isotope number in the inputfile
@@ -52,6 +146,7 @@ function getMacroXS (mat, erg,kT) result (macro_xs)
         ! =====================================================================
         ! On-the-fly Doppler broadening
         dtemp = abs(ace(iso_)%temp-kT)
+        !print *,  dtemp, K_B, kT, ace(iso_)%temp, ace(iso_)%zaid
         if ( mat%db .and. ( dtemp > K_B .and. erg < 1d0 ) ) then
             call GET_OTF_DB_MAC(mat%numden(i_iso),i_iso,iso_,erg,xs,dtemp)
             macro_t   = macro_t   + xs(1)
@@ -74,6 +169,7 @@ function getMacroXS (mat, erg,kT) result (macro_xs)
         micro_nuf = 0.d0
         micro_a   = micro_d
         
+        
         ! Fissionable Material
         !if(ace(iso_)%jxs(21)/=0) then
         !if(allocated(ace(iso_)%sigf)) then 
@@ -81,10 +177,27 @@ function getMacroXS (mat, erg,kT) result (macro_xs)
             micro_f   = ace(iso_)%sigf(ierg_) + ipfac*(ace(iso_)%sigf(ierg_+1)-ace(iso_)%sigf(ierg_))
             micro_nuf = getnu(iso_,erg)*micro_f
             micro_a   = micro_d + micro_f
-			!kappa     = ace(iso_)%qval(ierg_) + ipfac*(ace(iso_)%qval(ierg_+1)-ace(iso_)%qval(ierg_))
         endif
         !micro_el = ace(iso_)%sigel(ierg_) + ipfac*(ace(iso_)%sigel(ierg_+1)-ace(iso_)%sigel(ierg_))
-        
+       
+        ! Apply URES
+        if  (ace(iso_) % UNR % URES .and. mat%numden(i_iso) > ures_cut) then
+            ! Only for Energy between Emin and Emax
+            if ( erg >= ace(iso_) % UNR % Emin .and. &
+                    erg <= ace(iso_) % UNR % Emax ) then
+                call URES_PTABLE(iso_, erg, xs, iff, urn(ace(iso_) % UNR % unridx))
+                micro_t   = xs(1)
+                if(allocated(ace(iso_)%sigf)) then
+                    micro_f   = xs(3)
+                    micro_nuf = micro_f * getnu(iso_,erg)
+                else
+                    micro_f = 0d0; micro_nuf = 0d0
+                endif
+                micro_d   = xs(4)
+                micro_a   = micro_d + micro_f
+            endif
+        endif
+
         !>Summation for macroscopic cross sections
         macro_t   = macro_t   + mat%numden(i_iso) * micro_t   * barn
         macro_a   = macro_a   + mat%numden(i_iso) * micro_a   * barn
@@ -126,8 +239,10 @@ function getMicroXS (iso, erg) result (micro_xs)
     integer :: pt1, pt2, pt3, pt4
     real(8) :: ipfac
     real(8) :: micro_t, micro_d, micro_f, micro_nuf, micro_a, micro_el
-    
 
+    real(8) :: xs(4)
+    integer :: iff
+    
     call getierg(iso,ierg_,erg)
     
     ipfac = max(0.d0, min(1.d0,(erg-ace(iso)%E(ierg_))/(ace(iso)%E(ierg_+1)-ace(iso)%E(ierg_))))
@@ -146,7 +261,6 @@ function getMicroXS (iso, erg) result (micro_xs)
         micro_a   = micro_d + micro_f
     endif
     micro_el = ace(iso)%sigel(ierg_) + ipfac*(ace(iso)%sigel(ierg_+1)-ace(iso)%sigel(ierg_))
-    
     
     micro_xs(1) = micro_t
     micro_xs(2) = micro_el
@@ -179,7 +293,6 @@ function getxs (mt_ENDF,iso, erg, ierg)
         endif 
     enddo 
     if (iMT == 0) return  ! no such reaction 
-    
     
     ! 2. Find erg grid index 
     if (.not. present(ierg)) then 
@@ -312,10 +425,11 @@ subroutine getierg(iso_,ierg_,erg0)
     
     uidx = 1 + int(log10(erg0/Emin)/udelta)
 	
-!	if (uidx > 8192) then 
-!		print *, uidx
-!		print *, erg0, Emin, udelta
-!	endif 
+	if (uidx > 8192) then 
+		print *, uidx
+		print *, erg0, Emin, udelta
+        uidx = 8192
+	endif 
     if(uidx<1) uidx = 1
     pt1 = ugrid(uidx-1,iso_)
     pt2 = min(ugrid(uidx,iso_)+1,ace(iso_)%nxs(3))
@@ -329,10 +443,12 @@ subroutine getierg(iso_,ierg_,erg0)
       Do
         if(pt2 - pt1 == 1) exit
         pt3 = (pt2 + pt1)/2
-        if(erg0 >= ace(iso_)%E(pt3)) then
+        if(erg0 > ace(iso_)%E(pt3)) then
           pt1 = pt3
-        else
+        elseif(erg0 < ace(iso_)%E(pt3)) then
           pt2 = pt3
+        else
+        ierg_ = pt3; return
         endif
       Enddo
     endif
@@ -341,23 +457,72 @@ subroutine getierg(iso_,ierg_,erg0)
     !if(erg0 < 1.d-11) print *, erg0, ierg_ !, ace(iso_)%E(ierg_), ace(iso_)%E(ierg_+1)
 end subroutine 
 
+subroutine getiueg(erg, ierg)
+    implicit none
+    real(8), intent(in) :: erg
+    integer, intent(out):: ierg
+
+    integer :: pt1, pt2, pt3
+    integer :: uidx
+
+    uidx = 1 + int(log10(erg/ueggrid(1))/unidel)
+
+    if ( uidx > nuni ) then
+        print *, 'EXCEED', erg, uidx
+        uidx = nuni; !erg = ueggrid(nueg)
+        ierg = nueg;
+        return
+    elseif ( uidx < 1 ) then
+        !print *, 'BELOW', erg, uidx
+        !uidx = 1; !erg = ueggrid(1)
+        ierg  = 0;
+        return
+    endif
+
+    pt1 = unigrid(uidx-1)
+    pt2 = min(unigrid(uidx)+1,nueg)
+
+    if(ueggrid(pt1) > erg) print *,'LO', ueggrid(pt1), int(log10(erg/ueggrid(1))/unidel), erg
+    if(ueggrid(pt2) < erg) print *,'HI', ueggrid(pt2), erg
+
+    if(pt1==pt2) then
+        pt1 = pt1 - 1
+    else
+        do
+        if(pt2-pt1==1) exit
+        pt3 = (pt2 + pt1) / 2
+        if(erg > ueggrid(pt3)) then
+            pt1 = pt3
+        elseif(erg < ueggrid(pt3)) then
+            pt2 = pt3
+        else
+            ierg = pt3
+            return
+        endif
+        enddo
+    endif
+    ierg = pt1
+    if(ueggrid(ierg+1) <= erg) print *, 'WTF?', ierg, ueggrid(ierg), ueggrid(ierg+1)
+end subroutine
 
 subroutine setugrid
     implicit none
     real(8) :: Etmp
+    integer :: totngrid
     integer :: i, j, k, iso_, idx
+    integer :: pt1
 
     if(E_mode==0) return
     !Set ugrid to accelerate energy-grid search
     Emin = 1.d-11
-    allocate(ugrid(0:nugrid,1:num_iso), stat = err_val)
-	if (err_val /= 0) print *, "ALLOCATE FAIL - setugrid ugrid"
+    allocate(ugrid(0:nugrid,1:num_iso))
     !print *, 'ugrid size', nugrid, num_iso
     do iso_ = 1, num_iso
       ugrid(0,iso_) = 1
       ugrid(nugrid,iso_) = ace(iso_)%nxs(3)
     end do
-    udelta = log10(Emax/Emin)/dble(nugrid)
+
+    udelta = log10((Emax+1E-9)/Emin)/dble(nugrid)
 
     do iso_ = 1, num_iso
       idx = 1
@@ -375,44 +540,109 @@ subroutine setugrid
       end do
     enddo
 
-
-!> Only if OTF-DB is Enabled
-
-!    if(num_iso0K) then
-!      allocate(ugrid0K(0:nugrid,1:num_iso0K))
-!      do iso_ = 1, num_iso0K
-!        ugrid0K(0,iso_) = 1
-!        ugrid0K(nugrid,iso_) = ace0K(iso_)%nxs(3)
-!      end do
-!      
-!      do iso_ = 1, num_iso0K
-!        idx = 1
-!        do i=1, nugrid-1
-!          Etmp = Emin*10.d0**(dble(i)*udelta)
-!          if(Etmp > ace0K(iso_)%xss(ace0K(iso_)%nxs(3))) then
-!            idx = ace0K(iso_)%nxs(3)
-!            go to 20  
-!          end if
-!          do
-!            if(Etmp < ace0K(iso_)%xss(idx)) go to 20
-!            idx = idx + 1
-!          end do
-!20        ugrid0K(i,iso_) = idx - 1
-!        end do
-!      end do
-!    end if
-
-
     if(icore==score) print *, "   Setting ugrid..."
-    
-    
-    !do i=1, nugrid-1
-    !    write(99, *) i, Emin*10.d0**(dble(i)*udelta)
-    !enddo 
-    !stop
-    
 end subroutine 
 
+subroutine setuegrid
+    implicit none
+    real(8) :: Etmp
+    integer :: totngrid
+    integer :: i, j, k, iso_, idx
+    integer :: pt1
+    real(8), allocatable :: tmpgrid(:), tmpgrid_2(:)
+
+    if(E_mode==0) return
+    totngrid = 0
+    !Set ugrid to accelerate energy-grid search
+    Emin = 1.d-11
+    !print *, 'ugrid size', nugrid, num_iso
+    do iso_ = 1, num_iso
+      totngrid = totngrid + ace(iso_)%NXS(3)
+      if(ace(iso_) % UNR % URES) & ! URR case
+          totngrid = totngrid + ace(iso_) % UNR % N
+    end do
+
+    ! SAB case !TODO
+!    if(sab_iso /= 0) then
+!        do iso_ = 1, sab_iso
+!            totngrid = totngrid + sab(iso_) % NXS(3)
+!        enddo
+!    endif
+    allocate(tmpgrid(1:totngrid)); pt1 = 1
+
+    udelta = log10((Emax+1E-9)/Emin)/dble(nugrid)
+
+    do iso_ = 1, num_iso
+      tmpgrid(pt1:pt1-1+ace(iso_)%NXS(3)) = ace(iso_) % E(:)
+      pt1 = pt1 + ace(iso_)%NXS(3)
+      
+      !URES
+      if(ace(iso_) % UNR % URES) then
+          tmpgrid(pt1:pt1-1+ace(iso_)%UNR%N) = ace(iso_) % UNR % E(:)
+          pt1 = pt1 + ace(iso_) % UNR % N
+      endif
+
+      !SAB !TODO
+    enddo
+
+    if(icore==score) print *, "   Setting UNIONIZED GRID..."
+
+    ! SORT and COLLIDE UEGGRID 
+    ! 1. SORT
+    call QUICKSORT(tmpgrid,1,totngrid)
+
+    ! 2. COLLECT UNIQUEs
+    allocate(tmpgrid_2(0:totngrid))
+    idx = 1
+    tmpgrid_2(0)   = 0d0
+    tmpgrid_2(idx) = tmpgrid(1)
+    do i = 2, totngrid
+        if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<UEGMAX &
+            )then
+            idx = idx + 1
+            tmpgrid_2(idx) = tmpgrid(i)
+        endif
+    enddo
+    nueg    = idx
+    allocate(ueggrid(0:nueg))
+    ueggrid(0:nueg) = tmpgrid_2(0:nueg)
+
+    deallocate(tmpgrid, tmpgrid_2)
+
+    open(502, file='ueg.out', action='write', status='unknown')
+    if(icore==score)print *, 'NUEG', nueg
+    do i = 1, nueg
+        write(502, *) i, ueggrid(i), log(ueggrid(i))
+    enddo
+
+    ! 3. SETUP HASH TABLE
+    !   NUNI = len(UNIGRID)
+    Emin = ueggrid(1); Emax = ueggrid(nueg)
+    unidel = log10((Emax+Emin*1d-1)/Emin)/dble(nuni)
+
+    allocate(unigrid(0:nuni))
+
+    idx = 1
+    unigrid(0) = 0
+    do i = 1, nuni-1
+        Etmp = Emin * 1d1 ** (dble(i) * unidel)
+        if(Etmp > ueggrid(nueg)) then
+            idx = nuni
+            goto 22
+        endif
+        do
+            if(Etmp < ueggrid(idx)) goto 22
+            idx = idx + 1
+        enddo
+22      unigrid(i) = idx - 1
+        if(icore==score) print *, 'hash', i, unigrid(i), Etmp
+    enddo
+    unigrid(nuni) = UEGMAX
+
+    if(icore==score) print *, 'NUNI:',nuni,'UNIDEL:',unidel,Emin,Emax
+
+    if(icore==score) write(*,'(A,I8,A)') '   UNIONIZED GRID SET: ', nueg, 'grids'
+end subroutine
 
 ! =============================================================================
 ! GET_SAB_MAC
@@ -523,6 +753,8 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs)
     if ( associated(abe) ) nullify(abe)
 
 end subroutine
+
+
 
 
 ! =============================================================================
@@ -766,6 +998,21 @@ subroutine GET_OTF_DB_MIC(temp1,iso,E0,xs1)
 end subroutine
 
 ! =============================================================================
+! GET_OTF_DB
+! =============================================================================
+
+function get_OTF_DB_UEG(mat, ierg0, dtemp) result (macro_xs)
+    use ace_header, only: ace, ghq, wghq, ghq2, xghq2, wghq2
+    use constants, only: k_b
+    implicit none
+    type(Material_CE), intent(in) :: mat
+    integer, intent(in) :: ierg0
+    real(8), intent(in) :: dtemp
+    real(8) :: macro_xs(3) !Total, NuF, QF
+
+end function
+
+! =============================================================================
 !
 ! =============================================================================
 function EFF_IERG(E0,iso,p1,p2) result(pt4)
@@ -887,45 +1134,468 @@ subroutine GET_MIC_DB2(iso,ierg,E1,xs)
 
 end subroutine
 
-!function getnudel (iso_,erg0) result (nu)
-!    integer, intent(in) :: iso_
-!    real(8), intent(in) :: erg0
-!    real(8) :: nu
-!    integer :: ierg, pt1, pt2, pt3
-!    real(8) :: ipfac
-!    type (AceFormat), pointer :: ac
-!
-!    nu = 0
-!    ac => ace(iso_)
-!    if(ac % nu_block_exist == .false.) return
-!
-!   !if (ac%nu_del%NR /= 0) then
-!   !   print *, "WARNING :: nu_del is not lin-lin for", ace(iso_)%library
-!   !   print *, ace(iso_)%nu_del%NR
-!   !   print *, ac%nu_del%NR
-!   !   print *, iso_
-!   !endif
-!   ! 1. binary search to find ierg of erg in E(:)
-!   pt1 = 1
-!   pt2 = ac % nu_del % NE
-!   Do
-!      if(pt2 - pt1 == 1) exit
-!      pt3 = (pt2 + pt1)/2
-!      if(erg0 >= ac%nu_del%E(pt3)) then
-!      pt1 = pt3
-!      else
-!      pt2 = pt3
-!      endif
-!   Enddo
-!   ierg = pt1 !store low bound energy index
-!
-!   if (ac % nu_del % NR /= 0) print *, "ENDF interpolation required for Nu "
-!   ! 2. calculate interpolation factor
-!   ipfac = max(0.d0, min(1.d0,(erg0-ac%nu_del%E(ierg))/(ac%nu_del%E(ierg+1)-ac%nu_del%E(ierg))))
-!
-!   ! 3. linear-linear interpolation
-!   nu = ac%nu_del%F(ierg) + ipfac*(ac%nu_del%F(ierg+1)-ac%nu_del%F(ierg))
-!
-!end function
+subroutine URES_PTABLE(iso, erg, xs, IFF, r)
+    use RANDOMS, only: rang
+    integer, intent(in) :: iso
+    real(8), intent(in) :: erg
+    real(8), intent(in) :: r
+    integer, intent(out):: IFF
+
+    real(8) :: xs(4)
+    real(8) :: xs0(4), xs1(4)
+    real(8) :: xsarr0(4), xsarr1(4)
+    integer :: col0, col1
+    type(UNRtype), pointer :: ac
+    real(8), pointer :: C0(:), C1(:)
+    integer :: N, M, ierg, mm, ii, j1, j2, iMT
+    integer :: iergu, ierg0, ierg1
+    real(8) :: ipfac, ipfac0, ipfac1
+    real(8) :: f
+    real(8) :: xst, xse, xsie, xsa, xsf, xsd
+
+    ac => ace(iso) % UNR
+    N = ac % N; M = ac % M
+    IFF = ac % IFF
+    
+    ! 1-1. Select PTABLE with erg
+    do iergu = 1, N-1
+        if(ac % E(iergu) <= erg .and. erg < ac % E(iergu+1)) exit
+    enddo
+    call getiueg(ac%E(iergu), j1)
+    call getiueg(ac%E(iergu+1), j2)
+
+    !==== NOTES ====
+    ! 1: CDF
+    ! 2: Total XS
+    ! 3: Elastic XS
+    ! 4: Fission XS
+    ! 5: (n,gamma) XS
+
+    ! 2. Call Random to choose column
+    C0 => ac % P(iergu  ,1,:)
+
+    col0 = 1; col1 = 1 ! To avoid crash...
+    do mm = 1, M
+        ! ACE format implies that CDF monotonically increases
+        if(r < C0(mm)) then
+            col0 = mm
+            exit
+        endif
+    enddo
+
+    
+    !col0 = nint(r)
+    !col0 = r; col1 = r
+
+    !print *, 'T', erg, r, col0
+    
+    xs0 = ac % P(iergu  ,2:5,col0)
+    xs1 = ac % P(iergu+1,2:5,col0)
+
+    ! 5. Interpolate Probability Table
+    select case(ac % INT)
+    case(2) ! Linear
+        f  = (erg-ac % E(iergu))/(ac % E(iergu+1) - ac % E(iergu))
+        xs = xs0 *  (1D0-f) + xs1  * f
+    case(5) ! Log-Log
+        f  = (log(erg/ac % E(iergu))) / (log(ac%E(iergu+1)/ac%E(iergu)))
+        !xs = exp(log(xs0) + f * log(xs1/xs0))
+        xs(2) = exp(log(xs0(2)) + f * log(xs1(2)/xs0(2)))
+        xs(3) = exp(log(xs0(3)) + f * log(xs1(3)/xs0(3)))
+        xs(4) = exp(log(xs0(4)) + f * log(xs1(4)/xs0(4)))
+    case default
+        write(*,*) 'INVALID INTERPOLATION...', ac % INT
+    end select
+
+    call getierg(iso, ierg, erg)
+    ipfac = max(0D0,min(1D0,(erg-ace(iso)%E(ierg))/(ace(iso)%E(ierg+1)-ace(iso)%E(ierg))))
+
+    if(ac % IFF > 0) then
+        xst = 0d0; xse = 0d0; xsa = 0d0; xsf = 0d0; xsd = 0d0
+        xst  = xst  + (1d0-ipfac) * ace(iso) %  sigt(ierg) + ipfac * ace(iso) %  sigt(ierg+1)
+        if(allocated(ace(iso)%sigel)) &
+            xse  = xse  + (1d0-ipfac) * ace(iso) % sigel(ierg) + ipfac * ace(iso) % sigel(ierg+1)
+        if(allocated(ace(iso)%sigf)) &
+            xsf  = xsf  + (1d0-ipfac) * ace(iso) %  sigf(ierg) + ipfac * ace(iso) %  sigf(ierg+1)
+        if(allocated(ace(iso)%sigel)) &    
+            xsd  = xsd  + (1d0-ipfac) * ace(iso) %  sigd(ierg) + ipfac * ace(iso) %  sigd(ierg+1)
+        xs(2) = xs(2) * xse
+        xs(3) = xs(3) * xsf
+        xs(4) = xs(4) * xsd
+    endif
+    xs(1) = sum(xs(2:4))
+    ! 
+    ! 4. Additional XS from contribution factors; ILF and IOA
+    if(ac % ILF > 0) then
+        xs(1) = xs(1) + &
+            ace(iso) % sig_MT(ac % ILFidx) % cx(ierg) * (1D0-ipfac) + & 
+            ace(iso) % sig_MT(ac % ILFidx) % cx(ierg+1) * ipfac
+    elseif(ac % ILF == 0) then ! USE BALANCE: ILF = TOT-ABS-ELAS
+        xs(1) = xs(1) + &
+            xst - xsf - xsd - xse
+    endif
+    
+    if(ac % IOA > 0) then
+        xs(1) = xs(1) + &
+            ace(iso) % sig_MT(ac % IOAidx) % cx(ierg) * (1D0-ipfac) + &
+            ace(iso) % sig_MT(ac % IOAidx) % cx(ierg+1) * ipfac
+        xs(4) = xs(4) + &
+            ace(iso) % sig_MT(ac % IOAidx) % cx(ierg) * (1d0-ipfac) + &
+            ace(iso) % sig_MT(ac % IOAidx) % cx(ierg+1) * ipfac
+    elseif(ac % IOA == 0) then
+    endif
+    
+
+    if(associated(C0)) nullify(C0)
+    if(associated(ac)) nullify(ac)
+
+end subroutine
+
+subroutine GET_URR_MICRO(iso, erg, xs, urn)
+    integer, intent(in) :: iso
+    real(8), intent(in) :: erg
+    real(8), intent(in) :: urn(:)
+    real(8), intent(inout) :: xs(:)
+    real(8) :: xs0(4)
+    integer :: iff, ierg, idx
+    real(8) :: ipfac
+    ! 1: Total, 2: Elastic, 3: Abs, 4: Fiss, 5: NuFis, 6: (n,gamma)
+    if(.not. ace(iso) % UNR % URES ) return
+    if(erg < ace(iso) % UNR % Emin .or. erg > ace(iso) % UNR % Emax) return
+
+    call URES_PTABLE(iso, erg, xs0, iff, urn(ace(iso) % UNR % unridx))
+
+    xs(1) = xs0(1)
+    xs(2) = xs0(2)
+    xs(4) = xs0(3)
+    xs(5) = xs0(3) * getnu(iso,erg)
+    xs(6) = xs0(4)
+    xs(3) = xs(4) + xs(6)
+
+    !xs(1) = xs(2) + xs(3) + xs(4)
+
+end subroutine
+
+recursive subroutine quicksort(arr, first, last)
+  implicit none
+  real(8) :: arr(:), x, tmp
+  integer :: first, last
+  integer :: pt1, pt2
+
+  x = arr( (first+last) / 2 )
+  pt1 = first;  pt2 = last
+  do
+     do while (arr(pt1) < x)
+        pt1 = pt1 + 1
+     end do
+     do while (x < arr(pt2))
+        pt2 = pt2 - 1
+     end do
+     if (pt1 >= pt2) exit
+     tmp = arr(pt1)
+     arr(pt1) = arr(pt2)
+     arr(pt2) = tmp
+     pt1 = pt1 + 1
+     pt2 = pt2 - 1
+  end do
+  if (first < pt1 - 1) call quicksort(arr, first, pt1 - 1)
+  if (pt2 + 1 < last)  call quicksort(arr, pt2 + 1, last)
+end subroutine quicksort
+
+subroutine setueg
+use constants 
+integer :: iso, i, r, ierg, idx
+real(8) :: ipfac
+type(AceFormat), pointer :: ac
+    !$OMP PARALLEL DO PRIVATE(i, r, iso, ac, idx, ipfac)
+    do iso = 1, num_iso
+        ! 1. Initialize Egrid: corresponding E points for each iso.
+        ac => ace(iso)
+        allocate(ac%UEG%Egrid(1:nueg))
+        !if(icore==score) print *, iso, nueg
+        !   * Set Egrid: Closest lower E point of iso for each ueggrid
+        ac % UEG % Egrid = ac % NXS(3)+1
+        idx = 0
+        do i = 1, nueg
+            !if(iso==1 .and. ueggrid(i) >= ac % E(idx+1)) print *, ac % zaid, idx, ueggrid(i), ac % E(idx), ac % E(idx+1)
+            if(ueggrid(i) >= ac % E(idx+1)) idx = idx + 1
+            ac % UEG % Egrid(i) = idx
+            if(idx >= ac % NXS(3)) exit
+        enddo
+
+        allocate(ac%UEG%sigt(1:nueg))
+        ac % UEG % sigt = (ac % sigt ( ac % NXS(3) ))
+        do i = 1, nueg
+            if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+                ac % UEG % sigt(i) = (ac % sigt(1))
+                cycle
+            elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+                exit
+            endif
+            ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+            ac % UEG % sigt(i) = (ac % sigt( ac % UEG % Egrid(i)) + (ac % sigt( ac % UEG % Egrid(i)+1 ) - ac % sigt(ac % UEG % Egrid(i) )) * ipfac)
+        enddo
+        !if(icore==score) print *, 'Total XS for ', ace(iso) % xslib
+            
+        allocate(ac%UEG%sigd(1:nueg))
+        ac % UEG % sigd = (ac % sigd ( ac % NXS(3) ))
+        do i = 1, nueg-1
+            if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+                ac % UEG % sigd(i) = (ac % sigd(1))
+                cycle
+            elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+                exit
+            endif
+            ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+            ac % UEG % sigd(i) = ( ac % sigd( ac % UEG % Egrid(i)) + (ac % sigd( ac % UEG % Egrid(i)+1 ) - ac % sigd(ac % UEG % Egrid(i) )) * ipfac)
+        enddo
+        !if(icore==score) print *, '(n,gamma) XS for ', ace(iso) % xslib
+        
+        if(allocated(ace(iso)%sigf)) then
+        allocate(ac%UEG%sigf(1:nueg))
+        allocate(ac%UEG%signuf(1:nueg))
+!        allocate(ac%UEG%sigqf(1:nueg))
+        ! 1) Fission XS
+        ac % UEG % sigf = (ac % sigf ( ac % NXS(3) ))
+        do i = 1, nueg-1
+            if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+                ac % UEG % sigf(i) = (ac % sigf(1))
+                cycle
+            elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+                exit
+            endif
+            ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+            ac % UEG % sigf(i) = (ac % sigf( ac % UEG % Egrid(i)) + (ac % sigf( ac % UEG % Egrid(i)+1 ) - ac % sigf(ac % UEG % Egrid(i) )) * ipfac)
+        enddo
+
+!        ! 2) NuFiss XS and Q Fiss XS
+        do i = 1, nueg
+            ac % UEG % signuf(i) = ac % UEG % sigf (i) * getnu(iso, ueggrid(i))
+!            ac % UEG % sigqf(i)  = ac % UEG % sigf (i) * ac % qval
+        enddo
+        !if(icore==score) print *, 'Fission XS for ', ace(iso) % xslib
+        endif
+        
+        if(allocated(ac % sigel)) then
+        allocate(ac%UEG%sigel(1:nueg))
+        ac % UEG % sigel = (ac % sigel( ac % NXS(3) ))
+        do i = 1, nueg-1
+            if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+                ac % UEG % sigel(i) = (ac % sigel(1))
+                cycle
+            elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+                exit
+            endif
+            ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+            ac % UEG % sigel(i) = (ac % sigel( ac % UEG % Egrid(i)) + (ac % sigel( ac % UEG % Egrid(i)+1 ) - ac % sigel(ac % UEG % Egrid(i) )) * ipfac)
+        enddo
+        !if(icore==score) print *, 'Elastic XS for ', ace(iso) % xslib
+        endif
+
+!        do r = 1, ac%NXS(4)
+!            select case(ac % MT(r))
+!            case(N_2N) ! (n,2n)
+!                allocate(ac%UEG%sig2n(1:nueg))
+!                !ac % UEG % sig2n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+!                ac % UEG % sig2n = 0d0
+!                do i = 1, nueg-1
+!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+!                        ac % UEG % sig2n(i) = (ac % sig_MT(r) % cx(1))
+!                        cycle
+!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+!                        ac % UEG % sig2n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
+!                        exit
+!                    endif
+!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+!                    ac % UEG % sig2n(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
+!                enddo
+!                !if(icore==score) print *, '(n,2n) XS for ', ace(iso) % xslib
+!            case(N_3N) ! (n,3n)
+!                allocate(ac%UEG%sig3n(1:nueg))
+!                !ac % UEG % sig3n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+!                ac % UEG % sig3n = 0d0
+!                do i = 1, nueg-1
+!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+!                        ac % UEG % sig3n(i) = (ac % sig_MT(r) % cx(1))
+!                        cycle
+!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+!                        ac % UEG % sig3n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
+!                        exit
+!                    endif
+!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+!                    ac % UEG % sig3n(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
+!                enddo
+!                !if(icore==score) print *, '(n,3n) XS for ', ace(iso) % xslib
+!            case(N_4N) ! (n,4n)
+!                allocate(ac%UEG%sig4n(1:nueg))
+!                !ac % UEG % sig4n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+!                ac % UEG % sig4n = 0d0
+!                do i = 1, nueg-1
+!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+!                        ac % UEG % sig4n(i) = (ac % sig_MT(r) % cx(1))
+!                        cycle
+!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+!                        ac % UEG % sig4n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
+!                        exit
+!                    endif
+!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+!                    ac % UEG % sig4n(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
+!                enddo
+!                !if(icore==score) print *, '(n,4n) XS for ', ace(iso) % xslib
+!            case(N_P) ! (n,p)
+!                allocate(ac%UEG%sigp(1:nueg))
+!                !ac % UEG % sigp = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+!                ac % UEG % sigp = 0d0
+!                do i = 1, nueg-1
+!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+!                        ac % UEG % sigp(i) = (ac % sig_MT(r) % cx(1))
+!                        cycle
+!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+!                        ac % UEG % sigp(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
+!                        exit
+!                    endif
+!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+!                    ac % UEG % sigp(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
+!                enddo
+!                !if(icore==score) print *, '(n,)a XS for ', ace(iso) % xslib
+!            case(N_A) ! (n,al)
+!                allocate(ac%UEG%sigal(1:nueg))
+!                !ac % UEG % sigal = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
+!                ac % UEG % sigal = 0d0
+!                do i = 1, nueg-1
+!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
+!                        ac % UEG % sigal(i) = (ac % sig_MT(r) % cx(1))
+!                        cycle
+!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
+!                        ac % UEG % sigal(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
+!                        exit
+!                    endif
+!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
+!                    ac % UEG % sigal(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
+!                enddo
+!            case default
+!            endselect
+!        enddo
+        if(icore==score) write(*,'(A,A,I4,A,I4)') '   UEG XS set for ', trim(ace(iso) % xslib), iso, '/', num_iso
+    enddo
+    !$OMP END PARALLEL DO
+end subroutine
+
+subroutine setures
+    ! Additional Cross-section
+    ! For URES isotopes, exclude from setMacro
+    ! Instead, add ac % UEG % sigX_ures(:,:)
+    ! sig_ures: nueg x M 
+    ! X: sigt, sigel, siga, sigf, signuf
+    integer :: iso, i, j, ierg
+    real(8) :: erg, ipfac
+    
+    type(AceFormat), pointer :: ac
+
+    ! Currently, using Linear interpolation
+    ! NEEDS TO CONSIDER IFF
+    if(.not. do_ures) return
+    allocate(uresiso(1:n_unr));
+    !$OMP PARALLEL DO PRIVATE(iso, ac, erg, j, ierg, ipfac)
+    do iso = 1, num_iso
+        ! 1. Initialize sig_ures
+        ac => ace(iso)
+        if(.not. ac % UNR % URES ) cycle
+        uresiso(ac % UNR % unridx) = iso
+    enddo
+
+end subroutine
+
+subroutine setMacroXS(BU)
+    ! OBJECTIVE: Obtain UEG-wise XS
+    ! 1 >> Total XS
+    ! 2 >> Absorption XS
+    ! 3 >> Fission XS
+    ! 4 >> NuFiss. XS
+    ! 5 >> QFiss. XS
+    type(Material_CE), pointer :: mat
+    logical, intent(in) :: BU
+    integer :: i, j, iso, ii, imat
+    integer :: nprod
+    real(8) :: micro(3), xs(6), ipfac
+
+    integer :: ierg, cnt
+    cnt = 0
+    !$OMP PARALLEL DO PRIVATE(iso, mat, micro, nprod, xs)
+    do imat = 1, n_materials
+    !if(BU .and. .not. materials(imat)%depletable) cycle
+    mat => materials(imat)
+    if(.not. allocated(mat % macro_ueg)) allocate(mat % macro_ueg(1:nueg, 3))
+    
+    if(do_ures .and. n_unr>0 .and. .not. allocated(mat % ures)) &
+        allocate(mat % ures(1:n_unr))
+    mat % ures = .false.
+    if(do_ures .and. n_unr>0 .and. .not. allocated(mat % uresidx)) &
+        allocate(mat % uresidx(1:n_unr))
+    mat % uresidx = 0
+    
+    mat % macro_ueg = 0D0
+    do i = 1, mat % n_iso
+        iso = mat % ace_idx(i)
+        if(ace(iso) % UNR % URES .and. mat % numden(i) > ures_cut) then
+            mat % ures(ace(iso) % UNR % unridx) = .true.
+            mat % uresidx(ace(iso)%UNR% unridx) = i
+        endif
+
+        if(do_ures) then
+            do j = 1, nueg
+                if(ace(iso) % UNR % URES) then
+                !if(mat % ures(ace(iso) % UNR % unridx)) cycle
+                if(mat % ures(ace(iso) % UNR % unridx) .and. &
+                    ueggrid(j) >= ace(iso) % UNR % Emin .and. &
+                    ueggrid(j) <= ace(iso) % UNR % Emax) cycle
+                endif
+                micro    = 0D0
+                micro(1) = (ace(iso) % UEG % sigt(j))
+                !if(allocated(ace(iso)%UEG%sigd)) &
+                !    micro(2) = (ace(iso) % UEG % sigd(j))
+    
+                if(allocated(ace(iso)%UEG%sigf)) then
+                    !micro(3) = (ace(iso) % UEG % sigf(j))
+                    micro(2) = (getnu(iso,ueggrid(j)) * ace(iso) % UEG % sigf(j))
+                    micro(3) = (ace(iso) % qval * ace(iso) % UEG % sigf(j))
+                    !micro(2) = (micro(2) + micro(3))
+                endif
+    
+                mat % macro_ueg(j,:) = mat % macro_ueg(j,:) &
+                   + (micro(:) * mat % numden(i) * barn)
+            enddo
+
+        else
+            mat % macro_ueg(:,1) = mat % macro_ueg(:,1) + &
+                ace(iso) % UEG % sigt(:) * mat % numden(i) * barn
+
+            if(allocated(ace(iso) % UEG % sigf)) then
+                mat % macro_ueg(:,2) = mat % macro_ueg(:,2) + &
+                    ace(iso) % UEG % signuf(:) * mat % numden(i) * barn
+                mat % macro_ueg(:,3) = mat % macro_ueg(:,3) + &
+                    ace(iso) % UEG % sigf(:) * mat % numden(i) * barn * ace(iso) % qval
+            endif               
+        endif
+    enddo
+    if(n_materials < 10) then
+        if(icore==score) write(*,*) 'XS SET FOR MAT #:', imat
+    else ! n_materials >= 100
+        !$OMP ATOMIC
+        cnt = cnt + 1
+        if(icore/=score) cycle
+        if(cnt == n_materials/4) then
+            print *, 'MATERIAL XS CALC ( 25%/100%)'
+        elseif(cnt == n_materials/4*2) then
+            print *, 'MATERIAL XS CALC ( 50%/100%)'
+        elseif(cnt == n_materials/4*3) then
+            print *, 'MATERIAL XS CALC ( 75%/100%)'
+        elseif(cnt == n_materials) then
+            print *, 'MATERIAL XS CALC (100%/100%)'
+        endif
+    endif
+    enddo
+
+end subroutine
 
 end module

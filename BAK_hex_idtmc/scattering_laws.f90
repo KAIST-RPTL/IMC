@@ -41,7 +41,7 @@ subroutine law_selector (erg, iso, mu, dist, iMT, law)
     
     case (66)
         call LAW66(erg, iso, mu, dist, iMT)  
-        print *, "WARNING :: LAW66 is called"
+        !print *, "WARNING :: LAW66 is called"
         
     !> Unprepared Laws 
     case (2) 
@@ -93,7 +93,7 @@ subroutine LAW1 (erg, iso, mu, dist, iMT)
         !NBT (1:NR) = dist%LDAT(2   :NR+1  ) 
         !INTP(1:NR) = dist%LDAT(NR+2:2*NR+1) 
     endif
-
+	
     NE  = dist%LDAT(2+2*NR)
     NET = dist%LDAT(3+2*NR+NE) 
     allocate(Ein(1:NE)) 
@@ -261,6 +261,7 @@ subroutine LAW4 (erg, iso, mu, dist, iMT)
         
     enddo 
     
+	
     pt3 = pt1
     if (rang() < ipfac) pt3 = pt2
     do i = ND+1, NP(pt3)
@@ -295,10 +296,14 @@ subroutine LAW4 (erg, iso, mu, dist, iMT)
             
             Eout = E1 + (E_-dist%LDAT(K(pt3)+2))*(E2-E1)/(dist%LDAT(K(pt3)+2+NP(pt3)-1) - dist%LDAT(K(pt3)+2))
             !Eout = E1 + (E_-dist%LDAT(K(pt3)+2))*(E2-E1)/(dist%LDAT(K(pt3)+2+i-1) - dist%LDAT(K(pt3)+2))
-            
             found = .true. 
         endif 
     enddo 
+	
+	
+	
+	
+	
     !if(found /= .true.) then 
     !    print *, "ERROR :: now found"
     !    stop
@@ -308,6 +313,13 @@ subroutine LAW4 (erg, iso, mu, dist, iMT)
     !    Eout = Eout + (erg + 2*mu*(ace(iso)%atn+1)*sqrt(erg * Eout))/(ace(iso)%atn+1)**2
     !endif
     erg = Eout
+	
+	!if (Eout > 20) then 
+	!	print *, 'law 4 after'
+	!	print *, Eout 
+	!	print *, dist%LDAT(K(pt3)+2+i-1), dist%LDAT(K(pt3)+2+i)
+	!endif 
+	
         
 end subroutine 
 

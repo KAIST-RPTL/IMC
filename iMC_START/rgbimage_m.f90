@@ -96,16 +96,15 @@ contains
     rgbimage_inside = ((x > 0) .and. (x <= this%n(1)) .and. (y > 0) .and. (y <= this%n(2)))
   end function
  
-  subroutine rgbimage_set_pixel(this, x, y, rgb)
+  subroutine rgbimage_set_pixel(this, x, y, rgb_in)
     class(rgbimage), intent(inout) :: this
     integer,         intent(in)    :: x, y
       !! coordinates
-    integer,         intent(in)    :: rgb(3)
+    integer,         intent(in)    :: rgb_in(3)
       !! red, green, blue values
- 
     if (this%inside(x, y)) then
       ! use given data at first
-      this%rgb(x,y,:) = rgb
+      this%rgb(x,y,1:3) = rgb_in(1:3)
  
       ! check if given data was out of bounds
       where     (this%rgb(x,y,:) > 255)
@@ -175,7 +174,7 @@ contains
  
 	do j = this%n(2), 1, -1
 		do i = 1, this%n(1)
-			write (iounit, '(3A1)', advance='no') this%rgb(i,j,:) 
+			write (iounit, '(3A1)', advance='no') (this%rgb(i,j,k), k=1,3) 
 		end do
 	end do
  

@@ -10,7 +10,9 @@ module constants
                           rd_mat   = 5, & 
                           rd_dep   = 6, &
                           rd_inven = 7, &
-                          rd_temp  = 0
+                          rd_temp  = 0, &
+                          rd_xslib = 99, &
+                          rd_mgt   = 98
     integer, parameter :: wt_coord = 8  !I/O unit for coordinate test 
     integer, parameter :: prt_spec = 9  !I/O unit for spectral analysis variable print 
     
@@ -22,7 +24,6 @@ module constants
     integer, parameter :: prt_flux        = 12  !I/O unit for flux
     integer, parameter :: prt_powr        = 13  !I/O unit for power
     integer, parameter :: prt_bumat       = 14  !I/O unit for burned materials
-    integer, parameter :: prt_dep         = 21  !I/O unit for depletion calculation
     integer, parameter :: prt_dynamic     = 15  !I/O unit for burned materials
     integer, parameter :: prt_prompt      = 16  !I/O unit for burned materials
     integer, parameter :: prt_delayed     = 17  !I/O unit for burned materials
@@ -30,7 +31,9 @@ module constants
     integer, parameter :: prt_wgt         = 19  !I/O unit for burned materials
     integer, parameter :: prt_tet_vrc     = 20  !I/O unit for burned materials
     
-    
+    integer, parameter :: bumat_test      = 21    
+    integer, parameter :: prt_adjoint     = 22
+    integer, parameter :: prt_fuel_mv     = 23
     !integer, parameter :: prt_assflux      = 10 !I/O unit for flux
     !integer, parameter :: prt_asspowr      = 11 !I/O unit for power
     !integer, parameter :: prt_3Dflux      = 12 !I/O unit for flux
@@ -71,17 +74,17 @@ module constants
     real(8), parameter:: m_u = 1.660540D-27 ! amu to Kg
     real(8), parameter:: m_n = 1.008664     ! neutron mass (amu)
     real(8), parameter:: mevj = 1.6022D-13  ! MeV to Joule
-    
-    
-    
-    
+	
+	
+	
+	
     !==============================================================================
     ! Precision kind
-    integer, parameter :: sp = kind(1.0), &
-                          dp = kind(1.d0)
+	integer, parameter :: sp = kind(1.0), &
+						  dp = kind(1.d0)
 
-    
-    
+	
+	
     ! universe types 
     integer, parameter :: pure_univ = 0 , &
                           Pin_univ    = 1
@@ -97,7 +100,9 @@ module constants
                 cyly = 8, &
                 cylz = 9, &
                 sph  = 10, & 
-                hexz = 11
+				!hexz = 11, &
+                hexxc = 11, &
+                hexyc = 12
     !==============================================================================
     
   ! Maximum number of collisions/crossings
@@ -147,8 +152,8 @@ module constants
        MASS_PROTON      = 1.007276466879_8,  & ! mass of a proton in amu
        AMU              = 1.660539040e-27_8, & ! 1 amu in kg
        C_LIGHT          = 2.99792458e8_8,    & ! speed of light in m/s
-       N_AVOGADRO       = 0.6022140857E24_8, & ! Avogadro's number in 10^24/mol
-       K_B              = 8.6173303e-11_8,   & ! Boltzmann constant in MeV/K
+       N_AVOGADRO       = 0.60220434469282e24_8, & !  0.6022140857e24_8,    & ! Avogadro's number in 1/mol
+       K_B              = 8.6173303e-11_8,    & ! Boltzmann constant in MeV/K
        INFINITY         = huge(0.0_8),       & ! positive infinity
        TOOLONG          = 1.0e6_8,           & ! too long distance limit
        ZERO             = 0.0_8,             &
