@@ -69,6 +69,8 @@ subroutine simulate_history(bat,cyc)
 	integer :: i_bin(4)
     real(8) :: adj_sum, totwgt
 
+    MSR_leak = 0
+
     if (allocated(fission_bank)) call move_alloc(fission_bank, source_bank)
     if ( icore == score ) then
         call SHENTROPY(source_bank)
@@ -247,7 +249,7 @@ subroutine simulate_history(bat,cyc)
         !print *, 'leak', MSR_leak
         call MPI_ALLREDUCE(MSR_leak,ndata,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
         MSR_leak = ndata
-        !print *, 'leak_red', MSR_leak
+        if(icore==score) print *, 'leak_red', MSR_leak
     endif
         
         !if(icore == score) print *, curr_cyc, isize, n_col	
@@ -375,6 +377,7 @@ subroutine simulate_history(bat,cyc)
     !> Normalize source weight  =================================================
     isize = size(fission_bank)
     fission_bank(:)%wgt = real(ngen,8)/real(isize,8)
+    if(do_fuel_mv) fission_bank(:)%wgt = real(ngen,8) / real(isize+MSR_leak,8)	
 	fission_bank(:)%time = 0 
 	
     !> Normalize tally (flux & power) ===========================================

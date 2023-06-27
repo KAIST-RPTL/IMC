@@ -112,6 +112,7 @@ subroutine collision_CE (p)
     call fissionSite_CE(p, iso, micro_xs)
 	
 	call fissionSite_dynamic (p, iso, micro_xs)
+
 	
     !!===============================================
     !Sampling reaction: elastic vs.non-elastic
@@ -806,7 +807,12 @@ subroutine fissionSite_CE (p, iso, micro_xs)
                 lambda = ace(iso)%prcr(iMT)%decay_const
                 thread_bank(bank_idx)%time= -log(rang())/lambda
                 call MSR_treatment(thread_bank(bank_idx)%xyz, thread_bank(bank_idx)%time,alive)
-                if(.not. alive) bank_idx = bank_idx - 1
+                ! Dead neutron cannot affect reactor performance.
+                ! Thus, impact from the delayed should be neglected
+                if(.not. alive) then
+                    bank_idx = bank_idx - 1
+                endif
+
             endif
         else !prompt
             thread_bank(bank_idx)%delayedarr(latent) = 0
@@ -832,6 +838,8 @@ subroutine MSR_treatment(xyz, t_emit, alive)
     alive = .true.
     if(.not. do_fuel_mv) return
     if(fuel_speed <= 0.d0) return
+    if(xyz(3)<core_base .or. xyz(3)>core_base + core_height) return ! Out of Active core (Z)
+    if(xyz(1)**2+xyz(2)**2>core_radius**2) return ! Out of Active core (r)
     t_end   = (core_height-(xyz(3)-core_base)) / fuel_speed
     n_recirc= max(0,floor((t_emit-t_end)/(t_rc + (core_height/fuel_speed))))
     t_res   = t_emit - t_end - n_recirc * (t_rc + core_height/fuel_speed)
@@ -839,10 +847,10 @@ subroutine MSR_treatment(xyz, t_emit, alive)
         xyz(3) = xyz(3) + fuel_speed * t_emit
     elseif(t_res<=t_rc) then ! decays out of the core: exterminates
         !bank_idx = bank_idx - 1
-        !print *, 'DEAD', t_emit, t_end, t_res, t_rc
         MSR_leak = MSR_leak + 1
-        !print *, MSR_leak
+        !print *, 'DEAD', t_emit, t_end, t_res, t_rc, MSR_leak
         alive = .false.
+        
     elseif(t_res>t_rc) then ! recirculate and decayed
         rn1 = rang(); rn2 = rang()
         xyz(1) = rn1 * core_radius * cos(2*pi*rn2)
@@ -850,8 +858,9 @@ subroutine MSR_treatment(xyz, t_emit, alive)
         xyz(3) = core_base + fuel_speed * (t_res-t_rc)
         !print *, 'RECIRC', t_emit, t_end, t_res, t_rc, xyz(1:3)
     else
-        !bank_idx = bank_idx - 1
+        bank_idx = bank_idx - 1
         alive = .false.
+        !print *, 'DEAD2', t_emit, t_end, t_res, t_rc
     endif
 end subroutine
 

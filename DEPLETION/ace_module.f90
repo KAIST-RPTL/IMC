@@ -24,8 +24,8 @@ integer, parameter :: ace_read_handler = 20171116
 integer :: ierr
 
 integer :: min_egrid, max_egrid, num_egrid, loc1, loc2, loc3, max_len
-character(100) :: tmp1, args(100)
-integer :: nargs
+character(100) :: tmp1, args(100), tmparg
+integer :: nargs, length, liblen
  
 if(E_mode==0) return
 
@@ -52,11 +52,14 @@ if(E_mode==0) return
 !  else 
 !    ace(iso)%excited = .false. 
 !  endif 
-
+  liblen = len(trim(lib))
   do
     read(ace_read_handler,*) tmp1
-    call parse(tmp1,' ',args, nargs) 
-    if(trim(args(1)) == lib) exit
+    call parse(tmp1,' ',args, nargs)
+    tmparg = adjustl(trim(args(1)))
+    length = len(trim(tmparg))
+    
+    if(tmparg(length-2:length) == lib(liblen-2:liblen)) exit
   enddo
   backspace(ace_read_handler)
 

@@ -3,7 +3,7 @@ module material_header
     implicit none 
 
     type Material_CE
-        character(len=20)    :: mat_name       ! User-defined name
+        character(len=50)    :: mat_name       ! User-defined name
         integer              :: mat_type       ! 1 fuel 2 clad 3 coolant (cool)
         integer              :: n_iso = 0      ! number of isotopes (nuclides)
         integer, allocatable :: ace_idx(:)     ! index in nuclides array
@@ -71,6 +71,7 @@ module material_header
         
         n = size(this)
         do i = 1, n
+            print *, 'TST  ', mat_id, trim(this(i)%mat_name)
             if (trim(this(i)%mat_name) == mat_id) then 
                 idx = i 
                 return 

@@ -886,6 +886,7 @@ end subroutine READ_CTRL
 		integer :: ierr, curr_line
 		character(20) :: surf_id
         integer :: rgb(3)
+        real(8) :: l_inact
 		
 		
         File_Error=0
@@ -1402,12 +1403,25 @@ end subroutine READ_CTRL
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fuel_speed
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
                     if(fuel_speed>=0.d0 .and. do_ifp) do_fuel_mv = .true.
+                    if(l_inact > 0d0) then
+                        t_rc = l_inact / fuel_speed
+                        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
+                    endif 
 
                 case("RECIRCULATION_TIME")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, t_rc
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
                     
+                case("INACTIVE_LENGTH")
+                    backspace(File_Number)
+                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, l_inact
+                    if(Equal/="=") call Card_Error(Card_Type, Char_Temp)
+                    if(fuel_speed > 0d0) then
+                        t_rc = l_inact / fuel_speed
+                        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
+                    endif
+
                 case("CORE_HEIGHT")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_height
