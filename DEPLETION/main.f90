@@ -779,7 +779,8 @@ subroutine CYCLE_TALLY_MSG(bat)
 	
 	open(9999,file="mean_tally2.out",action="write",status="replace")
 	open(99999,file="sd_tally2.out",action="write",status="replace")
-	
+
+
     do ii = 1, nfm(1)
     do jj = 1, nfm(2)
     do kk = 1, nfm(3)

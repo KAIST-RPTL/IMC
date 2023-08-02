@@ -267,7 +267,7 @@ module constants
 
   ! Depletion reactions
   integer, parameter :: DEPLETION_RX(6) = [N_GAMMA, N_P, N_A, N_2N, N_3N, N_4N]
-  real(8), parameter :: eVtoJoule = 1.602176487d-19 !Joule/eV
+  real(8), parameter :: eVtoJoule = 1.602175314d-19 !Joule/eV
 
   ! ACE table types
   integer, parameter :: &

@@ -886,7 +886,7 @@ end subroutine READ_CTRL
 		integer :: ierr, curr_line
 		character(20) :: surf_id
         integer :: rgb(3)
-        real(8) :: l_inact
+        real(8) :: l_inact = 0d0
 		
 		
         File_Error=0

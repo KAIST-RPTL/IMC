@@ -136,6 +136,7 @@ subroutine SET_MC_TALLY
 
     allocate(k_eff(n_batch,n_totcyc))
     if ( tallyon ) then
+        if(icore==score) print *, 'TALLY COND:', n_act, n_type, n_tgroup
         allocate(MC_tally(n_batch,n_act,n_type, &
                           n_tgroup,nfm(1),nfm(2),nfm(3)))
         allocate(MC_thread(n_type,n_tgroup,nfm(1),nfm(2),nfm(3)))
@@ -481,6 +482,8 @@ subroutine NORM_TALLY(bat,cyc)
     !> gather thread tally parameters
     MC_tally(bat,acyc,:,:,:,:,:) = &
     MC_tally(bat,acyc,:,:,:,:,:) + MC_thread(:,:,:,:,:)
+
+    
 !    MC_stally(bat,acyc,:,:,:,:,:,:) = &
 !    MC_stally(bat,acyc,:,:,:,:,:,:) + MC_sthread(:,:,:,:,:,:)
 !    MC_scat(bat,acyc,:,:,:,:,:) = &
@@ -495,7 +498,7 @@ end subroutine
 subroutine PROCESS_TALLY(bat,cyc)
     use VARIABLES, only: n_inact, icore, score, ngen, ierr
     use FMFD_HEADER, only: nfm, v_fm, a_fm
-    use MPI, only: MPI_SUM
+    use MPI !, only: MPI_SUM, MPI_REAL8
     implicit none
     !> MPI derived type reduce parameters 
     integer, intent(in):: bat, cyc
@@ -527,7 +530,7 @@ subroutine PROCESS_TALLY(bat,cyc)
 !    MC_temps1 = 0D0
     dsize = nfm(1)*nfm(2)*nfm(3)*n_type*n_tgroup
     call MPI_REDUCE(MC_temp0(:,:,:,:,:),MC_temp1(:,:,:,:,:), &
-                    dsize,15,MPI_SUM,score,0,ierr)
+                    dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
 !    dsize = nfm(1)*nfm(2)*nfm(3)*2*n_tgroup*6
 !    call MPI_REDUCE(MC_stemp0(:,:,:,:,:,:),MC_stemp1(:,:,:,:,:,:), &
 !                    dsize,15,MPI_SUM,score,0,ierr)

@@ -71,7 +71,6 @@ module material_header
         
         n = size(this)
         do i = 1, n
-            print *, 'TST  ', mat_id, trim(this(i)%mat_name)
             if (trim(this(i)%mat_name) == mat_id) then 
                 idx = i 
                 return 

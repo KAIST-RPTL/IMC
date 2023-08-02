@@ -145,14 +145,5 @@ subroutine premc
     !i = find_ACE_iso_idx_zaid(571380)
     !print *, ace(i)%MT(:)
 
-    if(icore==score) then
-        do i = 1, size(materials)
-            print *, materials(i)%mat_name
-            do j = 1, materials(i)%n_iso
-                print *, ace(materials(i)%ace_idx(j))%zaid, materials(i)%numden(j)
-            enddo
-        enddo
-    endif
-
 
 end subroutine

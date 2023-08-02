@@ -468,7 +468,7 @@ subroutine getiueg(erg, ierg)
     uidx = 1 + int(log10(erg/ueggrid(1))/unidel)
 
     if ( uidx > nuni ) then
-        print *, 'EXCEED', erg, uidx
+        ! print *, 'EXCEED', erg, uidx
         uidx = nuni; !erg = ueggrid(nueg)
         ierg = nueg;
         return

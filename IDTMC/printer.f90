@@ -304,7 +304,8 @@ subroutine CYCLE_TALLY_MSG(bat)
     end if
 
     ! computing time
-    if ( bat == 1 .and. .not. do_burn ) then
+    !if ( bat == 1 .and. .not. do_burn ) then
+
     t_MC = t_tot - t_det
     write(*,*)
     write(*,*), "   Computing time"
@@ -312,7 +313,7 @@ subroutine CYCLE_TALLY_MSG(bat)
         write(*,15), ii, AVG(t_MC(1:,ii)), AVG(t_det(1:,ii)), AVG(t_tot(1:,ii))
     end do
     write(*,*)
-    end if
+    !end if
 
 !    ! temperature distribution
 !    if ( th_on ) then

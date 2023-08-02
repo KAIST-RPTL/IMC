@@ -14,17 +14,17 @@ module COSAMPLING
     real(8), allocatable:: lhs(:,:), unlhs(:,:)
     real(8), allocatable:: courn(:,:,:,:,:), coxs(:,:,:,:,:,:)
 
-    integer, parameter :: n_pert = 200
-    integer :: maxiter = 0
+    integer, parameter :: n_pert = 100
+    integer :: maxiter = 1 
     real(8):: k_pert(n_pert)    ! by perturbation with forward flux
     real(8):: k_pert2(n_pert)   ! with adjoint flux
     real(8):: k_pert3(n_pert)   ! direct calcultion
     real(8), allocatable:: p_pert(:,:,:,:)
     real(8), allocatable:: s_pert(:)
     integer:: types, n_data
-    real(8) :: corcrit = 1d-2
+    real(8) :: corcrit = 5d-3
 
-    real(8) :: damp = 0.5d0
+    real(8) :: damp = 1d0
     ! correlation between nodes
     real(8), allocatable:: avgn(:), stdn(:)
 
@@ -178,6 +178,13 @@ module COSAMPLING
             
             if(maxiter>0) then
                 do it = 1, maxiter
+                if(abs(incor(1,2)-cor(1,2))<corcrit .and. (abs(incor(1,3)-cor(1,3))<corcrit) .and. (abs(incor(2,3)-cor(2,3))<corcrit)) then
+                    do itt = it, maxiter
+                        coxs(ii,jj,kk,:,1:types,itt) = coxs(ii,jj,kk,:,1:types,it-1)
+                    enddo
+                    exit
+                endif
+
                 cor = erfmat(ierfmat(prev) + (ierfmat(incor) - ierfmat(cor))*damp)
                 prev= cor
     

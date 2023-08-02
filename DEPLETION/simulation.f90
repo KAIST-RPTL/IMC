@@ -249,7 +249,7 @@ subroutine simulate_history(bat,cyc)
         !print *, 'leak', MSR_leak
         call MPI_ALLREDUCE(MSR_leak,ndata,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
         MSR_leak = ndata
-        if(icore==score) print *, 'leak_red', MSR_leak
+        !if(icore==score) print *, 'leak_red', MSR_leak
     endif
         
         !if(icore == score) print *, curr_cyc, isize, n_col	
@@ -383,9 +383,9 @@ subroutine simulate_history(bat,cyc)
     !> Normalize tally (flux & power) ===========================================
     if (tally_switch>0 .and. curr_act > 0 .and. do_transient == .false.) then 
 		isize = size(TallyFlux) 
-        call MPI_REDUCE(TallyFlux, tally_buf, isize, MPI_DOUBLE_PRECISION, MPI_SUM, score, MPI_COMM_WORLD, ierr)
+        call MPI_REDUCE(TallyFlux, tally_buf, isize, MPI_REAL8, MPI_SUM, score, MPI_COMM_WORLD, ierr)
 		TallyFlux = tally_buf
-        call MPI_REDUCE(TallyPower, tally_buf, isize, MPI_DOUBLE_PRECISION, MPI_SUM, score, MPI_COMM_WORLD, ierr)
+        call MPI_REDUCE(TallyPower, tally_buf, isize, MPI_REAL8, MPI_SUM, score, MPI_COMM_WORLD, ierr)
 		TallyPower = tally_buf
 		
 		
@@ -1455,9 +1455,9 @@ end subroutine
 		write(*,'(a30,i1,a3,i1,a1)', advance='no')  "    Making ppm image file... (" , i_plot, " / ", n_plot, ")"
 		! output image into file 
 		call im%write("fig.ppm")
-		!call system("python /home/guest/HyeonTae/src_temp/15_Test/src_merge2/convert_ppm_to_jpg.py")
+		call system("python /home/guest/HyeonTae/src_temp/15_Test/src_merge2/convert_ppm_to_jpg.py")
 		!call system("python /home/guest/inyup/03_ENDF_test/src_merge2/convert_ppm_to_jpg.py")
-		!call system("mv fig.jpg "//trim(plotlist(i_plot))//".jpg") 
+		call system("mv fig.jpg "//trim(plotlist(i_plot))//".jpg") 
 		write(*,*) " - ", trim(plotlist(i_plot)), ".jpg"
 
 		enddo 
