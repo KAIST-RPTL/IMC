@@ -106,7 +106,7 @@ real(8) :: EUmin, EUmax !> Min/Max Energy for whole UNR
 integer :: n_unr = 0
 integer, allocatable :: uresiso(:)
 integer :: nueg  = 0
-real(8) :: UEGMAX = 30d0
+real(8) :: UEGMAX = 20D0
 
 !> 22/08/05 ~ UNIONIZED ENERGY GRID
 type UNITED

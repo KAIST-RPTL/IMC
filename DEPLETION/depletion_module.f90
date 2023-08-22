@@ -427,42 +427,42 @@ module depletion_module
         100 close(rd_decay)
         
         !==============================================================================
-        !Read one-group transmutation cross section library
-        open(rd_1gcx, file=trim(dep_lib)//"1gcx_library",action="read")
-        20 continue
-        read(rd_1gcx,'(A80)',end=200) line0 !Title
-        do
-          read(rd_1gcx,'(A80)',end=200) line1
-          
-          read(line1(1:4),'(i)') nlb; if(nlb==-1) go to 20 !library index (1=activation products, 2=actinides, 3=fission products)
-          read(line1(7:12),'(i)') nuclid
-            anum = nuclid/10000
-            mnum = (nuclid - anum*10000)/10
-            nnum = mnum - anum
-            inum = nuclid - anum*10000 - mnum*10
-          read(line1(14:22),'(f)') nuclide(inum,nnum,anum)%sng  !(n,g) leading to ground state
-          nuclide(inum,nnum,anum)%sng=nuclide(inum,nnum,anum)%sng*1.d-24
-          read(line1(24:32),'(f)') nuclide(inum,nnum,anum)%sn2n !(n,2n) leading to ground state
-          nuclide(inum,nnum,anum)%sn2n=nuclide(inum,nnum,anum)%sn2n*1.d-24
-          if(nlb/=3) then !fission products or activation products
-            read(line1(34:42),'(f)') nuclide(inum,nnum,anum)%sna !(n,alpha) leading to ground state
-            nuclide(inum,nnum,anum)%sna=nuclide(inum,nnum,anum)%sna*1.d-24
-            read(line1(44:52),'(f)') nuclide(inum,nnum,anum)%snp !(n,proton) leading to ground state
-            nuclide(inum,nnum,anum)%snp=nuclide(inum,nnum,anum)%snp*1.d-24
-          else
-            read(line1(34:42),'(f)') nuclide(inum,nnum,anum)%sn3n!(n,3n) leading to ground state
-            nuclide(inum,nnum,anum)%sn3n=nuclide(inum,nnum,anum)%sn3n*1.d-24
-            read(line1(44:52),'(f)') nuclide(inum,nnum,anum)%snf !(n,f)
-            nuclide(inum,nnum,anum)%snf=nuclide(inum,nnum,anum)%snf*1.d-24
-          end if 
-          read(line1(54:62),'(f)') nuclide(inum,nnum,anum)%sngx  !(n,g) leading to excited state
-          nuclide(inum,nnum,anum)%sngx=nuclide(inum,nnum,anum)%sngx*1.d-24
-          read(line1(64:72),'(f)') nuclide(inum,nnum,anum)%sn2nx !(n,2n) leading to excited state
-          nuclide(inum,nnum,anum)%sn2nx=nuclide(inum,nnum,anum)%sn2nx*1.d-24
-          read(line1(74:79),'(f)') yyn               !yyn > 0 : fission yield card follows, yyn < 0 : no fission yield card
-          if(yyn>0.d0) read(rd_1gcx,'(A80)',end=200) line2
-        end do
-        200 close(rd_1gcx)
+!        !Read one-group transmutation cross section library
+!        open(rd_1gcx, file=trim(dep_lib)//"1gcx_library",action="read")
+!        20 continue
+!        read(rd_1gcx,'(A80)',end=200) line0 !Title
+!        do
+!          read(rd_1gcx,'(A80)',end=200) line1
+!          
+!          read(line1(1:4),'(i)') nlb; if(nlb==-1) go to 20 !library index (1=activation products, 2=actinides, 3=fission products)
+!          read(line1(7:12),'(i)') nuclid
+!            anum = nuclid/10000
+!            mnum = (nuclid - anum*10000)/10
+!            nnum = mnum - anum
+!            inum = nuclid - anum*10000 - mnum*10
+!          read(line1(14:22),'(f)') nuclide(inum,nnum,anum)%sng  !(n,g) leading to ground state
+!          nuclide(inum,nnum,anum)%sng=nuclide(inum,nnum,anum)%sng*1.d-24
+!          read(line1(24:32),'(f)') nuclide(inum,nnum,anum)%sn2n !(n,2n) leading to ground state
+!          nuclide(inum,nnum,anum)%sn2n=nuclide(inum,nnum,anum)%sn2n*1.d-24
+!          if(nlb/=3) then !fission products or activation products
+!            read(line1(34:42),'(f)') nuclide(inum,nnum,anum)%sna !(n,alpha) leading to ground state
+!            nuclide(inum,nnum,anum)%sna=nuclide(inum,nnum,anum)%sna*1.d-24
+!            read(line1(44:52),'(f)') nuclide(inum,nnum,anum)%snp !(n,proton) leading to ground state
+!            nuclide(inum,nnum,anum)%snp=nuclide(inum,nnum,anum)%snp*1.d-24
+!          else
+!            read(line1(34:42),'(f)') nuclide(inum,nnum,anum)%sn3n!(n,3n) leading to ground state
+!            nuclide(inum,nnum,anum)%sn3n=nuclide(inum,nnum,anum)%sn3n*1.d-24
+!            read(line1(44:52),'(f)') nuclide(inum,nnum,anum)%snf !(n,f)
+!            nuclide(inum,nnum,anum)%snf=nuclide(inum,nnum,anum)%snf*1.d-24
+!          end if 
+!          read(line1(54:62),'(f)') nuclide(inum,nnum,anum)%sngx  !(n,g) leading to excited state
+!          nuclide(inum,nnum,anum)%sngx=nuclide(inum,nnum,anum)%sngx*1.d-24
+!          read(line1(64:72),'(f)') nuclide(inum,nnum,anum)%sn2nx !(n,2n) leading to excited state
+!          nuclide(inum,nnum,anum)%sn2nx=nuclide(inum,nnum,anum)%sn2nx*1.d-24
+!          read(line1(74:79),'(f)') yyn               !yyn > 0 : fission yield card follows, yyn < 0 : no fission yield card
+!          if(yyn>0.d0) read(rd_1gcx,'(A80)',end=200) line2
+!        end do
+!        200 close(rd_1gcx)
 
 
         !==============================================================================
@@ -747,8 +747,11 @@ module depletion_module
                         mnum = mnum-200
                         if(anum>88) mnum = mnum + 100
                         inum = 1
+                    elseif(mnum==0) then
+                        cycle
                     endif
                     nnum= mnum - anum
+                    if(nnum<0) print *, i, zai, tail
                     nuclide(inum,nnum,anum)%conn = 0
 
                     if(nuclide(0,2,2)%data_exist .and. nuclide(0,2,2)%conn<0) then ! ALPHA
@@ -1712,7 +1715,7 @@ module depletion_module
                 deallocate(nucexist)
                 !Calculate real flux (volume-averaged)
                 real_flux = ULnorm*mat%flux
-                print *, 'REAL FLUX', trim(mat%mat_name), real_flux
+                print *, 'REAL FLUX', trim(mat%mat_name), real_flux, ULnorm, mat%flux
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
                 toteflux = sum(mat%eflux(0:nueg))
@@ -1733,8 +1736,11 @@ module depletion_module
                         inum = 1
                         mnum = mnum - 200
                         if(anum>88) mnum = mnum + 100
+                    elseif(mnum==0) then
+                        cycle
                     endif
                     nnum = mnum-anum
+
                     jnuc = nuclide(inum,nnum,anum)%idx
                     if(jnuc==0) cycle
 
@@ -1898,7 +1904,6 @@ module depletion_module
                                     knuc = nuclide(0,2,2)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * an
-                                    if(knuc/=0) print *, 'A4', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
                                     if(a3n>0) then
                                     knuc = nuclide(0,1,2)%idx
@@ -2021,6 +2026,7 @@ module depletion_module
         do jnuc=1, nnuc
             !write(*,*) imat, icore, zai_idx(jnuc), mat%full_numden(jnuc)
             tmp = find_ACE_iso_idx_zaid(zai_idx(jnuc))
+            print *, "MAT", imat, jnuc, zai_idx(jnuc), tmp
             !if(mat%full_numden(jnuc)>0.d0 .and. tmp > 0) then 
             if(tmp>0 .and. mat%full_numden(jnuc)>1d0) then
                 knuc = knuc + 1
@@ -2121,6 +2127,7 @@ module depletion_module
 
     do i = 1,n_materials
         mat => materials(i)
+        print *, 'ISO', iso_idx
         do mt_iso = 1,mat%n_iso
             if(icore==score) then
             zai = zai_idx(iso_idx(mt_iso))
@@ -2437,9 +2444,11 @@ module depletion_module
                     inum = 1
                     mnum = mnum - 200
                     if(anum>88) mnum = mnum + 100
-                    if(icore==score) print *, anum, mnum, inum
+                elseif(mnum==0) then
+                    cycle
                 endif
                 nnum = mnum - anum
+
                 if(materials(imat)%depletable==.true. .and. do_burn .and. nuclide(inum,nnum,anum)%idx>0) then 
                     materials(imat)%full_numden(nuclide(inum,nnum,anum)%idx) = materials(imat)%numden(mt_iso)
                 endif 

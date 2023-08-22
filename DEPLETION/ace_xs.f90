@@ -597,7 +597,7 @@ subroutine setuegrid
     tmpgrid_2(0)   = 0d0
     tmpgrid_2(idx) = tmpgrid(1)
     do i = 2, totngrid
-        if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<UEGMAX &
+        if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<Emax &
             )then
             idx = idx + 1
             tmpgrid_2(idx) = tmpgrid(i)
@@ -637,7 +637,7 @@ subroutine setuegrid
 22      unigrid(i) = idx - 1
         if(icore==score) print *, 'hash', i, unigrid(i), Etmp
     enddo
-    unigrid(nuni) = UEGMAX
+    unigrid(nuni) = Emax
 
     if(icore==score) print *, 'NUNI:',nuni,'UNIDEL:',unidel,Emin,Emax
 

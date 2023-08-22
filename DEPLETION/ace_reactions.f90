@@ -50,7 +50,7 @@ subroutine collision_CE (p)
     ! Sample a target isotope in the mixture
     if(p%material==0) then
         p%alive = .false.
-        print *, 'KILLED'
+        print *, 'KILLED', p%coord(1)%xyz(:)
         return
     endif
     call WHAT_TEMPERATURE(p)
@@ -788,7 +788,7 @@ subroutine fissionSite_CE (p, iso, micro_xs)
         call law_selector (erg_out, iso, mu, eg%dist(ilaw), iMT, law)
 		!if (erg_out > Emax) erg_out = Emax-1.0d-10
 		
-        thread_bank(bank_idx)%E = erg_out
+        thread_bank(bank_idx)%E = min(erg_out, Emax-1E-6)
         thread_bank(bank_idx)%delayed = delayed
         thread_bank(bank_idx)%G = iso
         thread_bank(bank_idx)%time = 0
