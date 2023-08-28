@@ -79,9 +79,10 @@ subroutine read_geom
 		
         if (ierr /= 0) exit
 		option = args(1)
+        call Small_to_Capital(option)
         !<================================================================>!
         select case (option)
-        case ("title") 
+        case ("TITLE") 
             title = args(2)
             filename = trim(title)//'_keff.out'
             
@@ -102,13 +103,13 @@ subroutine read_geom
                 end if
                 if(icore==score) write(prt_adjoint,*) 'BETA   GENTIME'
             endif
-		case ('gmsh')
+		case ('GMSH')
 			read (args(2), '(L)') do_gmsh
 			if (do_gmsh) call read_msh()
 			! TODO :: 경계조건 입력 필요 (현재는 vacuum)
 			
 			
-        case ("surf")
+        case ("SURF")
             isize = 0
             if (allocated(surfaces)) isize = size(surfaces) 
             isize = isize+1
@@ -119,7 +120,7 @@ subroutine read_geom
             if(allocated(surfaces)) deallocate(surfaces)
             call move_alloc(surfaces_temp, surfaces)
             
-        case ("cell")
+        case ("CELL")
             isize = 0
             if (allocated(cells)) isize = size(cells) 
             isize = isize+1
@@ -129,7 +130,7 @@ subroutine read_geom
             if(allocated(cells)) deallocate(cells)
             call move_alloc(cells_temp, cells)            
                         
-        case ("pin")
+        case ("PIN")
             isize = 0
             if (allocated(universes)) isize = size(universes)-1
             isize = isize+1
@@ -247,7 +248,7 @@ subroutine read_geom
                 call gen_surfs_from_pin (univptr, surfaces(j-univptr%ncell+2:j)) 
             endif 
         
-        case ("lat")
+        case ("LAT")
             isize = 0
             if (allocated(lattices)) isize = size(lattices) 
             isize = isize+1
@@ -290,7 +291,7 @@ subroutine read_geom
             
             
             
-        case ('bc') 
+        case ('BC') 
             !if (do_gmsh) then 
 			!	read (args(2), '(I)') tet_bc
 
@@ -298,7 +299,7 @@ subroutine read_geom
 				call read_bc (surfaces, args, nargs)
             !endif 
             
-        case ('sgrid') 
+        case ('SGRID') 
             allocate(sgrid(1:6))
             call read_sgrid (args, nargs)
 		

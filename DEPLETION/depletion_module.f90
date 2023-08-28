@@ -103,7 +103,7 @@ module depletion_module
 
 
     !Matrix Exponential Solver Option
-    integer :: Matrix_Exponential_Solver !0=Chebyshev Rational Approximation Method (CRAM)
+    integer :: Matrix_Exponential_Solver = 0 !0=Chebyshev Rational Approximation Method (CRAM)
 
 
     !Chebyshev Rational Approximation
@@ -551,7 +551,6 @@ module depletion_module
                                 ify_yield(tmpfp,eg,fid) + ify
                             endif
                         endif
-                        !if(icore==score .and. anum==33 .and. mnum==74 .and. fssn_zai(fid)==922350) print *, 'NFY', nuclid, inum, ify, eg
                     enddo
                 enddo
                 nuclide(fssn_inum,fssn_nnum,fssn_anum)%yield_E = Ep*1.d-6
@@ -703,7 +702,6 @@ module depletion_module
                 enddo
 400             close(isom_brn)
                 do brn = 1, num_brn
-                !if(icore==score) print *, ZAIMT_ism(brn), gnd_frac(brn)
                 enddo
                 !==============================================================================
                 ! CROP NFY DATA
@@ -751,7 +749,6 @@ module depletion_module
                         cycle
                     endif
                     nnum= mnum - anum
-                    if(nnum<0) print *, i, zai, tail
                     nuclide(inum,nnum,anum)%conn = 0
 
                     if(nuclide(0,2,2)%data_exist .and. nuclide(0,2,2)%conn<0) then ! ALPHA
@@ -811,7 +808,6 @@ module depletion_module
                                             exit
                                         endif
                                     enddo
-                                    !if(icore==score) print *, 'GAMMA', mt, anum*1001 + nnum, ngbranch
                                     if(ngbranch .and. nuclide(1,nnum+1,anum)%data_exist .and. nuclide(1,nnum+1,anum)%conn < 0) then
                                         nuclide(1,nnum+1,anum)%conn = 1
                                         idx = idx + 1
@@ -836,7 +832,6 @@ module depletion_module
                                         nnum1 = nnum + 1 - nn - dn - 2*tn - 2*an - a3n
                                         ! if(.not. (anum==anum1 .and. nnum==nnum1)) then ! If nuclide changes...
                                         if(nuclide(0, nnum1, anum1) % data_exist .and. nuclide(0, nnum1, anum1) % conn < 0) then
-                                            !if(icore==score) print *, &
                                             !    'DAUGH', idx1, mt, anum*1001+ nnum, anum1 *1001 + nnum1
                                             nuclide(0, nnum1, anum1) % conn = 1
                                             idx = idx + 1
@@ -924,7 +919,6 @@ module depletion_module
                                                 exit
                                             endif
                                         enddo
-                                        !if(icore==score) print *, 'GAMMA', mt, anum*1001 + nnum, ngbranch
                                         if(ngbranch .and. nuclide(1,nnum+1,anum)%data_exist .and. nuclide(1,nnum+1,anum)%conn < 0) then
                                             nuclide(1,nnum+1,anum)%conn = conval
                                             idx1 = idx1 + 1
@@ -948,8 +942,6 @@ module depletion_module
                                             nnum1 = nnum + 1 - nn - dn - 2*tn - 2*an - a3n
                                             if(.not. (anum==anum1 .and. nnum==nnum1)) then ! If nuclide changes...
                                                 if(nuclide(0, nnum1, anum1) % data_exist .and. nuclide(0, nnum1, anum1) % conn < 0) then
-                                                    !if(icore==score) print *, &
-                                                    !    'DAUGH', idx1, mt, anum*1001+ nnum, anum1 *1001 + nnum1
                                                     nuclide(0, nnum1, anum1) % conn = conval
                                                     idx1 = idx1 + 1
                                                     daugh(idx1) = (nnum1+anum1)*10 + anum * 10000
@@ -990,7 +982,6 @@ module depletion_module
                         nnuc = nnuc + 1
                         nuclide(inum,nnum,anum)%idx=nnuc
                         zai_idx(nnuc) = anum*10010+nnum*10+inum
-                        !if(icore==score) print *, nnuc, zai_idx(nnuc)
                     endif
                 enddo
                 enddo
@@ -1151,11 +1142,6 @@ module depletion_module
                 buildogxs_iso = dot_product(ace(iso) % sigf, flux)
             case default
                 if(rx/=0) buildogxs_iso = dot_product(ace(iso) % sig_MT(rx) % cx, flux)
-                if(mt==N_3N .and. ace(iso)%zaid==42099) then
-                    print *, 'MT', buildogxs_iso
-                    !print *, 'CX', ace(iso)%sig_MT(rx)%cx
-                    !print *, 'FLX', flux
-                endif
             end select
             endfunction
 
@@ -1428,7 +1414,6 @@ module depletion_module
                 nnum = mnum - anum
                 inum = zai_idx(jnuc) - anum*10000 - mnum*10
                 if(nnum<0) then
-                    print *, zai_idx(jnuc)
                     cycle
                 endif
                 if(nuclide(inum,nnum,anum)%react_num==0) cycle
@@ -1520,7 +1505,6 @@ module depletion_module
 !                end if
             end do
             end if
-            !print *, 'BU' 
             if (icore==score) then 
                 write(prt_bumat, '(a45)')         '   =========================================='
                 write(prt_bumat, '(a17,i4)')     '      Burnup step', istep_burnup+1
@@ -1541,10 +1525,6 @@ module depletion_module
                 if(.not. materials(imat)%depletable) cycle    !material imat is not burned
                 !samarium = 0.d0
                 mat => materials(imat)
-                !print *, icore, 'MATDEP', imat, '/', totgeom
-!                    write(prt_bumat, *) '' 
-!                    write(prt_bumat, *) mat%mat_name 
-!                    write(prt_bumat, *) ''
                 !Call the material independent burnup matrix 
                 
                 allocate(yield_data(nfp,nfssn))
@@ -1578,7 +1558,6 @@ module depletion_module
                     enddo
                     
                     erg = numer/denom
-                    !print *, 'NFY', fssn_zai(i), erg
                     
                     if(nE<=1) then
                         yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
@@ -1715,7 +1694,6 @@ module depletion_module
                 deallocate(nucexist)
                 !Calculate real flux (volume-averaged)
                 real_flux = ULnorm*mat%flux
-                print *, 'REAL FLUX', trim(mat%mat_name), real_flux, ULnorm, mat%flux
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
                 toteflux = sum(mat%eflux(0:nueg))
@@ -2026,7 +2004,6 @@ module depletion_module
         do jnuc=1, nnuc
             !write(*,*) imat, icore, zai_idx(jnuc), mat%full_numden(jnuc)
             tmp = find_ACE_iso_idx_zaid(zai_idx(jnuc))
-            print *, "MAT", imat, jnuc, zai_idx(jnuc), tmp
             !if(mat%full_numden(jnuc)>0.d0 .and. tmp > 0) then 
             if(tmp>0 .and. mat%full_numden(jnuc)>1d0) then
                 knuc = knuc + 1
@@ -2127,7 +2104,6 @@ module depletion_module
 
     do i = 1,n_materials
         mat => materials(i)
-        print *, 'ISO', iso_idx
         do mt_iso = 1,mat%n_iso
             if(icore==score) then
             zai = zai_idx(iso_idx(mt_iso))

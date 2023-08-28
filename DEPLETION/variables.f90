@@ -57,7 +57,7 @@ implicit none
 	real(8) :: k_steady = 1.0d0 
 	
     ! Unresolved Resonance -- Need to be fixed later
-    logical :: do_ures = .true.
+    logical :: do_ures = .false.
     real(8) :: ures_cut = 1E-9
 
     ! Multigroup Tally
