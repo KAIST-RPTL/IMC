@@ -103,7 +103,7 @@ module depletion_module
 
 
     !Matrix Exponential Solver Option
-    integer :: Matrix_Exponential_Solver = 0 !0=Chebyshev Rational Approximation Method (CRAM)
+    integer :: Matrix_Exponential_Solver !0=Chebyshev Rational Approximation Method (CRAM)
 
 
     !Chebyshev Rational Approximation
@@ -263,8 +263,6 @@ module depletion_module
 
         character(4) :: tail
         integer :: liblen
-
-        integer :: nn, pn, dn, tn, an, a3n
         !==============================================================================
         !==============================================================================
         !Initialization
@@ -427,42 +425,42 @@ module depletion_module
         100 close(rd_decay)
         
         !==============================================================================
-!        !Read one-group transmutation cross section library
-!        open(rd_1gcx, file=trim(dep_lib)//"1gcx_library",action="read")
-!        20 continue
-!        read(rd_1gcx,'(A80)',end=200) line0 !Title
-!        do
-!          read(rd_1gcx,'(A80)',end=200) line1
-!          
-!          read(line1(1:4),'(i)') nlb; if(nlb==-1) go to 20 !library index (1=activation products, 2=actinides, 3=fission products)
-!          read(line1(7:12),'(i)') nuclid
-!            anum = nuclid/10000
-!            mnum = (nuclid - anum*10000)/10
-!            nnum = mnum - anum
-!            inum = nuclid - anum*10000 - mnum*10
-!          read(line1(14:22),'(f)') nuclide(inum,nnum,anum)%sng  !(n,g) leading to ground state
-!          nuclide(inum,nnum,anum)%sng=nuclide(inum,nnum,anum)%sng*1.d-24
-!          read(line1(24:32),'(f)') nuclide(inum,nnum,anum)%sn2n !(n,2n) leading to ground state
-!          nuclide(inum,nnum,anum)%sn2n=nuclide(inum,nnum,anum)%sn2n*1.d-24
-!          if(nlb/=3) then !fission products or activation products
-!            read(line1(34:42),'(f)') nuclide(inum,nnum,anum)%sna !(n,alpha) leading to ground state
-!            nuclide(inum,nnum,anum)%sna=nuclide(inum,nnum,anum)%sna*1.d-24
-!            read(line1(44:52),'(f)') nuclide(inum,nnum,anum)%snp !(n,proton) leading to ground state
-!            nuclide(inum,nnum,anum)%snp=nuclide(inum,nnum,anum)%snp*1.d-24
-!          else
-!            read(line1(34:42),'(f)') nuclide(inum,nnum,anum)%sn3n!(n,3n) leading to ground state
-!            nuclide(inum,nnum,anum)%sn3n=nuclide(inum,nnum,anum)%sn3n*1.d-24
-!            read(line1(44:52),'(f)') nuclide(inum,nnum,anum)%snf !(n,f)
-!            nuclide(inum,nnum,anum)%snf=nuclide(inum,nnum,anum)%snf*1.d-24
-!          end if 
-!          read(line1(54:62),'(f)') nuclide(inum,nnum,anum)%sngx  !(n,g) leading to excited state
-!          nuclide(inum,nnum,anum)%sngx=nuclide(inum,nnum,anum)%sngx*1.d-24
-!          read(line1(64:72),'(f)') nuclide(inum,nnum,anum)%sn2nx !(n,2n) leading to excited state
-!          nuclide(inum,nnum,anum)%sn2nx=nuclide(inum,nnum,anum)%sn2nx*1.d-24
-!          read(line1(74:79),'(f)') yyn               !yyn > 0 : fission yield card follows, yyn < 0 : no fission yield card
-!          if(yyn>0.d0) read(rd_1gcx,'(A80)',end=200) line2
-!        end do
-!        200 close(rd_1gcx)
+        !Read one-group transmutation cross section library
+        open(rd_1gcx, file=trim(dep_lib)//"1gcx_library",action="read")
+        20 continue
+        read(rd_1gcx,'(A80)',end=200) line0 !Title
+        do
+          read(rd_1gcx,'(A80)',end=200) line1
+          
+          read(line1(1:4),'(i)') nlb; if(nlb==-1) go to 20 !library index (1=activation products, 2=actinides, 3=fission products)
+          read(line1(7:12),'(i)') nuclid
+            anum = nuclid/10000
+            mnum = (nuclid - anum*10000)/10
+            nnum = mnum - anum
+            inum = nuclid - anum*10000 - mnum*10
+          read(line1(14:22),'(f)') nuclide(inum,nnum,anum)%sng  !(n,g) leading to ground state
+          nuclide(inum,nnum,anum)%sng=nuclide(inum,nnum,anum)%sng*1.d-24
+          read(line1(24:32),'(f)') nuclide(inum,nnum,anum)%sn2n !(n,2n) leading to ground state
+          nuclide(inum,nnum,anum)%sn2n=nuclide(inum,nnum,anum)%sn2n*1.d-24
+          if(nlb/=3) then !fission products or activation products
+            read(line1(34:42),'(f)') nuclide(inum,nnum,anum)%sna !(n,alpha) leading to ground state
+            nuclide(inum,nnum,anum)%sna=nuclide(inum,nnum,anum)%sna*1.d-24
+            read(line1(44:52),'(f)') nuclide(inum,nnum,anum)%snp !(n,proton) leading to ground state
+            nuclide(inum,nnum,anum)%snp=nuclide(inum,nnum,anum)%snp*1.d-24
+          else
+            read(line1(34:42),'(f)') nuclide(inum,nnum,anum)%sn3n!(n,3n) leading to ground state
+            nuclide(inum,nnum,anum)%sn3n=nuclide(inum,nnum,anum)%sn3n*1.d-24
+            read(line1(44:52),'(f)') nuclide(inum,nnum,anum)%snf !(n,f)
+            nuclide(inum,nnum,anum)%snf=nuclide(inum,nnum,anum)%snf*1.d-24
+          end if 
+          read(line1(54:62),'(f)') nuclide(inum,nnum,anum)%sngx  !(n,g) leading to excited state
+          nuclide(inum,nnum,anum)%sngx=nuclide(inum,nnum,anum)%sngx*1.d-24
+          read(line1(64:72),'(f)') nuclide(inum,nnum,anum)%sn2nx !(n,2n) leading to excited state
+          nuclide(inum,nnum,anum)%sn2nx=nuclide(inum,nnum,anum)%sn2nx*1.d-24
+          read(line1(74:79),'(f)') yyn               !yyn > 0 : fission yield card follows, yyn < 0 : no fission yield card
+          if(yyn>0.d0) read(rd_1gcx,'(A80)',end=200) line2
+        end do
+        200 close(rd_1gcx)
 
 
         !==============================================================================
@@ -529,6 +527,8 @@ module depletion_module
 
                         ! 211109 MODIFICATION: If decay chain of meta. not exists, pass to ground
                         tmpfp = nuclide(inum,nnum,anum)%fp
+                        if(icore==score .and. anum==33 .and. mnum==74 .and. fssn_zai(fid)==922350) &
+                            print *, 'NUC', nuclide(inum,nnum,anum)%fp, inum, nuclide(inum,nnum,anum)%data_exist
                         if (nuclide(inum,nnum,anum)%fp == 0) then !Assign ifp to nuclide
                             if(nuclide(inum,nnum,anum)%data_exist) then
                                 ifp = ifp + 1
@@ -551,6 +551,7 @@ module depletion_module
                                 ify_yield(tmpfp,eg,fid) + ify
                             endif
                         endif
+                        if(icore==score .and. anum==33 .and. mnum==74 .and. fssn_zai(fid)==922350) print *, 'NFY', nuclid, inum, ify, eg
                     enddo
                 enddo
                 nuclide(fssn_inum,fssn_nnum,fssn_anum)%yield_E = Ep*1.d-6
@@ -702,6 +703,7 @@ module depletion_module
                 enddo
 400             close(isom_brn)
                 do brn = 1, num_brn
+                !if(icore==score) print *, ZAIMT_ism(brn), gnd_frac(brn)
                 enddo
                 !==============================================================================
                 ! CROP NFY DATA
@@ -732,7 +734,7 @@ module depletion_module
                 ! =============================
                 ! REMOVE USELESS NUCLIDES
                 RXMT = (/N_GAMMA, N_2N, N_3N, N_4N, N_P, N_A, N_FISSION/)
-                allocate(decay(10000)); decay = 0; idx = 0
+                allocate(decay(8000)); decay = 0; idx = 0
 
                 do i = 1,num_iso
                     zai = ace(i)%zaid
@@ -745,8 +747,6 @@ module depletion_module
                         mnum = mnum-200
                         if(anum>88) mnum = mnum + 100
                         inum = 1
-                    elseif(mnum==0) then
-                        cycle
                     endif
                     nnum= mnum - anum
                     nuclide(inum,nnum,anum)%conn = 0
@@ -794,7 +794,9 @@ module depletion_module
                     endif
 
                     do j = 1,ace(i)%NXS(4) ! FOR ALL AVAILABLE RX
-                                mt = ace(i) % MT(j)
+                        do k = 1,7
+                            if(ace(i)%MT(j)==RXMT(k)) then
+                                mt = RXMT(k)
                                 tgt= anum*1000+mnum
                                 select case(mt)
                                 case(N_GAMMA)
@@ -819,17 +821,53 @@ module depletion_module
                                         call ADDACE(decay(idx),tail)
                                         !if(icore==score) write(*,*) 'ADDED from ', ace(i)%xslib, ace(i)%MT(j)
                                     endif
-                                case(N_FISSION)
-
+                                case(N_2N)
+                                    if(nuclide(0,nnum-1,anum)%data_exist .and. nuclide(0,nnum-1,anum)%conn<0) then
+                                        nuclide(0,nnum-1,anum)%conn = 1
+                                        idx = idx + 1
+                                        decay(idx) = tgt*10-10
+                                        call ADDACE(decay(idx),tail)
+                                        !if(icore==score) write(*,*) 'ADDED from ', ace(i)%xslib, ace(i)%MT(j)
+                                    endif
+                                case(N_3N)
+                                    if(nuclide(0,nnum-2,anum)%data_exist .and. nuclide(0,nnum-2,anum)%conn<0) then
+                                        nuclide(0,nnum-2,anum)%conn = 1
+                                        idx = idx + 1
+                                        decay(idx) = tgt*10-20
+                                        call ADDACE(decay(idx),tail)
+                                        !if(icore==score) write(*,*) 'ADDED from ', ace(i)%xslib, ace(i)%MT(j)
+                                    endif
+                                case(N_4N)
+                                    if(nuclide(0,nnum-3,anum)%data_exist .and. nuclide(0,nnum-3,anum)%conn<0) then
+                                        nuclide(0,nnum-3,anum)%conn = 1
+                                        idx = idx + 1
+                                        decay(idx) = tgt*10-30
+                                        call ADDACE(decay(idx),tail)
+                                        !if(icore==score) write(*,*) 'ADDED from ', ace(i)%xslib, ace(i)%MT(j)
+                                    endif
+                                case(N_P)
+                                    if(nuclide(0,nnum+1,anum-1)%data_exist .and. nuclide(0,nnum+1,anum-1)%conn<0) then
+                                        nuclide(0,nnum+1,anum-1)%conn = 1
+                                        idx = idx + 1
+                                        decay(idx) = tgt*10-10000
+                                        call ADDACE(decay(idx),tail)
+                                        !if(icore==score) write(*,*) 'ADDED from ', ace(i)%xslib, ace(i)%MT(j)
+                                    endif
+                                case(N_A)
+                                    if(nuclide(0,nnum-1,anum-2)%data_exist .and. nuclide(0,nnum-1,anum-2)%conn<0) then
+                                        nuclide(0,nnum-1,anum-2)%conn = 1
+                                        idx = idx + 1
+                                        decay(idx) = tgt*10-20030
+                                        call ADDACE(decay(idx),tail)
+                                        !if(icore==score) write(*,*) 'ADDED from ', ace(i)%xslib, ace(i)%MT(j)
+                                    endif
                                 case default
                                     ! IF direct, skip rest
-                                    if(.not. do_rx_tally .or. ANY(RXMT==mt)) then
-                                        call mtrxread(mt, nn, pn, dn, tn, an, a3n)  
+                                    if(.not. do_rx_tally) then
+                                        call mtrxread(mt, nn. pn, dn, tn, an, a3n)  
                                         anum1 = anum - pn - dn - tn - 2*an - 2*a3n
                                         nnum1 = nnum + 1 - nn - dn - 2*tn - 2*an - a3n
-                                        ! if(.not. (anum==anum1 .and. nnum==nnum1)) then ! If nuclide changes...
-                                        if(nuclide(0, nnum1, anum1) % data_exist .and. nuclide(0, nnum1, anum1) % conn < 0) then
-                                            !    'DAUGH', idx1, mt, anum*1001+ nnum, anum1 *1001 + nnum1
+                                        if(.not. (anum==anum1 .and. nnum==nnum1)) then ! If nuclide changes...
                                             nuclide(0, nnum1, anum1) % conn = 1
                                             idx = idx + 1
                                             decay(idx) = (nnum1+anum1)*10 + anum * 10000
@@ -838,6 +876,8 @@ module depletion_module
                                     endif
 
                                 end select
+                            endif
+                        enddo
                     enddo
                     if(nuclide(inum,nnum,anum)%lambda>0.d0)then !If Decays
                         rnum = nuclide(inum,nnum,anum)%react_num
@@ -855,6 +895,21 @@ module depletion_module
                             endif
                         enddo
                     endif
+!                    if(nuclide(inum,nnum,anum)%fy_idx>0) then
+!                    do j = 1,nfp
+!                        anum1 = fp_zai(j)/10000
+!                        mnum1 = (fp_zai(j)-anum1*10000)/10
+!                        nnum1 = mnum1 - anum1
+!                        inum1 = fp_zai(j)-anum1*10000-mnum1*10
+!                        if(nuclide(inum1,nnum1,anum1)%data_exist .and. nuclide(inum1,nnum1,anum1)%conn<0 .and. nuclide(inum1,nnum1,anum1)%fiss &
+!                            .and. fiss_path(j,nuclide(inum,nnum,anum)%fy_idx)==1) then
+!                           nuclide(inum,nnum,anum)%conn=1
+!                           idx = idx + 1
+!                           decay(idx) = fp_zai(j)
+!                           call ADDACE(decay(idx),tail)
+!                        endif
+!                    enddo
+!                    endif
                 enddo
                 do j = 1,nfp
                     anum1 = fp_zai(j)/10000
@@ -868,7 +923,7 @@ module depletion_module
                        call ADDACE(decay(idx),tail)
                     endif
                 enddo
-                allocate(daugh(10000)); daugh = 0; conval= 1
+                allocate(daugh(4000)); daugh = 0; conval= 1
 
                 do while(idx>0)
                     !if(conval>5) exit
@@ -900,7 +955,9 @@ module depletion_module
                         iso = find_ACE_iso_idx_zaid(decay(i)) 
                         if(iso==0) cycle
                         do j = 1,ace(iso)%NXS(4)
-                                    mt = ace(iso) % MT(j)
+                            do k = 1,7
+                                if(ace(iso)%MT(j)==RXMT(k)) then
+                                    mt = RXMT(k)
                                     tgt = decay(i)/10
                                     select case(mt)
                                     case(N_GAMMA)
@@ -925,23 +982,49 @@ module depletion_module
                                             call ADDACE(daugh(idx1),tail)
                                             !if(icore==score) write(*,*) 'ADDED from ', ace(iso)%xslib, ace(iso)%MT(j)
                                         endif
-                                    case(N_FISSION)
-                                    case default
-                                        ! IF direct, skip rest
-                                        if(.not. do_rx_tally .or. ANY(RXMT==mt)) then
-                                            call mtrxread(mt, nn, pn, dn, tn, an, a3n)  
-                                            anum1 = anum - pn - dn - tn - 2*an - 2*a3n
-                                            nnum1 = nnum + 1 - nn - dn - 2*tn - 2*an - a3n
-                                            if(.not. (anum==anum1 .and. nnum==nnum1)) then ! If nuclide changes...
-                                                if(nuclide(0, nnum1, anum1) % data_exist .and. nuclide(0, nnum1, anum1) % conn < 0) then
-                                                    nuclide(0, nnum1, anum1) % conn = conval
-                                                    idx1 = idx1 + 1
-                                                    daugh(idx1) = (nnum1+anum1)*10 + anum * 10000
-                                                    call ADDACE(daugh(idx1), tail)
-                                                endif
-                                            endif
+                                    case(N_2N)
+                                        if(nuclide(0,nnum-1,anum)%data_exist .and. nuclide(0,nnum-1,anum)%conn<0) then
+                                            nuclide(0,nnum-1,anum)%conn = conval
+                                            idx1 = idx1 + 1
+                                            daugh(idx1) = tgt*10-10
+                                            call ADDACE(daugh(idx1),tail)
+                                            !if(icore==score) write(*,*) 'ADDED from ', ace(iso)%xslib, ace(iso)%MT(j)
+                                        endif
+                                    case(N_3N)
+                                        if(nuclide(0,nnum-2,anum)%data_exist .and. nuclide(0,nnum-2,anum)%conn<0) then
+                                            nuclide(0,nnum-2,anum)%conn = conval
+                                            idx1 = idx1 + 1
+                                            daugh(idx1) = tgt*10-20
+                                            call ADDACE(daugh(idx1),tail)
+                                            !if(icore==score) write(*,*) 'ADDED from ', ace(iso)%xslib, ace(iso)%MT(j)
+                                        endif
+                                    case(N_4N)
+                                        if(nuclide(0,nnum-3,anum)%data_exist .and. nuclide(0,nnum-3,anum)%conn<0) then
+                                            nuclide(0,nnum-3,anum)%conn = conval
+                                            idx1 = idx1 + 1
+                                            daugh(idx1) = tgt*10-30
+                                            call ADDACE(daugh(idx1),tail)
+                                            !if(icore==score) write(*,*) 'ADDED from ', ace(iso)%xslib, ace(iso)%MT(j)
+                                        endif
+                                    case(N_P)
+                                        if(nuclide(0,nnum+1,anum-1)%data_exist .and. nuclide(0,nnum+1,anum-1)%conn<0) then
+                                            nuclide(0,nnum+1,anum-1)%conn = conval
+                                            idx1 = idx1 + 1
+                                            daugh(idx1) = tgt*10-10000
+                                            call ADDACE(daugh(idx1),tail)
+                                            !if(icore==score) write(*,*) 'ADDED from ', ace(iso)%xslib, ace(iso)%MT(j)
+                                        endif
+                                    case(N_A)
+                                        if(nuclide(0,nnum-1,anum-2)%data_exist .and. nuclide(0,nnum-1,anum-2)%conn<0) then
+                                            nuclide(0,nnum-1,anum-2)%conn = conval
+                                            idx1 = idx1 + 1
+                                            daugh(idx1) = tgt*10-20030
+                                            call ADDACE(daugh(idx1),tail)
+                                            !if(icore==score) write(*,*) 'ADDED from ', ace(iso)%xslib, ace(iso)%MT(j)
                                         endif
                                     end select
+                                endif
+                            enddo
                         enddo
 !                        if(nuclide(inum,nnum,anum)%fy_idx>0) then
 !                        do j = 1,nfp
@@ -959,7 +1042,7 @@ module depletion_module
 !                        enddo
 !                        endif
                     enddo
-                    decay(1:10000) = daugh(1:10000)
+                    decay(1:4000) = daugh(1:4000)
                     daugh = 0
                     idx = idx1
                 enddo
@@ -972,6 +1055,7 @@ module depletion_module
                         nnuc = nnuc + 1
                         nuclide(inum,nnum,anum)%idx=nnuc
                         zai_idx(nnuc) = anum*10010+nnum*10+inum
+                        !if(icore==score) print *, nnuc, zai_idx(nnuc)
                     endif
                 enddo
                 enddo
@@ -1099,8 +1183,7 @@ module depletion_module
             idx = 1
             FLX_LOOP: do i = 1, nueg
                 if( ueggrid(i) >= ace(iso) % E(ace(iso)%NXS(3)) ) then
-                    !flux(n-1) = flux(n-1) + sum(eflux(i:nueg))
-                    flux(n-1) = flux(n-1) + eflux(i)
+                    flux(n-1) = flux(n-1) + sum(eflux(i:nueg))
                     exit FLX_LOOP
 !                elseif( ace(iso) % UEG % Egrid(i) == 0) then
 !                    cycle
@@ -1132,6 +1215,11 @@ module depletion_module
                 buildogxs_iso = dot_product(ace(iso) % sigf, flux)
             case default
                 if(rx/=0) buildogxs_iso = dot_product(ace(iso) % sig_MT(rx) % cx, flux)
+                if(mt==N_3N .and. ace(iso)%zaid==42099) then
+                    print *, 'MT', buildogxs_iso
+                    !print *, 'CX', ace(iso)%sig_MT(rx)%cx
+                    !print *, 'FLX', flux
+                endif
             end select
             endfunction
 
@@ -1404,6 +1492,7 @@ module depletion_module
                 nnum = mnum - anum
                 inum = zai_idx(jnuc) - anum*10000 - mnum*10
                 if(nnum<0) then
+                    print *, zai_idx(jnuc)
                     cycle
                 endif
                 if(nuclide(inum,nnum,anum)%react_num==0) cycle
@@ -1495,6 +1584,7 @@ module depletion_module
 !                end if
             end do
             end if
+            !print *, 'BU' 
             if (icore==score) then 
                 write(prt_bumat, '(a45)')         '   =========================================='
                 write(prt_bumat, '(a17,i4)')     '      Burnup step', istep_burnup+1
@@ -1515,6 +1605,10 @@ module depletion_module
                 if(.not. materials(imat)%depletable) cycle    !material imat is not burned
                 !samarium = 0.d0
                 mat => materials(imat)
+                !print *, icore, 'MATDEP', imat, '/', totgeom
+!                    write(prt_bumat, *) '' 
+!                    write(prt_bumat, *) mat%mat_name 
+!                    write(prt_bumat, *) ''
                 !Call the material independent burnup matrix 
                 
                 allocate(yield_data(nfp,nfssn))
@@ -1548,6 +1642,7 @@ module depletion_module
                     enddo
                     
                     erg = numer/denom
+                    !print *, 'NFY', fssn_zai(i), erg
                     
                     if(nE<=1) then
                         yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
@@ -1679,7 +1774,7 @@ module depletion_module
                     ! NORMALIZE NFY: sum(NFY) = 200
                     ratio = sum(yield_data(:,i)*nucexist)/2.d0
                     !if(ratio>0.d0) yield_data(:,i) = yield_data(:,i)/ratio
-                    !if(icore==score) print *, 'NFY', fssn_zai(i), ratio
+                    if(icore==score) print *, 'NFY', fssn_zai(i), ratio
                 enddo
                 deallocate(nucexist)
                 !Calculate real flux (volume-averaged)
@@ -1689,6 +1784,9 @@ module depletion_module
                 toteflux = sum(mat%eflux(0:nueg))
                 !Build burnup matrix with cross section obtained from MC calculation
                 bMat = bMat0*bstep_size
+                !if(icore==score) print *, 'bMat0', bMat(nnuc,:), bMat0(nnuc,:)
+                !!$omp parallel do default(private) &
+                !!$omp shared(bMat, real_flux, toteflux, bstep_size, yield_data, ZAIMT_ism, gnd_frac, ace, nuclide, fssn_zai, fp_zai, nfssn, RXMT, num_iso)
                 !$OMP PARALLEL DO &
                 !$OMP PRIVATE(iso, anum, mnum, nnum, inum, jnuc, flx, flx2, mt, ogxs, ogxs1, fy_midx, anum1, nnum1, mnum1, inum1, knuc, a1, m1, n1, ism, zai, pn, dn, tn, an, a3n, nn, addn)  
                 DO_ISO: do mt_iso = 1,num_iso
@@ -1701,11 +1799,8 @@ module depletion_module
                         inum = 1
                         mnum = mnum - 200
                         if(anum>88) mnum = mnum + 100
-                    elseif(mnum==0) then
-                        cycle
                     endif
                     nnum = mnum-anum
-
                     jnuc = nuclide(inum,nnum,anum)%idx
                     if(jnuc==0) cycle
 
@@ -1719,8 +1814,13 @@ module depletion_module
                     
                     do rx = 1,ace(iso)%NXS(4)
                         mt = ace(iso)%MT(rx)
+                        !if(abs(ace(iso)%TY(rx))==1) print *, 'EXCLUDED', iso, mt
+                        !if(icore==score .and. ace(iso)%zaid==57138) print *, 'MTS', rx, mt
                         if(abs(ace(iso)%TY(rx))==1 .and. .not.(mt==N_NA .or. mt==N_NF .or. mt==N_NA .or. mt==N_N3A .or. mt==N_NP .or. mt==N_N2A .or. mt==N_ND .or. mt==N_NT .or. mt==N_N3HE .or. mt==N_ND2A .or. mt==N_NT2A .or. mt==N_N2P .or. mt==N_NPA .or. mt==N_NDA .or. mt==N_NPD .or. mt==N_NPT .or. mt==N_NDT .or. mt==N_NP3HE .or. mt==N_ND3HE .or. mt==N_NT3HE .or. mt==N_NTA .or. mt==N_N3P)) cycle ! Maybe inelastic?
                         if(mt == 4 .or. mt > 200) cycle ! Inelastic and Damage
+                        !if(abs(ace(iso)%TY(rx))==1 .and. icore==score) print *, 'WOW',ace(iso)%zaid, mt
+                        ! TALLY OGXS
+                        !elseif(
                         if(do_ueg) ogxs = buildogxs_e2(iso, rx, flx, flx2) * barn
 
                         if(do_rx_tally) then
@@ -1735,6 +1835,12 @@ module depletion_module
                                 enddo
                             endif
                         endif
+!                        if(ace(iso)%zaid==57138) then
+!                            print *, trim(materials(imat)%mat_name), ace(iso)%zaid, mt, ogxs
+!                            call mtrxread(mt, nn, pn, dn, tn, an, a3n)
+!                            print *, 'MT', 'N', 'P', 'D', 'T', 'A', 'A3'
+!                            print *, nn, pn, dn, tn, an, a3n
+!                        endif
                         !if(mt==N_NF .or. mt==N_2NF .or. mt==N_3NF) cycle
                         ! FIND DESTINATION
                         if(mt==18 .or. ace(iso)%TY(rx)==19) then ! In case of Fission
@@ -1747,15 +1853,13 @@ module depletion_module
                                 elseif(ace(iso)%MT(rx)==N_3NF) then
                                     addn = 3
                                 endif
-
+                                if(icore==score .and. addn>0) print *, 'NFS', addn, ace(iso)%zaid, ogxs
                                 if(nuclide(inum,nnum-addn,anum)%fy_idx>0) then
                                     fy_midx = nuclide(inum,nnum-addn,anum)%fy_idx
                                 else
                                     fy_midx = 0
                                     if(inum>1 .and. nuclide(0,nnum-addn,anum)%fy_idx>0) then
                                         fy_midx = nuclide(0,nnum-addn,anum)%fy_idx
-                                    elseif(inum==0 .and. nuclide(1, nnum-addn, anum) % fy_idx > 0) then 
-                                        fy_midx = nuclide(1, nnum-addn, anum) % fy_idx
                                     else
                                         do i = 1,nfssn
                                             a1 = fssn_zai(i)/10000
@@ -1857,6 +1961,7 @@ module depletion_module
                                     knuc = nuclide(0,2,2)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
                                         ogxs * bstep_size * an
+                                    !if(knuc/=0) print *, 'A4', knuc, jnuc, bMat(knuc,jnuc)
                                     endif
                                     if(a3n>0) then
                                     knuc = nuclide(0,1,2)%idx
@@ -1886,6 +1991,17 @@ module depletion_module
         !directory = './BUMAT/UEG'
         call execute_command_line('mkdir -p '//adjustl(trim(directory)))
         filename = 'mat_'//trim(adjustl(mat%mat_name(:)))//'_step_'//trim(adjustl(fileid))//'.m'
+!        idx = 0
+!        do
+!            idx = idx + 1
+!            write(fileid,'(i3)') idx
+!            filename = trim(adjustl(mat%mat_name(:)))//'_trial'//trim(adjustl(fileid))//'.m'
+!            inquire(file=trim(directory)//'/'//trim(filename),exist=do_exist)
+!            if(.not. do_exist) then
+!                exit
+!            endif
+!        enddo
+
         open(bumat_test, file = trim(directory)//'/'//trim(filename),action="write",status="replace")
         write(bumat_test,*) 'FLUX=',real_flux,';'
         write(bumat_test,*) 'ZAI1=zeros(',nnuc,',1);'
@@ -1917,6 +2033,32 @@ module depletion_module
             print *, "ERROR :: No such matrix_exponential_solver option", matrix_exponential_solver
             stop 
         end select
+        !print *, 'DONE', icore, imat, totgeom
+!        if(totgeom < 10) then
+!            print *, 'DEP solved for mat:',imat,'/',totgeom, ':', icore
+!        else
+!            !$OMP ATOMIC
+!            cnt = cnt + 1
+!
+!            call MPI_ALLREDUCE(cnt,rcv,1,MPI_INTEGER,MPI_SUM,core,ierr)
+!            cnt = rcv
+!
+!            if(icore==score) then
+!
+!            if(cnt == totgeom/4) then
+!                print *, 'DEPLETION CALC ( 25%/100%)'
+!            elseif(cnt == totgeom/4*2) then
+!                print *, 'DEPLETION CALC ( 50%/100%)'
+!            elseif(cnt == totgeom/4*3) then
+!                print *, 'DEPLETION CALC ( 75%/100%)'
+!            elseif(cnt == totgeom) then
+!                print *, 'DEPLETION CALC (100%/100%)'
+!            endif
+!            
+!            endif
+!        endif
+
+        !print *, 'COUNT?', icore, imat, totgeom
         
         ! WRITE ATOMIC DENSITY IN MATLAB .m FILE (OPTIONAL)
         if(bumat_print)then
@@ -2167,7 +2309,7 @@ module depletion_module
         if(curr_cyc <= n_inact) return 
         if(.not. materials(imat)%depletable) return ! not depletable -> return
         
-        if(erg > ueggrid(nueg) .or. erg < ueggrid(1)) return
+        !if(erg > ueggrid(nueg) .or. erg < ueggrid(1)) return
         
         mat => materials(imat)
         
@@ -2358,11 +2500,9 @@ module depletion_module
                     inum = 1
                     mnum = mnum - 200
                     if(anum>88) mnum = mnum + 100
-                elseif(mnum==0) then
-                    cycle
+                    if(icore==score) print *, anum, mnum, inum
                 endif
                 nnum = mnum - anum
-
                 if(materials(imat)%depletable==.true. .and. do_burn .and. nuclide(inum,nnum,anum)%idx>0) then 
                     materials(imat)%full_numden(nuclide(inum,nnum,anum)%idx) = materials(imat)%numden(mt_iso)
                 endif 

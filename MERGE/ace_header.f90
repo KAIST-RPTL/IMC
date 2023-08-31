@@ -160,6 +160,7 @@ type AceFormat
   real(8), allocatable :: sigd(:)  !> disappearance cross sections, sigd(I), I=1,NXS(3)
   real(8), allocatable :: sigel(:) !> elastic cross sections, sigel(I), I=1,NXS(3)
   real(8), allocatable :: sigf(:)  !> fission cross sections, sigf(I), I=IE, IE+NE-1
+  real(8), allocatable :: sigqf(:) !> Q-fission cross sections
   real(8), allocatable :: H(:)     !> average heating numbers, H(I), I=1,NXS(3)
   !real(8), allocatable :: signuf(:)!> nu*sigf, identical size with sigf(:) // nu is generated in NU block
 

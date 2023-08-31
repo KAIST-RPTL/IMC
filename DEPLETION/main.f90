@@ -759,7 +759,7 @@ subroutine CYCLE_TALLY_MSG(bat)
     if ( bat == n_batch .and. tallyon) then
     ! power distribution normalization
     call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
-    call NORM_DIST(p_fmfd(1:n_batch,1:n_act,:,:,:))
+    if(fmfdon) call NORM_DIST(p_fmfd(1:n_batch,1:n_act,:,:,:))
 
     !! computing time
     !t_MC = t_tot - t_det

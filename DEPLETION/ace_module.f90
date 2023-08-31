@@ -120,24 +120,22 @@ if(E_mode==0) return
   !Maximum energy in XSS table
   if( Emax < XSS(ace(iso)%NXS(3)) ) Emax = XSS(ace(iso)%NXS(3))
   
+  allocate( ace(iso) % sigqf ( 1 : ace(iso)%NXS(3) ) ); ace(iso) % sigqf = 0d0
+  if(ace(iso)%JXS(21)/=0) then
+      do i = 1, ace(iso) % NXS(4)
+        if(ace(iso) % MT(i) == 18 .or. ace(iso) % TY(i) == 19) then
+            ace(iso) % sigqf(:) = ace(iso) % sigqf(:) + ace(iso) % sig_MT(i) % cx(:) * ace(iso) % Q(i) * 202.27d0 / 193.4054d0
+        endif
+      enddo
+  endif
+
   !Set recoverable energy per fission [MeV]
   !Ref. Eq. (7.19) in Nuclear Engineering Fundamentals: A Practical Perspective
   !First proposed by Unik and Ginlder [1970]
-  
   if(ace(iso)%JXS(21)/=0) then
-    anum = ace(iso)%NXS(2)/1000
-    mnum = ace(iso)%NXS(2) - anum*1000
-    !ace(iso)%qval = 1.29927d-3*(anum**2)*sqrt(dble(mnum))+33.12d0
-    do i=1,ace(iso)%NXS(4)
-        if(ace(iso)%MT(i)==18) then
-        ace(iso)%qval = ace(iso)%Q(i)*1.0458343d0
-        ! ADJUST Qval with Reference U-235 Heating (Serpent method)
-!        if(icore==score) print *, 'KAPPA', anum*1000+mnum, ace(iso)%qval
-        exit
-        endif
-    enddo
+        ace(iso) % qval = sum( ace(iso) % sigqf ) / sum( ace(iso) % sigf )
   else
-    ace(iso)%qval = 0.d0
+        ace(iso)%qval = 0.d0
   end if
 
   !Find (n,g) reaction cross section location (MT=102 or ENDF_NG) for burnup

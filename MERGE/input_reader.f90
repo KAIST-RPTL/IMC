@@ -66,11 +66,17 @@ subroutine read_geom
     character(30) :: filename
     character(100) :: args(100)
     integer :: nargs
+    integer :: ns0, ns1 ! surfaces
+    integer :: nc0, nc1 ! cells
+    integer :: nu0, nu1 ! universes
+    integer :: nl0, nl1 ! lattices
 	
     logical :: found 
-
     character(20) :: dupname
     character(5) :: char1, char2
+
+    if (icore==score) print *, "   geom.inp :: GEOMETRY CARD is being read..."
+
     
     !Read geom.inp
     open(rd_geom, file=trim(trim(directory)//"geom.inp"),action="read", status="old")
@@ -81,9 +87,10 @@ subroutine read_geom
 		
         if (ierr /= 0) exit
 		option = args(1)
+        call Small_to_Capital(option)
         !<================================================================>!
         select case (option)
-        case ("title") 
+        case ("TITLE") 
             title = args(2)
             filename = trim(title)//'_keff.out'
             
@@ -104,13 +111,13 @@ subroutine read_geom
                 end if
                 if(icore==score) write(prt_adjoint,*) 'BETA   GENTIME'
             endif
-		case ('gmsh')
+		case ('GMSH')
 			read (args(2), '(L)') do_gmsh
 			if (do_gmsh) call read_msh()
 			! TODO :: 경계조건 입력 필요 (현재는 vacuum)
 			
 			
-        case ("surf")
+        case ("SURF")
             isize = 0
             if (allocated(surfaces)) isize = size(surfaces) 
             isize = isize+1
@@ -121,7 +128,7 @@ subroutine read_geom
             if(allocated(surfaces)) deallocate(surfaces)
             call move_alloc(surfaces_temp, surfaces)
             
-        case ("cell")
+        case ("CELL")
             isize = 0
             if (allocated(cells)) isize = size(cells) 
             isize = isize+1
@@ -131,7 +138,7 @@ subroutine read_geom
             if(allocated(cells)) deallocate(cells)
             call move_alloc(cells_temp, cells)            
                         
-        case ("pin")
+        case ("PIN")
             isize = 0
             if (allocated(universes)) isize = size(universes)-1
             isize = isize+1
@@ -249,7 +256,7 @@ subroutine read_geom
                 call gen_surfs_from_pin (univptr, surfaces(j-univptr%ncell+2:j)) 
             endif 
         
-        case ("lat")
+        case ("LAT")
             isize = 0
             if (allocated(lattices)) isize = size(lattices) 
             isize = isize+1
@@ -292,7 +299,7 @@ subroutine read_geom
             
             
             
-        case ('bc') 
+        case ('BC') 
             !if (do_gmsh) then 
 			!	read (args(2), '(I)') tet_bc
 
@@ -300,7 +307,7 @@ subroutine read_geom
 				call read_bc (surfaces, args, nargs)
             !endif 
             
-        case ('sgrid') 
+        case ('SGRID') 
             allocate(sgrid(1:6))
             call read_sgrid (args, nargs)
 		
@@ -880,6 +887,7 @@ end subroutine READ_CTRL
 		logical :: switch
 		character(4):: mtype
         character(6):: optchar
+        character(10) :: preco_char
 		integer, allocatable:: tally_temp(:)
 		integer, allocatable:: zztemp(:)
         real(8), allocatable :: numden(:) 
@@ -893,12 +901,15 @@ end subroutine READ_CTRL
         integer:: idx_temp, comp, mini
         real(8):: den_temp
         integer, allocatable:: mid(:)
+
+        ! For MSR-related feature
+        real(8) :: l_inact = 0d0
 		
 		
         File_Error=0
         n = 0 
         select case(Card_Type)
-        case('A') 
+        case('A')
             Read_Card_A : do
                 if(File_Error/=0) call Card_Error(Card_Type,Char_Temp)
                 read(File_Number,*,iostat=File_Error) Char_Temp
@@ -1024,69 +1035,203 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, elength
                     if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+!
+!                case("FMFD")
+!                    backspace(File_Number)
+!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fmfdon
+!                    if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+!                    if ( fmfdon ) call FMFD_INITIAL
+!                case("FMFD_GRID")
+!                    backspace(File_Number)
+!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fm0, fm1, nfm
+!                    if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+!                    fm2 = fm1 - fm0
+!                    dfm = fm2 / dble(nfm)
+!                    call FMFD_ERR0
+!                case("FMFD_ACC")
+!                    backspace(File_Number)
+!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_acc
+!                    if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+!                    call FMFD_ERR0
+!                case("FMFD_SKIP")
+!                    backspace(File_Number)
+!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_skip
+!                    if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+!                    call FMFD_ERR0
+!                case("ONE_CMFD")
+!                    backspace(File_Number)
+!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fcr, fcz
+!                    if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+!                    ncm(1:2) = nfm(1:2) / fcr
+!                    ncm(3)   = nfm(3)   / fcz
+!                    call FMFD_ERR0
+!                    call FMFD_ERR1
+!                    cmfdon = .true.
+!				case("ZIGZAG")
+!					if ( .not. fmfdon ) cycle
+!					zigzagon = .true.
+!					n_zz = 0
+!					do
+!					n_zz = n_zz + 1
+!					allocate(zztemp(n_zz))
+!					backspace(File_Number)
+!					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, zztemp(1:n_zz)
+!					deallocate(zztemp)
+!					if ( File_Error /= 0 ) then
+!						n_zz = n_zz - 1
+!						allocate(zztemp(n_zz))
+!						rewind(File_Number)
+!						do
+!						read(File_Number,*,iostat=File_Error) Char_Temp
+!						Call Small_to_Capital(Char_Temp)
+!						if ( Char_Temp == 'ZIGZAG' ) exit
+!						end do
+!						backspace(File_Number)
+!						read(File_Number,*,iostat=File_Error) Char_Temp, Equal, zztemp(1:n_zz)
+!						if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+!						exit
+!					end if
+!					end do
+!					call ZIGZAG_INDEX(zztemp)
+!				case("FMFD_TO_MC")
+!					if ( .not. fmfdon ) cycle
+!					backspace(File_Number)
+!					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fmfd2mc
+!					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
 
                 case("FMFD")
+                    if ( fake_MC ) then
+                    fmfdon = .true.
+                    else
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fmfdon
                     if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+                    end if
                     if ( fmfdon ) call FMFD_INITIAL
-                case("FMFD_GRID")
+                case("PFMFD")
+                    if ( .not. fmfdon ) cycle
                     backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fm0, fm1, nfm
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, pfmfdon
                     if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
-                    fm2 = fm1 - fm0
-                    dfm = fm2 / dble(nfm)
-                    call FMFD_ERR0
                 case("FMFD_ACC")
+                    if ( .not. fmfdon ) cycle
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_acc
                     if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
-                    call FMFD_ERR0
+    
+                    if ( iscore ) then
+                        if ( n_acc < n_act ) &
+                                print*, "WARNING: FMFD_ACC is not long enough"
+                        if ( n_acc > n_totcyc ) n_acc = n_totcyc
+                        if ( n_acc == 0 ) n_acc = n_totcyc
+                    end if
+    
+    
                 case("FMFD_SKIP")
+                    if ( .not. fmfdon ) cycle
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_skip
                     if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
-                    call FMFD_ERR0
+                case("ACC_SKIP")
+                    if ( .not. fmfdon ) cycle
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, acc_skip
+                    if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
                 case("ONE_CMFD")
+                    if ( .not. fmfdon ) cycle
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fcr, fcz
                     if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
                     ncm(1:2) = nfm(1:2) / fcr
                     ncm(3)   = nfm(3)   / fcz
-                    call FMFD_ERR0
                     call FMFD_ERR1
                     cmfdon = .true.
-				case("ZIGZAG")
-					if ( .not. fmfdon ) cycle
-					zigzagon = .true.
-					n_zz = 0
-					do
-					n_zz = n_zz + 1
-					allocate(zztemp(n_zz))
-					backspace(File_Number)
-					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, zztemp(1:n_zz)
-					deallocate(zztemp)
-					if ( File_Error /= 0 ) then
-						n_zz = n_zz - 1
-						allocate(zztemp(n_zz))
-						rewind(File_Number)
-						do
-						read(File_Number,*,iostat=File_Error) Char_Temp
-						Call Small_to_Capital(Char_Temp)
-						if ( Char_Temp == 'ZIGZAG' ) exit
-						end do
-						backspace(File_Number)
-						read(File_Number,*,iostat=File_Error) Char_Temp, Equal, zztemp(1:n_zz)
-						if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-						exit
-					end if
-					end do
-					call ZIGZAG_INDEX(zztemp)
-				case("FMFD_TO_MC")
-					if ( .not. fmfdon ) cycle
-					backspace(File_Number)
-					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fmfd2mc
-					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+                    fc1 = fcr*fcz
+                    fc2 = fcr*fcr
+                    n_lnodes = fc2*fcz
+                    dcm(1) = dfm(1)*fcr
+                    dcm(2) = dfm(2)*fcr
+                    dcm(3) = dfm(3)*fcz
+                case("ONE_PCMFD")
+                    if ( .not. fmfdon ) cycle
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fcr, fcz
+                    if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+                                ncm(1:2) = nfm(1:2) / fcr
+                    ncm(3)   = nfm(3)   / fcz
+                    call FMFD_ERR1
+                    cmfdon = .true.
+                    pcmfdon = .true.
+                    fc1 = fcr*fcz
+                    fc2 = fcr*fcr
+                    n_lnodes = fc2*fcz
+                    dcm(1) = dfm(1)*fcr
+                    dcm(2) = dfm(2)*fcr
+                    dcm(3) = dfm(3)*fcz
+                case("ZIGZAG")
+                    if ( .not. fmfdon ) cycle
+                    zigzagon = .true.
+                    n_zz = 0
+                    do
+                    n_zz = n_zz + 1
+                    allocate(zztemp(n_zz))
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, zztemp(1:n_zz)
+                    deallocate(zztemp)
+                    if ( File_Error /= 0 ) then
+                        n_zz = n_zz - 1
+                        allocate(zztemp(n_zz))
+                        rewind(File_Number)
+                        do
+                        read(File_Number,*,iostat=File_Error) Char_Temp
+                        Call Small_to_Capital(Char_Temp)
+                        if ( Char_Temp == 'ZIGZAG' ) exit
+                        end do
+                        backspace(File_Number)
+                        read(File_Number,*,iostat=File_Error) Char_Temp, Equal, zztemp(1:n_zz)
+                        if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+                        exit
+                    end if
+                    end do
+                    call ZIGZAG_INDEX(zztemp)
+                case("FMFD_TO_MC")
+                    if ( .not. fmfdon ) cycle
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fmfd2mc
+                    if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+                case("DUAL_FMFD")
+                    if ( .not. fmfdon ) cycle
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, dual_fmfd
+                    if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+    
+                case("QUARTER_CORE")
+                    if ( .not. fmfdon ) cycle
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, quarter
+                    if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+                case("INACTIVE_CMFD")
+                    if ( .not. fmfdon ) cycle
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, inactive_cmfd
+                    if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+                    ncm(1:2) = nfm(1:2) / fcr
+                    ncm(3)   = nfm(3)   / fcz
+                    call FMFD_ERR1
+                    inactive_cmfd = .true.
+                    cmfdon = .true.
+                    pcmfdon = .true.
+                    fc1 = fcr*fcz
+                    fc2 = fcr*fcr
+                    n_lnodes = fc2*fcz
+                    dcm(1) = dfm(1)*fcr
+                    dcm(2) = dfm(2)*fcr
+                    dcm(3) = dfm(3)*fcz
+                case("K_PERTURB")
+                    if ( .not. fmfdon ) cycle
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, perton
+                    if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
 
 
 				case("TH")
@@ -1409,12 +1554,25 @@ end subroutine READ_CTRL
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fuel_speed
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
                     if(fuel_speed>=0.d0 .and. do_ifp) do_fuel_mv = .true.
+                    if(l_inact > 0d0) then
+                        t_rc = l_inact / fuel_speed
+                        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
+                    endif 
 
                 case("RECIRCULATION_TIME")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, t_rc
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
                     
+                case("INACTIVE_LENGTH")
+                    backspace(File_Number)
+                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, l_inact
+                    if(Equal/="=") call Card_Error(Card_Type, Char_Temp)
+                    if(fuel_speed > 0d0) then
+                        t_rc = l_inact / fuel_speed
+                        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
+                    endif
+
                 case("CORE_HEIGHT")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_height
@@ -1746,6 +1904,31 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_rx_tally
                     if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
+                case("PRECO")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, preco_char 
+                    if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
+                    call Small_to_Capital(preco_char)
+                    select case(trim(preco_char))
+
+                    ! Constant Extrapolation: 0
+                    case("CE")
+                        preco = 0
+                    case("0")
+                        preco = 0
+
+                    ! CE/Linear Interpolation: 1
+                    case("CELI")
+                        preco = 1
+                    case("1")
+                        preco = 1
+
+                    ! Linear Extrapolation/LI: 2
+                    case("LELI")
+                        preco = 2
+                    case("2")
+                        preco = 2
+                    end select
 
                 case("DTMC_BU")
                     if ( .not. fmfdon ) cycle
@@ -1830,48 +2013,92 @@ end subroutine READ_CTRL
         
     end subroutine Read_Card
 
-	subroutine ZIGZAG_INDEX(zztemp)
-		use FMFD_HEADER, only: n_zz, zzf0, zzf1, zzf2, zz_div, &
-							zzc0, zzc1, zzc2
-		implicit none
-		integer:: zztemp(:)
-		integer:: ii
+    subroutine ZIGZAG_INDEX(zztemp)
+        use FMFD_HEADER, only: n_zz, zzf0, zzf1, zzf2, zz_div, &
+                            zzc0, zzc1, zzc2, zza0, zza1, zza2, &
+                            zzb0, zzb1, zzb2, quarter, wholecore
+        implicit none
+        integer:: zztemp(:)
+        integer:: ii
 
-		zz_div = 2*n_zz+1
-		allocate(zzf0(zz_div+1))
-		allocate(zzf1(zz_div))
-		allocate(zzf2(zz_div))
+        zz_div = 2*n_zz+1
+        allocate(zzf0(zz_div+1))
+        allocate(zzf1(zz_div))
+        allocate(zzf2(zz_div))
+        ! zzf0   : reference points
+        zzf0(1) = 0
+        zzf0(2:n_zz+1) = zztemp(1:n_zz)
+        zzf0(n_zz+2:zz_div) = nfm(1) - zzf0(n_zz+1:2:-1)
+        zzf0(zz_div+1) = nfm(1)
 
-		! zzf0   : reference points
-		zzf0(1) = 0
-		zzf0(2:n_zz+1) = zztemp(1:n_zz)
-		zzf0(n_zz+2:) = nfm(1) - zzf0(n_zz+1:2:-1)
+        ! zzf1   : lower points for zzf0
+        zzf1(1:n_zz) = zztemp(n_zz:1:-1)
+        zzf1(n_zz+1) = 0
+        zzf1(n_zz+2:zz_div) = zztemp(1:n_zz)
 
-		! zzf1   : lower points for zzf0
-		zzf1(1:n_zz) = zztemp(n_zz:1:-1)
-		zzf1(n_zz+1) = 0
-		zzf1(n_zz+2:) = zztemp(1:n_zz)
+        ! zzf2   : upper points for zzf0
+        zzf2(:) = nfm(1) - zzf1(:)
 
-		! zzf2   : upper points for zzf0
-		zzf2(:) = nfm(1) - zzf1(:)
 
-		! 1-node CMFD
-		if ( cmfdon ) then
-		allocate(zzc0(zz_div+1))
-		allocate(zzc1(zz_div))
-		allocate(zzc2(zz_div))
-		zzc0 = zzf0 / fcr
-		zzc1 = zzf1 / fcr
-		zzc2 = zzf2 / fcr
-		if ( maxval(mod(zzf0,fcr)) /= 0 .or. &
-			 maxval(mod(zzf1,fcr)) /= 0 .or. &
-			 maxval(mod(zzf2,fcr)) /= 0 ) then
-			write(*,*), " * check zigzag index"
-			stop
-		end if
-		end if
+        ! =====================================================================
+        ! quarter core
+        if ( quarter ) then
+        zz_div = n_zz+1
+        deallocate(zzf0,zzf1,zzf2)
 
-	end subroutine
+        allocate(zzf0(zz_div+1))
+        allocate(zzf1(zz_div))
+        allocate(zzf2(zz_div))
+        zzf0(1) = 0
+        zzf0(2:zz_div) = nfm(1) - zztemp(n_zz:1:-1)
+        zzf0(zz_div+1) = nfm(1)
+
+        zzf1(:) = 0
+
+        zzf2(1) = nfm(1)
+        zzf2(2:) = nfm(1) - zztemp(1:n_zz)
+        end if
+
+
+
+        ! =====================================================================
+        ! 1-node CMFD
+        if ( cmfdon ) then
+        allocate(zzc0(zz_div+1))
+        allocate(zzc1(zz_div))
+        allocate(zzc2(zz_div))
+        zzc0 = zzf0 / fcr
+        zzc1 = zzf1 / fcr
+        zzc2 = zzf2 / fcr
+        if ( maxval(mod(zzf0,fcr)) /= 0 .or. &
+             maxval(mod(zzf1,fcr)) /= 0 .or. &
+             maxval(mod(zzf2,fcr)) /= 0 ) then
+            write(*,*), " * check zigzag index"
+            stop
+        end if
+        end if
+
+
+
+        ! only active core
+        if ( wholecore ) then
+        allocate(zza0(zz_div+1))
+        allocate(zza1(zz_div))
+        allocate(zza2(zz_div))
+        allocate(zzb0(zz_div+1))
+        allocate(zzb1(zz_div))
+        allocate(zzb2(zz_div))
+        zza0(1:zz_div/2+1) = zzc0(1:zz_div/2+1) + 1
+        zza0(zz_div/2+2:)  = zzc0(zz_div/2+2:) - 1
+        zza1 = zzc1 + 1
+        zza2 = zzc2 - 1
+        zzb0(1:zz_div/2+1) = zzf0(1:zz_div/2+1) + fcr
+        zzb0(zz_div/2+2:)  = zzf0(zz_div/2+2:) - fcr
+        zzb1 = zzf1 + fcr
+        zzb2 = zzf2 - fcr
+        end if
+
+    end subroutine
 
     subroutine read_depletion 
         

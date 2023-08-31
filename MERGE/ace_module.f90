@@ -1,17 +1,19 @@
 module ace_module
 
 use variables
-use ace_header 
+use ace_header
+use strings, only : parse
 
 implicit none 
 
 contains
 
-subroutine set_ace_iso(iso)
+subroutine set_ace_iso(iso, lib)
 
 !==============================================================================
 implicit none
 integer, intent(in) :: iso
+character(*), intent(in) :: lib
 integer :: i, j, k
 integer :: line
 integer :: iso0K
@@ -22,6 +24,8 @@ integer, parameter :: ace_read_handler = 20171116
 integer :: ierr
 
 integer :: min_egrid, max_egrid, num_egrid, loc1, loc2, loc3, max_len
+character(100) :: tmp1, args(100), tmparg
+integer :: nargs, length, liblen
  
 if(E_mode==0) return
 
@@ -48,6 +52,18 @@ if(E_mode==0) return
 !  else 
 !    ace(iso)%excited = .false. 
 !  endif 
+  liblen = len(trim(lib))
+  do
+    read(ace_read_handler,*) tmp1
+    call parse(tmp1,' ',args, nargs)
+    tmparg = adjustl(trim(args(1)))
+    length = len(trim(tmparg))
+    
+    if(tmparg(length-2:length) == lib(liblen-2:liblen)) exit
+  enddo
+  backspace(ace_read_handler)
+
+
   
   !1st line
   read(ace_read_handler,'(i6, 4X, f12.6, es12.4)') ace(iso)%ZAID, ace(iso)%atn, ace(iso)%temp
@@ -109,20 +125,19 @@ if(E_mode==0) return
   !Ref. Eq. (7.19) in Nuclear Engineering Fundamentals: A Practical Perspective
   !First proposed by Unik and Ginlder [1970]
   
-  if(ace(iso)%JXS(21)/=0) then
-    anum = ace(iso)%NXS(2)/1000
-    mnum = ace(iso)%NXS(2) - anum*1000
-    !ace(iso)%qval = 1.29927d-3*(anum**2)*sqrt(dble(mnum))+33.12d0
-    do i=1,ace(iso)%NXS(4)
-        if(ace(iso)%MT(i)==18) then
-        ace(iso)%qval = ace(iso)%Q(i)*1.0458343d0
-        ! ADJUST Qval with Reference U-235 Heating (Serpent method)
-!        if(icore==score) print *, 'KAPPA', anum*1000+mnum, ace(iso)%qval
-        exit
+  allocate( ace(iso) % sigqf ( 1 : ace(iso)%NXS(3) ) ); ace(iso) % sigqf = 0d0
+  !if(ace(iso)%JXS(21)/=0) then
+      do i = 1, ace(iso) % NXS(4)
+        if(ace(iso) % MT(i) == 18 .or. ace(iso) % TY(i) == 19) then
+            ace(iso) % sigqf(:) = ace(iso) % sigqf(:) + ace(iso) % sig_MT(i) % cx(:) * ace(iso) % Q(i) * 202.27d0 / 193.4054d0
         endif
-    enddo
+      enddo
+  !endif
+
+  if(ace(iso)%JXS(21)/=0) then
+        ace(iso) % qval = sum( ace(iso) % sigqf ) / sum( ace(iso) % sigf )
   else
-    ace(iso)%qval = 0.d0
+        ace(iso)%qval = 0.d0
   end if
 
   !Find (n,g) reaction cross section location (MT=102 or ENDF_NG) for burnup
@@ -1871,7 +1886,7 @@ subroutine find_ACE(this,line, iso_)
                 ace(num_iso) % xslib   = trim(line)
                 ace(num_iso) % library = trim(libpath(j))
                 iso_ = num_iso
-                call set_ace_iso(iso_)
+                call set_ace_iso(iso_, trim(line))
                 acerecord(j) = .false.
                end select
                 return

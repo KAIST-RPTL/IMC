@@ -171,8 +171,6 @@ function getMacroXS (mat, erg,kT, urn) result (macro_xs)
         
         
         ! Fissionable Material
-        !if(ace(iso_)%jxs(21)/=0) then
-        !if(allocated(ace(iso_)%sigf)) then 
         if(ace(iso_)%jxs(21)/=0 .or. allocated(ace(iso_)%sigf)) then
             micro_f   = ace(iso_)%sigf(ierg_) + ipfac*(ace(iso_)%sigf(ierg_+1)-ace(iso_)%sigf(ierg_))
             micro_nuf = getnu(iso_,erg)*micro_f
@@ -1570,7 +1568,7 @@ subroutine setMacroXS(BU)
             mat % macro_ueg(:,1) = mat % macro_ueg(:,1) + &
                 ace(iso) % UEG % sigt(:) * mat % numden(i) * barn
 
-            if(allocated(ace(iso) % UEG % sigf)) then
+            if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso) % UEG % sigf)) then
                 mat % macro_ueg(:,2) = mat % macro_ueg(:,2) + &
                     ace(iso) % UEG % signuf(:) * mat % numden(i) * barn
                 mat % macro_ueg(:,3) = mat % macro_ueg(:,3) + &
