@@ -100,12 +100,12 @@ contains
     class(rgbimage), intent(inout) :: this
     integer,         intent(in)    :: x, y
       !! coordinates
-    integer,         intent(in)    :: rgb(3)
+    integer,         intent(in)    :: rgb(1,3)
       !! red, green, blue values
  
     if (this%inside(x, y)) then
       ! use given data at first
-      this%rgb(x,y,:) = rgb
+      this%rgb(x,y,:) = rgb(1,:)
  
       ! check if given data was out of bounds
       where     (this%rgb(x,y,:) > 255)
@@ -175,7 +175,7 @@ contains
  
 	do j = this%n(2), 1, -1
 		do i = 1, this%n(1)
-			write (iounit, '(3A1)', advance='no') this%rgb(i,j,:) 
+			write (iounit, '(3A1)', advance='no') (this%rgb(i,j,k), k = 1,3) 
 		end do
 	end do
  

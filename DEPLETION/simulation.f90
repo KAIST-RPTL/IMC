@@ -1370,7 +1370,7 @@ end subroutine
 		integer :: i, j, i_plot
 		integer :: univ_idx, cell_idx
 		real(8) :: x, y, z, xyz(3) 
-		integer :: mat_rgb(n_materials, 3), rgb_blk(3) 
+		integer :: mat_rgb(n_materials, 3), rgb_blk(3), rgb(3)
 		real(8) :: rn 
 		type(rgbimage) :: im
 		character(24) :: plottitle
@@ -1409,8 +1409,9 @@ end subroutine
                     !print *, xyz(1),xyz(2),univ_idx,cell_idx
 					if (cells(cell_idx)%mat_idx < 1) then 
 						call im%set_pixel(i, j, rgb_blk)
-					else 
-						call im%set_pixel(i, j, mat_rgb(cells(cell_idx)%mat_idx,:))
+					else
+                        rgb(1:3) = mat_rgb(cells(cell_idx)%mat_idx, 1:3)
+						call im%set_pixel(i, j, rgb)
 					endif 
 				enddo 
 			enddo 
@@ -1455,8 +1456,9 @@ end subroutine
 		write(*,'(a30,i1,a3,i1,a1)', advance='no')  "    Making ppm image file... (" , i_plot, " / ", n_plot, ")"
 		! output image into file 
 		call im%write("fig.ppm")
-		call system("python /home/guest/HyeonTae/src_temp/15_Test/src_merge2/convert_ppm_to_jpg.py")
+		!call system("python /home/guest/HyeonTae/src_temp/15_Test/src_merge2/convert_ppm_to_jpg.py")
 		!call system("python /home/guest/inyup/03_ENDF_test/src_merge2/convert_ppm_to_jpg.py")
+        call system("python ./convert_ppm_to_jpg.py")
 		call system("mv fig.jpg "//trim(plotlist(i_plot))//".jpg") 
 		write(*,*) " - ", trim(plotlist(i_plot)), ".jpg"
 

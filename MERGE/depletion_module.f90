@@ -1784,11 +1784,11 @@ module depletion_module
 
                         if(do_rx_tally) then
                             if(ANY(RXMT==mt)) then
-                                ogxs1 = ogxs
+                                if(do_ueg) ogxs1 = ogxs
                                 do i_rx = 1, 7
                                     if(RXMT(i_rx)==mt) then
                                         ogxs = mat % ogxs(iso, i_rx) * real_flux
-                                        if(ace(iso)%zaid==92235 .or. ace(iso)%zaid==92238) write(*,'(A,A,I6, I3,E15.5,E15.5,E15.5)') 'BIAS ', trim(materials(imat)%mat_name), ace(iso)%zaid, mt, ogxs, ogxs1, (ogxs1-ogxs)/ogxs*1E2
+!                                        if(ace(iso)%zaid==92235 .or. ace(iso)%zaid==92238) write(*,'(A,A,I6, I3,E15.5,E15.5,E15.5)') 'BIAS ', trim(materials(imat)%mat_name), ace(iso)%zaid, mt, ogxs, ogxs1, (ogxs1-ogxs)/ogxs*1E2
                                         exit
                                     endif
                                 enddo
@@ -2221,13 +2221,13 @@ module depletion_module
         if(curr_cyc <= n_inact) return 
         if(.not. materials(imat)%depletable) return ! not depletable -> return
         
-        if(erg > ueggrid(nueg) .or. erg < ueggrid(1)) return
         
         mat => materials(imat)
         
         !$omp atomic
         mat%flux = mat%flux + wgt*distance !Volume-integrated flux tally (not normalized)
         if(do_ueg) then
+            if(erg > ueggrid(nueg) .or. erg < ueggrid(1)) return
             ! EFLUX TALLY
             call getiueg(erg, ierg)
             

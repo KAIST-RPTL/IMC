@@ -883,7 +883,7 @@ end subroutine READ_CTRL
 		character(30):: Char_Temp
 		character(80):: line, lib1,lib2
 		character(1)::Equal
-		integer :: n, nm0, nm1
+		integer :: n, nm0, nm1, nmat
 		logical :: switch
 		character(4):: mtype
         character(6):: optchar
@@ -1622,14 +1622,29 @@ end subroutine READ_CTRL
             end do Read_Card_A
         
         case('D')
+            nmat = 0
+            ! 230831: Count number of materials fist
+            MAT_COUNT: do
+                read(File_Number, *, iostat=File_Error) Char_Temp
+                if(Char_Temp=="ENDD") Exit MAT_COUNT
+                call Small_to_Capital(Char_Temp)
+                if(Char_Temp(1:7)=='END_MAT') nmat = nmat + 1
+            enddo MAT_COUNT
+            allocate(materials(nmat))
+            if(icore==score) print *, '   Number of Defined MAT:', nmat
+            rewind(File_Number)
             Read_Card_D : do
                 read(File_Number,*,iostat=File_Error) Char_Temp
-                if (Char_Temp(1:3)=="MAT" .or. Compare_String(Char_Temp(1:3),"mat")) then
-                    ! add a new material slot
-                    n = n+1
-                    allocate(materials_temp(n))
-                    if (n > 1) materials_temp(1:n-1) = materials(:) 
-                    CE_mat_ptr => materials_temp(n)
+                call Small_to_Capital(Char_Temp)
+                
+                if (Char_Temp(1:3)=="MAT") then
+!                    ! add a new material slot
+!                    n = n+1
+!                    allocate(materials_temp(n))
+!                    if (n > 1) materials_temp(1:n-1) = materials(:) 
+!                    CE_mat_ptr => materials_temp(n)
+                    n = n + 1
+                    CE_mat_ptr => materials(n)
 
                     CE_mat_ptr % rgb = -1
                 
@@ -1735,7 +1750,6 @@ end subroutine READ_CTRL
                                     CE_mat_ptr%numden(:) =  CE_mat_ptr%numden(:) * 1D+24
                                 endif
                                 CE_mat_ptr%density_gpcc = sum_den
-                                if(icore==score) print *, 'DENSITY CALC.D: ', CE_mat_ptr%density_gpcc
 							endif
                             
 							deallocate(numden)
@@ -1778,15 +1792,16 @@ end subroutine READ_CTRL
                     enddo Read_Mat
 					
 					if (CE_mat_ptr%temp == 0) CE_mat_ptr%temp = ace(CE_mat_ptr%ace_idx(1))%temp
-                    if(allocated(materials)) deallocate(materials)
-                    call move_alloc(materials_temp, materials)
+                    !if(allocated(materials)) deallocate(materials)
+                    !call move_alloc(materials_temp, materials)
                     
 					
                 end if
                 
                 if (Char_Temp=="ENDD") Exit Read_Card_D
             end do Read_Card_D            
-            n_materials = n
+            !n_materials = n
+            n_materials = nmat
             
         case('E') ! Depletion input 
             Read_Card_E : do
@@ -2009,6 +2024,7 @@ end subroutine READ_CTRL
             stop
         end select
         
+        if(.not. (do_ueg .or. do_rx_tally)) do_rx_tally = .true.
         RealPower = Nominal_Power
         
     end subroutine Read_Card
@@ -2122,7 +2138,7 @@ end subroutine READ_CTRL
                 backspace(rd_dep)
                 read(rd_dep,*,iostat=File_Error) Card,Card_Type
                 call Small_to_Capital(Card_Type)
-                if (icore==score) print *, "depletion.inp :: CARD ", Card_Type," is being read..."
+                if (icore==score) print *, "    depletion.inp :: CARD ", Card_Type," is being read..."
                 call Read_Card(rd_dep,Card_Type)
             end if
         end do Read_File
