@@ -25,7 +25,7 @@ subroutine collision_CE (p)
     integer :: iso, i, i_iso, xn, j
     real(8) :: rn, el, noel, r, sigt_sum, temp, sum1, sum2, g
     real(8) :: micro_xs(6)
-    real(8) :: macro_xs(5), tmparr(3)
+    real(8) :: macro_xs(5) !tmparr(4)
     ! * microscopic cross section
     ! 1 : total
     ! 2 : elastic
@@ -61,10 +61,10 @@ subroutine collision_CE (p)
     !enddo
     !end if
     if(do_ueg) then
-        tmparr = getMacroXS_UEG(materials(p%material), p%E,p%kT, p%urn)
-        macro_xs(1) = tmparr(1)
-        macro_xs(4) = tmparr(2)
-        macro_xs(5) = tmparr(3)
+        macro_xs = getMacroXS_UEG(materials(p%material), p%E,p%kT, p%urn)
+        !macro_xs(1) = tmparr(1)
+        !macro_xs(4) = tmparr(2)
+        !macro_xs(5) = tmparr(3)
     else
         macro_xs= getMacroXS(materials(p%material), p%E,p%kT, p%urn)
     endif

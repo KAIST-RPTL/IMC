@@ -21,7 +21,8 @@ module simulation
                                    tally2, meshon, FM_ID, tallyon, &
                                    PROCESS_TALLY, NORM_TALLY, &
                                    TALLY_THREAD_INITIAL, FindTallyBin, &
-								   meshon_tet_vrc, mesh_power
+								   meshon_tet_vrc, mesh_power, &
+                                   MC_tally
     use FMFD,               only : FMFD_initialize_thread, FMFD_initialize, &
                                    FMFD_solve, n_skip, n_acc, fsd, &
                                    process_FMFD, NORM_FMFD, fmfdon, &
@@ -86,6 +87,7 @@ subroutine simulate_history(bat,cyc)
     call para_range(1, isize, ncore, icore, ista, iend)        
     k_col = 0; k_tl = 0; k_vrc = 0; fiss_vrc = 0; loss_vrc = 0;
     if ( fmfdon ) call FMFD_initialize()
+    if ( do_burn ) MC_tally(bat,:,:,:,:,:,:) = 0
     cyc_power = 0;
     !print *, 'CORE', icore, score, ncore
     !if(.not. allocated(cyc_p_arr)) allocate(cyc_p_arr(0:ncore-1))
@@ -183,7 +185,7 @@ subroutine simulate_history(bat,cyc)
     !call MPI_BARRIER(MPI_COMM_WORLD, ierr)
     !> Process tallied FMFD parameters ==========================================
     if ( tallyon .and. .not. fmfdon ) call PROCESS_TALLY(bat,cyc)
-    if ( fmfdon ) call PROCESS_FMFD(bat,cyc)
+    if ( fmfdon .and. cyc > n_skip ) call PROCESS_FMFD(bat,cyc)
     if ( th_on .and. .not. fmfdon ) call PROCESS_TH()
     
     !> Gather keff from the slave nodes =========================================
@@ -193,15 +195,9 @@ subroutine simulate_history(bat,cyc)
     call MPI_REDUCE(k_tl,rcv_buf,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
     k_tl = rcv_buf
 	
-    !cyc_power = cyc_p_arr(icore)
-
-    !print *, icore, cyc_power, cyc_p_arr(0:ncore-1)
-
 
     call MPI_REDUCE(cyc_power,rcv_buf,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
     cyc_power = rcv_buf
-
-    
     
 	if (icore == score) avg_power = avg_power + cyc_power
 	
@@ -1337,7 +1333,9 @@ subroutine bank_initialize(this)
                     if ( zigzagon ) then
                     id = CM_ID(this(i)%xyz(:))
                     if ( .not. OUT_OF_ZZ(id(1),id(2)) &
-                        .and. id(1) > 0 .and. id(1) <= ncm(1) ) exit
+                        .and. id(1) > 0 .and. id(1) <= ncm(1) ) exit search_CMFD
+                    else
+                        exit search_CMFD
                     end if
                     
                 enddo search_CMFD

@@ -20,7 +20,7 @@ function getMacroXS_UEG(mat, erg, kT, urn) result (macro_xs)
     type(Material_CE), intent(in) :: mat
     real(8), intent(in) :: erg, kT
     real(8), intent(in) :: urn(1:n_unr)
-    real(8) :: macro_xs(3)
+    real(8) :: macro_xs(5)
     real(8) :: xs(4), micro_xs(6)
 
     real(8) :: dtemp ! OTF DB
@@ -86,11 +86,11 @@ function getMacroXS_UEG(mat, erg, kT, urn) result (macro_xs)
         micro_xs(6) = micro_xs(4) * ace(iso) % qval
 
         macro_xs(1) = macro_xs(1) + micro_xs(1) * mat % numden( mat % uresidx(i) ) * barn
-        !macro_xs(2) = macro_xs(2) + micro_xs(3) * mat % numden( mat % uresidx(i) ) * barn
+        macro_xs(2) = macro_xs(2) + micro_xs(3) * mat % numden( mat % uresidx(i) ) * barn
         if(micro_xs(4) == 0) cycle
-        !macro_xs(3) = macro_xs(3) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn
-        macro_xs(2) = macro_xs(2) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn * getnu(iso, erg)
-        macro_xs(3) = macro_xs(3) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn * ace(iso) % qval
+        macro_xs(3) = macro_xs(3) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn
+        macro_xs(4) = macro_xs(4) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn * getnu(iso, erg)
+        macro_xs(5) = macro_xs(5) + micro_xs(4) * mat % numden( mat % uresidx(i) ) * barn * ace(iso) % qval
 
     enddo
 
@@ -1510,7 +1510,7 @@ subroutine setMacroXS(BU)
     logical, intent(in) :: BU
     integer :: i, j, iso, ii, imat
     integer :: nprod
-    real(8) :: micro(3), xs(6), ipfac
+    real(8) :: micro(5), xs(6), ipfac
 
     integer :: ierg, cnt
     cnt = 0
@@ -1518,7 +1518,7 @@ subroutine setMacroXS(BU)
     do imat = 1, n_materials
     !if(BU .and. .not. materials(imat)%depletable) cycle
     mat => materials(imat)
-    if(.not. allocated(mat % macro_ueg)) allocate(mat % macro_ueg(1:nueg, 3))
+    if(.not. allocated(mat % macro_ueg)) allocate(mat % macro_ueg(1:nueg, 5))
     
     if(do_ures .and. n_unr>0 .and. .not. allocated(mat % ures)) &
         allocate(mat % ures(1:n_unr))
@@ -1545,13 +1545,14 @@ subroutine setMacroXS(BU)
                 endif
                 micro    = 0D0
                 micro(1) = (ace(iso) % UEG % sigt(j))
-                !if(allocated(ace(iso)%UEG%sigd)) &
-                !    micro(2) = (ace(iso) % UEG % sigd(j))
+                if(allocated(ace(iso)%UEG%sigd)) &
+                    micro(2) = (ace(iso) % UEG % sigd(j))
     
                 if(allocated(ace(iso)%UEG%sigf)) then
-                    !micro(3) = (ace(iso) % UEG % sigf(j))
-                    micro(2) = (getnu(iso,ueggrid(j)) * ace(iso) % UEG % sigf(j))
-                    micro(3) = (ace(iso) % qval * ace(iso) % UEG % sigf(j))
+                    micro(2) = micro(2) + ace(iso)%UEG%sigf(j)
+                    micro(3) = (ace(iso) % UEG % sigf(j))
+                    micro(4) = (getnu(iso,ueggrid(j)) * ace(iso) % UEG % sigf(j))
+                    micro(5) = (ace(iso) % qval * ace(iso) % UEG % sigf(j))
                     !micro(2) = (micro(2) + micro(3))
                 endif
     
@@ -1563,10 +1564,15 @@ subroutine setMacroXS(BU)
             mat % macro_ueg(:,1) = mat % macro_ueg(:,1) + &
                 ace(iso) % UEG % sigt(:) * mat % numden(i) * barn
 
+            mat % macro_ueg(:,2) = mat % macro_ueg(:,2) + &
+                ace(iso) % UEG % sigd(:) * mat % numden(i) * barn
+
             if(allocated(ace(iso) % UEG % sigf)) then
-                mat % macro_ueg(:,2) = mat % macro_ueg(:,2) + &
-                    ace(iso) % UEG % signuf(:) * mat % numden(i) * barn
                 mat % macro_ueg(:,3) = mat % macro_ueg(:,3) + &
+                    ace(iso) % UEG % sigf(:) * mat % numden(i) * barn
+                mat % macro_ueg(:,4) = mat % macro_ueg(:,4) + &
+                    ace(iso) % UEG % signuf(:) * mat % numden(i) * barn
+                mat % macro_ueg(:,5) = mat % macro_ueg(:,5) + &
                     ace(iso) % UEG % sigf(:) * mat % numden(i) * barn * ace(iso) % qval
             endif               
         endif

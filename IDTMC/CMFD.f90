@@ -721,6 +721,14 @@ subroutine L2G
         end if
     end if
 
+    print *, 'J', sum(cmJn), sum(cmJ0), sum(cmJ1)
+    print *, 'F', sum(cmF)
+    print *, 'D', sum(cmD)
+    print *, 'P', sum(cphi1)
+    print *, 'T', sum(cm_t)
+    print *, 'A', sum(cm_a)
+    print *, 'NF', sum(cm_nf)
+
 end subroutine
 
 

@@ -324,6 +324,7 @@ subroutine GLOBAL_ILU
     end do
     end do
     end do
+    print *, 'GLOBALILU:MVEC', sum(mvec2), sum(Mcm)
 
     call DCSRILUT(anode,gam,gia,gja,gbm,gib,gjb,tol,maxfill,ipar,dpar,ierr)
 

@@ -170,7 +170,6 @@ subroutine simulate_history(bat,cyc)
     
     if ( iscore ) avg_power = avg_power + cyc_power
 
-    !if ( iscore .and. curr_cyc == n_inact+1 ) print*, "power2", cyc_power, avg_power
 
     call MPI_REDUCE(n_col,i,1,MPI_INTEGER,MPI_SUM,score,MPI_COMM_WORLD,ierr)
     n_col = i
@@ -1239,7 +1238,9 @@ subroutine bank_initialize(this)
                     !print'(2i5,3x,2f15.7)', id(1:2), this(i0)%xyz(1:2)
                     !if ( id(1) == 0 ) print*, OUT_OF_ZZ(id(1),id(2))
                     if ( .not. OUT_OF_ZZ(id(1),id(2)) &
-                        .and. id(1) > 0 .and. id(1) <= ncm(1) ) exit
+                        .and. id(1) > 0 .and. id(1) <= ncm(1) ) exit search_CMFD
+                    else
+                    exit search_CMFD
                     end if
                     
                 enddo search_CMFD

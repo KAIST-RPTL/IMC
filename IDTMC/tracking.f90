@@ -123,69 +123,8 @@ subroutine transport(p)
 	! >>>>>>>>>>>>>>>>>>>>>>> CONTINUOUS MC (E_mode = 1)  >>>>>>>>>>>>>>>>>>>>>>>
 	! ===========================================================================
     elseif (E_mode == 1) then
-!		! material 이 OTF 일때만 
-!		if (materials(p%material)%db) then 
-!			if (do_MP) then 
-!				i_bin = FindTallyBin(p)
-!				if (i_bin(1) > 0) then 
-!					p%kT = k_B * tet_arr(find_mesh_idx(i_bin(1)))%mat_temp(materials(p%material)%MP_index)
-!				else 
-!					p%kT = materials(p%material)%temp
-!				endif
-!			elseif (do_gmsh .and. do_multimesh) then 
-!				! Multi-mesh 
-!				lat_idx = lattices(p%coord(p%n_coord)%lattice)%n_xyz(1) * (p%coord(p%n_coord)%lattice_y-1) + p%coord(p%n_coord)%lattice_x
-!				node_idx = find_nearest_node(p%coord(p%n_coord)%xyz)
-!				p%kT = k_B * tet_arr(find_mesh_idx(lat_idx))%temperature(node_idx)
-!			elseif (num_mesh == 1) then 
-!				node_idx = find_nearest_node(p%coord(1)%xyz)
-!				p%kT = k_B * node(node_idx)%temperature
-!			else 
-!				p%kT = materials(p%material)%temp
-!			endif 
-!		else 
-!			p%kT = materials(p%material)%temp
-!		endif 	
-!	
-!		!> Tetrahedron mesh temperature treatment
-!		if (p%in_tet) then
-!			p%sqrtkT = sqrt(K_B * Tet(p%tet)%temperature ) 
-!			p%kT = K_B * Tet(p%tet)%temperature 
-!		elseif (E_mode == 1) then 
-!			p%kT = materials(p%material)%temp
-!		endif
-!	
-!		!> Get macroscopic XS information
-!        macro_xs = getMacroXS(materials(p%material), p%E,p%kT)
-!
-!		!> Get the collision distance
-!		d_collision = -log(rang())/macro_xs(1)
-!    endif 
-!    !> Sample distances from special boundaries in univ 0
-!    i_cell = p % coord(1) % cell
-!    call cell_distance(cells(i_cell), p%coord(1)%xyz, p%coord(1)%uvw, surfaces, d_s, idx_surf)
-!    
-    val = 1.0d0
-    !> Sample a distance to collision
-!    if (E_mode == 0) then 
-!        macro_xs(1) = (sum(XS_MG(p%material)%sig_scat(p%g,:)) &
-!                    + XS_MG(p%material)%sig_abs(p%g))
-!        macro_xs(2) = XS_MG(p%material)%sig_abs(p%g)
-!        macro_xs(3) = XS_MG(p%material)%sig_fis(p%g)
-!        macro_xs(4) = XS_MG(p%material)%sig_fis(p%g)*XS_MG(p%material)%nu(p%g)
-!        macro_xs(5) = XS_MG(p%material)%sig_fis(p%g)
-!        d_collision = -log(rang())/macro_xs(1)
-!    elseif (E_mode == 1) then 
         macro_xs = getMacroXS(materials(p%material), p%E,p%kT)
-        
-        !if (d_s == d_boundary ) then 
-        !    val = 1-exp(-macro_xs(1)*d_s)
-        !    d_collision = -log(1-rang()*val)/macro_xs(1)
-        !    !print *, d_collision, d_boundary, macro_xs(1)
-        !    !d_boundary = INFINITY 
-        !else 
-            d_collision = -log(rang())/macro_xs(1)
-        !endif 
+        d_collision = -log(rang())/macro_xs(1)
     endif 
     
     ! ===================================================
@@ -388,15 +327,7 @@ subroutine transport(p)
         p%n_cross = p%n_cross + 1 
         call FMFD_SURF(inside_mesh, income_mesh,i_surf, i_xyz, &
                         p%coord(1)%uvw, p%wgt, surfaces(surface_crossed)%bc)
-!        call TALLY_SURF(inside_mesh, income_mesh,i_surf, i_xyz, p%E, &
-!                        p%coord(1)%uvw, p%wgt, surfaces(surface_crossed)%bc)
-
-!        if ( fm_crossed ) then
-            call cross_surface(p, surface_crossed)
-!        else
-!            p%coord(1)%xyz = p%coord(1)%xyz + TINY_BIT * p%coord(1)%uvw
-!        end if
-        
+        call cross_surface(p, surface_crossed)
     elseif (abs(distance-d_boundary) < TINY_BIT) then
         p%n_cross = p%n_cross + 1 
         if (surface_crossed > 0) call cross_surface(p, surface_crossed)
@@ -404,90 +335,7 @@ subroutine transport(p)
             !$omp atomic
             loss_vrc = loss_vrc + p%wgt! * exp(-macro_xs(1)*d_boundary)
         endif 
-        
-        
-!    elseif (abs(distance - d_gmsh) < TINY_BIT) then 
-!    
-!        tet_prev = p%tet
-!        p%tet_prev = p%tet
-!        if (.not. p%in_tet) then   ! outside -> tet 
-!            !print *, 'mode 1', next_tet, tet_face
-!            p%in_tet = .true. 
-!            p%tet = next_tet
-!            p%tet_face = tet_face
-!
-!            !if (.not. in_the_tet(p%coord(p%n_coord)%xyz,  p%tet)) then 
-!            !    do j = 1, p % n_coord
-!            !        p % coord(j) % xyz = p % coord(j) % xyz + TINY_BIT * p % coord(j) % uvw
-!            !    enddo
-!            !endif 
-!        elseif (next_tet .le. 0) then  ! tet -> outside 
-!        
-!            !write(prt_wgt,'(6e20.10)') p%coord(1)%xyz, p%coord(p%n_coord)%xyz
-!            
-!            !if (sqrt(p%coord(1)%xyz(1)**2 + p%coord(1)%xyz(2)**2) > 0.47600 .or. abs(p%coord(1)%xyz(3)) > 0.5  ) then 
-!            !    print *, xyz
-!            !    print *, p%in_tet 
-!            !    print *, p%tet, p%tet_prev, p%tet_face
-!            !    print *, p%coord(1)%xyz
-!            !    print *, p%coord(1)%uvw
-!            !    
-!            !    print *, '-----------  node ----------------'
-!            !    print *, node(tet(p%tet)%node(1))%xyz
-!            !    print *, node(tet(p%tet)%node(2))%xyz
-!            !    print *, node(tet(p%tet)%node(3))%xyz
-!            !    print *, node(tet(p%tet)%node(4))%xyz
-!            !    print *, '----------------------------------'
-!            !    
-!            !    print *, sqrt(p%coord(1)%xyz(1)**2 + p%coord(1)%xyz(2)**2)
-!            !    print *, find_tet(p%coord(1)%xyz)
-!            !    print *, d_gmsh, d_boundary 
-!            !    print *, in_the_tet(xyz, p%tet)
-!            !    
-!            !    
-!            !    call RayIntersectsTriangle(xyz, p%coord(1)%uvw, node(tet(p%tet)%node(2))%xyz, node(tet(p%tet)%node(3))%xyz, node(tet(p%tet)%node(4))%xyz, d_gmsh)
-!            !    print *, d_gmsh 
-!            !    call RayIntersectsTriangle(xyz, p%coord(1)%uvw, node(tet(p%tet)%node(1))%xyz, node(tet(p%tet)%node(3))%xyz, node(tet(p%tet)%node(4))%xyz, d_gmsh) 
-!            !    print *, d_gmsh 
-!            !    call RayIntersectsTriangle(xyz, p%coord(1)%uvw, node(tet(p%tet)%node(1))%xyz, node(tet(p%tet)%node(2))%xyz, node(tet(p%tet)%node(4))%xyz, d_gmsh) 
-!            !    print *, d_gmsh 
-!            !    call RayIntersectsTriangle(xyz, p%coord(1)%uvw, node(tet(p%tet)%node(1))%xyz, node(tet(p%tet)%node(3))%xyz, node(tet(p%tet)%node(3))%xyz, d_gmsh) 
-!            !    print *, d_gmsh 
-!            !    
-!            !    
-!            !    
-!            !    
-!            !    stop
-!            !endif
-!            
-!        
-!            p%in_tet = .false.
-!            p%tet = -1
-!            p%tet_face = -1
-!            
-!        else                       ! tet1 -> tet2
-!            p%tet = next_tet
-!            do i = 1, 4
-!                if (tet(next_tet)%neighbor(i) == tet_prev) then 
-!                    p%tet_face = i
-!                    exit
-!                endif
-!            enddo
-!        endif 
-!        do j = 1, p % n_coord
-!            p % coord(j) % xyz = p % coord(j) % xyz + 1.0d-15 * p % coord(j) % uvw
-!        enddo
-!        
-!        
-!        !p%tet = find_tet_old(p%coord(p%n_coord)%xyz)
-!        !p%tet_face = 0
-!        !p%in_tet = .true.
-!        !if (p%tet .le. 0) p%in_tet = .false.
-        
     endif
-
-    if ( p%n_cross > 3000 ) then
-        if ( p%n_cross == 3050 ) p%alive = .false.
 !        if ( iscore .and. omp_get_thread_num() == 0 ) then
 !        print*, "-----"
 !        if ( istep_burnup > 0 ) print*, p%n_cross
@@ -501,7 +349,6 @@ subroutine transport(p)
 !        print*, surfaces(surface_crossed)%surf_type
 !        print*, surfaces(surface_crossed)%parmtrs(:)
 !        end if
-    end if
 
 end subroutine transport
 

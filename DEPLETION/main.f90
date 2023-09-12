@@ -739,6 +739,7 @@ subroutine CYCLE_TALLY_MSG(bat)
     integer, intent(in):: bat
     real(8):: ttemp(nfm(1),nfm(2),nfm(3))
     real(8):: ttemp_sd(nfm(1),nfm(2),nfm(3))
+    character(3) :: fileid
 
     if ( icore /= score ) return
 	if (do_burn) return 
@@ -776,9 +777,12 @@ subroutine CYCLE_TALLY_MSG(bat)
     if ( bat == n_batch ) then
     if ( .not. fmfdon ) then
     if ( tallyon ) then
-	
-	open(9999,file="mean_tally2.out",action="write",status="replace")
-	open(99999,file="sd_tally2.out",action="write",status="replace")
+
+
+    write(fileid, '(i3)') istep_burnup
+
+	open(9999,file="mean_tally2_"//trim(adjustl(fileid))//".out",action="write",status="replace")
+	open(99999,file="sd_tally2_"//trim(adjustl(fileid))//".out",action="write",status="replace")
 
 
     do ii = 1, nfm(1)

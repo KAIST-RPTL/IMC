@@ -1,5 +1,6 @@
 module tracking
     use omp_lib
+    use MPI
     use variables
     use constants
     use surface_header
@@ -13,7 +14,7 @@ module tracking
                                   TallyPower, tallyon, MESH_DISTANCE, meshon, &
                                   MC_TRK, TALLY_SURF, MC_TRK_S, meshon_tet_vrc, mesh_power
     use ace_xs,             only: getMacroXS, getMacroXS_UEG
-    use material_header,    only: materials
+    use material_header,    only: materials, n_materials
     use ace_reactions,      only: collision_CE
     use FMFD,               only: FMFD_TRK, FMFD_COL, FMFD_SURF, fmfdon, &
                                   DTMCBU, DTMC_BU_COL, DTMC_BU_TRK
@@ -52,7 +53,7 @@ subroutine transport(p)
     real(8) :: d_gmsh                 ! distance to Gmsh grid
     real(8) :: distance               ! distance particle travels
     logical :: found_cell             ! found cell which particle is in?
-    real(8) :: macro_xs(5), tmparr(3)
+    real(8) :: macro_xs(5)!, tmparr(3)
     real(8) :: xyz(3)
     integer :: i_cell, i_bin(4), i_lat, i_surf
     integer :: i_xyz(3), idx_xyz, j_xyz(3)
@@ -77,7 +78,7 @@ subroutine transport(p)
 	
     found_cell = .false.
     if (p%n_coord == 1) call find_cell(p, found_cell, i_cell)
-	if (p%material < 1 .or. p%material > 1000000) then 
+	if (p%material < 1 .or. p%material > n_materials) then 
         p%alive = .false.
         return
 	endif 
@@ -120,10 +121,10 @@ subroutine transport(p)
         d_collision = -log(rang())/macro_xs(1)
     elseif (E_mode == 1) then
         if(do_ueg) then
-            tmparr = getMacroXS_UEG(materials(p%material), p%E,p%kT,p%urn)
-            macro_xs(1) = tmparr(1)
-            macro_xs(4) = tmparr(2)
-            macro_xs(5) = tmparr(3)
+            macro_xs = getMacroXS_UEG(materials(p%material), p%E,p%kT,p%urn)
+            !macro_xs(1) = tmparr(1)
+            !macro_xs(4) = tmparr(2)
+            !macro_xs(5) = tmparr(3)
         else
             macro_xs = getMacroXS(materials(p%material), p%E,p%kT,p%urn)
         endif
@@ -150,16 +151,14 @@ subroutine transport(p)
     else if ( d_boundary < 5E-5 .and. ddiff < 1E-8 ) then
         d_mesh = d_boundary
         fm_crossed = .true.
+    else if ( d_mesh < 1E-8 .and. d_boundary < d_mesh ) then
+        d_mesh = d_boundary
+        fm_crossed = .true.
     else
         fm_crossed = .false.
     end if
 	
-	
-	
-	
-	
-	!print *, 'check 3'
-	! ==================================================
+    ! ==================================================
 	!> Tetrahedron mesh distance 
 	d_gmsh = INFINITY
 	if (do_gmsh .and. curr_cyc > n_inact) then 
@@ -326,13 +325,7 @@ subroutine transport(p)
     elseif  ( distance == d_mesh ) then 
         call FMFD_SURF(inside_mesh, income_mesh,i_surf, i_xyz, &
                         p%coord(1)%uvw, p%wgt, surfaces(surface_crossed)%bc)
-!        call TALLY_SURF(inside_mesh, income_mesh,i_surf, i_xyz, p%E, &
-!                        p%coord(1)%uvw, p%wgt, surfaces(surface_crossed)%bc)
-        if ( fm_crossed ) then
-            call cross_surface(p, surface_crossed)
-        else
-            p%coord(1)%xyz = p%coord(1)%xyz + TINY_BIT * p%coord(1)%uvw
-        end if
+        call cross_surface(p, surface_crossed)
 		
     elseif (abs(distance - d_boundary) < TINY_BIT) then
         p%n_cross = p%n_cross + 1 

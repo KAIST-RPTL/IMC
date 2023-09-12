@@ -312,9 +312,7 @@ module geometry
                 i_xyz(3) = p % coord(j) % lattice_z
                 call lat_distance(lattices(p % coord(j) % lattice), surfaces, p % coord(j) % xyz, &
                                     p % coord(j) % uvw, i_xyz, dist_temp, idx_surf)
-                                    
                 if (dist_temp < p % coord(j) % dist) p % coord(j) % dist = dist_temp
-                
             endif 
             
             
@@ -336,7 +334,6 @@ module geometry
         enddo LEVEL_LOOP
         
         dist = p%coord(j_idx)%dist
-        
         
         !dist = p%coord(1)%dist; level(1) = p%coord(1)
         !do i = 1, p%n_coord 
@@ -369,18 +366,12 @@ module geometry
         class(Surface), pointer :: surf
         class(Surface), pointer :: surf2 ! periodic partner surface
         integer :: i, i_cell, i_cell_prev
-        
-        !if (p%n_cross > 10000) p%alive = .false. 
         !p % n_coord = 1
         !call find_cell(p, found)
         if (surfaces(surface_crossed)%bc == 1) then     !> Vacuum BC
             p % alive = .false.
             return
         elseif (surfaces(surface_crossed)%bc == 2) then !> Reflective BC 
-            !p % n_cross = p % n_cross + 1
-            !p % n_coord = 1
-            !p % coord(1) % xyz(:) = p % coord(1) % xyz(:) - 0.1*TINY_BIT * p % coord(1) % uvw(:)
-            !call find_cell(p, found, i_cell)
             
             uvw = p%coord(1)%uvw
             call reflective_bc(p%coord(1)%uvw, p%coord(1)%xyz, surface_crossed)
@@ -388,19 +379,14 @@ module geometry
             p % n_coord = 1
             p % coord(1) % xyz(:) = p % coord(1) % xyz(:) - 100*TINY_BIT * uvw
             
-            
             !p%last_material = p%material
             !p % coord(1) % xyz = p % coord(1) % xyz + TINY_BIT * p % coord(1) % uvw
-            !print *, 'reflected'
-            
         else
-            !p % n_cross = 0
             p % n_coord = 1
             !p % coord(1) % xyz = p % coord(1) % xyz + 0.1*TINY_BIT * p % coord(1) % uvw
             p % coord(1) % xyz = p % coord(1) % xyz + 10*TINY_BIT * p % coord(1) % uvw
         endif
         call find_cell(p, found)
-        
     end subroutine cross_surface
     
     subroutine reflective_bc (uvw, xyz, surface_crossed)
@@ -492,9 +478,7 @@ module geometry
         integer :: i_universe           ! index in universes array
         integer, intent(inout) :: idx_univ
         
-        
         n = universes(idx_univ)%ncell; found = .false.
-        !print *, 'num of cell', n
         CELL_LOOP: do i = 1, n
 
             ! select cells based on whether we are searching a universe or a provided
@@ -505,7 +489,6 @@ module geometry
                 found = .true.
                 exit
             endif
-            !print *, 'cell not found' 
             !stop
         end do CELL_LOOP
         
@@ -558,7 +541,6 @@ module geometry
                         !print *, idx_univ
                         idx_univ = latptr % lat(i_xyz(1),i_xyz(2),i_xyz(3))
                         
-                        !print *, idx_univ
                     end associate
                     
                     ! Move particle to next level and search for the lower cells.                    

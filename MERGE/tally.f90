@@ -38,11 +38,13 @@ module tally
     logical:: meshon  = .false.
     integer:: n_type    ! # of tally types
     integer:: n_tgroup  ! # of tally groups
+    integer:: n_tcycle  ! # of tally cycles
     real(8), allocatable:: k_eff(:,:)                 ! (n_batch,n_tot)
     real(8), allocatable:: MC_tally(:,:,:,:,:,:,:)    ! (batches,cycles,types,groups,x,y,z)
     real(8), allocatable:: MC_thread(:,:,:,:,:)       ! (types,groups,x,y,z)
     integer, allocatable:: ttally(:)                  ! (types)
     real(8), allocatable:: tgroup(:)                  ! (groups)
+    integer, allocatable:: tcycle(:)                  ! (cycles)
     real(8), allocatable:: MC_stally(:,:,:,:,:,:,:,:) ! (batches,cycles,2,groups,x,y,z,6)
     real(8), allocatable:: MC_sthread(:,:,:,:,:,:)    ! (2,groups,x,y,z,6)
     real(8), allocatable:: MC_scat(:,:,:,:,:,:,:)     ! (batches,cycles,groups,groups,x,y,z)
@@ -57,7 +59,7 @@ module tally
         
         this % cell     = NONE
         this % universe = NONE
-        this % lattice     = NONE
+        this % lattice  = NONE
         this % lattice_x = NONE
         this % lattice_y = NONE
         this % lattice_z = NONE
@@ -111,12 +113,7 @@ module tally
             B(5) = TallyCoord(i_bin)%coord(i_coord)%lattice_y
             B(6) = TallyCoord(i_bin)%coord(i_coord)%lattice_z
 			
-			!print *, i_coord
-			!print '(6I)', A(:) 
-			!print '(6I)', B(:) 
-			
             C(:) = abs(A(:)-B(:))
-			
             if (sum(C) /= 0) cycle Bin
             idx(1) = i_bin
             idx(2:4) = B(4:6)
@@ -131,7 +128,7 @@ module tally
 ! SET_MC_TALLY
 ! =============================================================================
 subroutine SET_MC_TALLY
-    use VARIABLES, only: icore, score, n_batch, n_act, n_totcyc
+    use VARIABLES, only: icore, score, n_batch, n_act, t_totcyc, n_totcyc
     use FMFD_HEADER, only: nfm
     implicit none
 
@@ -276,6 +273,7 @@ subroutine TALLY_THREAD_INITIAL(cyc)
     if ( cyc > n_inact ) then
     acyc = cyc - n_inact
     MC_thread = 0D0
+    MC_tally  = 0D0
 !    MC_sthread = 0D0
 !    MC_scatth = 0D0
     end if
@@ -539,7 +537,7 @@ subroutine PROCESS_TALLY(bat,cyc)
 !    MC_temps1 = 0D0
     dsize = nfm(1)*nfm(2)*nfm(3)*n_type*n_tgroup
     call MPI_REDUCE(MC_temp0(:,:,:,:,:),MC_temp1(:,:,:,:,:), &
-                    dsize,15,MPI_SUM,score,0,ierr)
+                    dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
 !    dsize = nfm(1)*nfm(2)*nfm(3)*2*n_tgroup*6
 !    call MPI_REDUCE(MC_stemp0(:,:,:,:,:,:),MC_stemp1(:,:,:,:,:,:), &
 !                    dsize,15,MPI_SUM,score,0,ierr)
@@ -572,6 +570,8 @@ subroutine PROCESS_TALLY(bat,cyc)
 	
     end if
 
+    if ( do_burn .and. icore == score .and. ttally(1) == 5 ) &
+        p_dep_mc(acyc,:,:,:) = MC_tally(bat,acyc,1,1,:,:,:)
 end subroutine 
 
 end module 

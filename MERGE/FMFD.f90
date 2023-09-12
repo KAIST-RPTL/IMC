@@ -459,6 +459,8 @@ subroutine FMFD_SURF (inside,income, is, id, uvw, wgt, bc)
     integer:: dir
 
     if ( .not. fmfdon ) return
+
+    print '(I1, I3, I3, I2, L2, I2, I2, F8.3, I2)', icore, id(1:3), inside, income, is, wgt, bc
     
     ! inner nodes
     if ( inside ) then 
@@ -597,6 +599,16 @@ subroutine NORM_FMFD(cyc)
     end do
     end do
 
+    do i = 1, nfm(1)
+    do j = 1, nfm(2)
+    k = 5
+    do mm= 1, 6
+    if(icore==score .and. k==5 .and. curr_cyc == n_inact) then
+        if(fm(i,j,k)%J0(mm)/=0d0 .or. fm(i,j,k)%J1(mm)/=0d0) print '(I4,I4,I2,E15.5,E15.5)', i, j, mm, fm(i,j,k)%J0(mm), fm(i,j,k)%J1(mm)
+    endif
+    enddo
+    enddo
+    enddo
     !> gather thread intra-pin FMFD parameters for depletion
     if ( DTMCBU .and. cyc == n_totcyc ) then
         tmflux = tmflux + thflux
@@ -640,33 +652,8 @@ subroutine PROCESS_FMFD(bat,cyc)
 
     ac => acc(lc)
     tt0 = MPI_WTIME()
-!    do ii = 1, nfm(1)
-!        do jj = 1, nfm(2)
-!            do kk = 1, nfm(3)
-!                call MPI_REDUCE(fm(ii,jj,kk)%sig_a,ac%fm(ii,jj,kk)%sig_a,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!                call MPI_REDUCE(fm(ii,jj,kk)%sig_t,ac%fm(ii,jj,kk)%sig_t,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!                call MPI_REDUCE(fm(ii,jj,kk)%nusig_f,ac%fm(ii,jj,kk)%nusig_f,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!                call MPI_REDUCE(fm(ii,jj,kk)%kappa,ac%fm(ii,jj,kk)%kappa,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!                call MPI_REDUCE(fm(ii,jj,kk)%phi,ac%fm(ii,jj,kk)%phi,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!                            
-!            !    call MPI_REDUCE(fm(:,:,:)%sig_a,ac%fm(:,:,:)%sig_a,dsize,15,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!            !    call MPI_REDUCE(fm(:,:,:)%sig_t,ac%fm(:,:,:)%sig_t,dsize,15,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!            !    call MPI_REDUCE(fm(:,:,:)%nusig_f,ac%fm(:,:,:)%nusig_f,dsize,15,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!            !    call MPI_REDUCE(fm(:,:,:)%kappa,ac%fm(:,:,:)%kappa,dsize,15,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!            !    call MPI_REDUCE(fm(:,:,:)%phi,ac%fm(:,:,:)%phi,dsize,15,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!            !    call MPI_REDUCE(fsd_MC,fsd_MC0,dsize,15,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!!                do ij = 1, 6
-!!                    call MPI_REDUCE(fm(:,:,:)%J0(ij),ac%fm(:,:,:)%J0(ij),dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!!                    call MPI_REDUCE(fm(:,:,:)%J1(ij),ac%fm(:,:,:)%J1(ij),dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!!                end do
-!                call MPI_REDUCE(fm(ii,jj,kk)%J0(1:6), ac%fm(ii,jj,kk)%J0(1:6), 6, MPI_REAL8, MPI_SUM, score, MPI_COMM_WORLD, ierr)
-!                call MPI_REDUCE(fm(ii,jj,kk)%J1(1:6), ac%fm(ii,jj,kk)%J1(1:6), 6, MPI_REAL8, MPI_SUM, score, MPI_COMM_WORLD, ierr)
-!            enddo
-!        enddo
-!    enddo
 
     call MPI_REDUCE(fm(:,:,:), ac%fm(:,:,:), dsize*17, MPI_REAL8, MPI_SUM, score, MPI_COMM_WORLD, ierr)
-
     call MPI_REDUCE(fsd_MC,fsd_MC0,dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
     tt1 = MPI_WTIME()
 
@@ -707,6 +694,7 @@ subroutine PROCESS_FMFD(bat,cyc)
     end do
     end do
     end do
+    ! print *, 'Jsweep', sum(ac%fm(:,:,:)%J0(1)), sum(ac%fm(:,:,:)%J1(2))
 
     ! initilization
     fm_avg(:,:,:)%phi     = 0 
@@ -1001,7 +989,6 @@ subroutine FMFD_SOLVE(bat,cyc)
     integer, intent(in)    :: bat           ! batch number
     integer, intent(in)    :: cyc           ! cycle number
     real(8):: phi1(nfm(1),nfm(2),nfm(3))
-    print *, 'FMFDSOLVE'
     call BASE_FMFD_CALCULATION(bat,cyc,phi1)
     if ( dual_fmfd ) call DUAL_FMFD_CALCULATION(bat,cyc,phi1)
 
@@ -1024,7 +1011,6 @@ subroutine BASE_FMFD_CALCULATION(bat,cyc,phi1)
     real(8):: aa
     real(8):: tt0, tt1, tt2
 
-    print *, 'FMFD BASE IN'
     ! parameter initialization
     !tt1 = MPI_WTIME()
     if ( icore == score ) then
@@ -1088,7 +1074,6 @@ subroutine BASE_FMFD_CALCULATION(bat,cyc,phi1)
     end if
     !tt2 = MPI_WTIME()
     !if ( iscore ) print*, " - FMFD parameter reading : ", tt2-tt1
-    print *, 'CAse Test', inactive_cmfd, cmfdon
     if ( inactive_cmfd ) then
         if ( curr_cyc <= n_inact ) then
         call CMFD_CALCULATION(k_eff)

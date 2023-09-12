@@ -81,7 +81,6 @@ subroutine ONE_NODE_CMFD(k_eff,ecvg,fphi2)
     call GLOBAL_ILU
     k_eff1 = k_eff
 
-
     !do 
     do global = 1, 5
     k_eff0 = k_eff
@@ -720,6 +719,14 @@ subroutine L2G
         !$omp end parallel do
         end if
     end if
+
+    print *, 'J', sum(cmJn), sum(cmJ0), sum(cmJ1)
+    print *, 'F', sum(cmF)
+    print *, 'D', sum(cmD)
+    print *, 'P', sum(cphi1)
+    print *, 'T', sum(cm_t)
+    print *, 'A', sum(cm_a)
+    print *, 'NF', sum(cm_nf)
 
 end subroutine
 

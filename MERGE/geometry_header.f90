@@ -459,7 +459,6 @@ module geometry_header
                     if (d_surf > d_temp) then 
                         d_surf = d_temp
                         idx_surf = idx_temp
-                        !print *, 'OWN',d_surf
                     endif 
                 endif
             end associate

@@ -59,7 +59,7 @@ module tally
         
         this % cell     = NONE
         this % universe = NONE
-        this % lattice   = NONE
+        this % lattice  = NONE
         this % lattice_x = NONE
         this % lattice_y = NONE
         this % lattice_z = NONE

@@ -51,7 +51,6 @@ module geometry
         if (c%operand_flag >= 0) then   !> and 
             in_cell = .true.
             n = size(c%neg_surf_idx)
-            !print *, 'TST', xyz(:)
             do i = 1, n
                 if (surf_neg_or_pos(surfaces(c%neg_surf_idx(i)),xyz) == .false.) in_cell = .false.
             enddo
@@ -313,7 +312,6 @@ module geometry
                 i_xyz(3) = p % coord(j) % lattice_z
                 call lat_distance(lattices(p % coord(j) % lattice), surfaces, p % coord(j) % xyz, &
                                     p % coord(j) % uvw, i_xyz, dist_temp, idx_surf)
-                !print *, 'DONE'
                 if (dist_temp < p % coord(j) % dist) p % coord(j) % dist = dist_temp
                 
             endif 
@@ -337,7 +335,6 @@ module geometry
         enddo LEVEL_LOOP
         
         dist = p%coord(j_idx)%dist
-        !print *, 'FDIST', dist 
         
         !dist = p%coord(1)%dist; level(1) = p%coord(1)
         !do i = 1, p%n_coord 
@@ -370,31 +367,18 @@ module geometry
         class(Surface), pointer :: surf
         class(Surface), pointer :: surf2 ! periodic partner surface
         integer :: i, i_cell, i_cell_prev
-		!print *, p%n_cross, p%coord(1)%xyz(1:2)
-        if (p%n_cross > 10000) then
-            !print *, 'OVER',p%coord(1)%xyz(1:2)
-            p%alive = .false. 
-        endif
         !p % n_coord = 1
         !call find_cell(p, found)
         if (surfaces(surface_crossed)%bc == 1) then     !> Vacuum BC
-            !print *, 'DEAD',p%coord(1)%xyz
             p % alive = .false.
 			return 
-			
         elseif (surfaces(surface_crossed)%bc == 2) then !> Reflective BC 
-            !print *, 'reflected'
-            !if (.not. p % alive) print *, "WHAT THE FUCK"
-			!print *, 'moved', p % coord(1) % xyz(:)
-            !call find_cell(p, found, i_cell)
             
 			uvw = p%coord(1)%uvw
             call reflective_bc(p%coord(1)%uvw, p%coord(1)%xyz, surface_crossed)
 			
             p % n_coord = 1
-            !p % coord(1) % xyz(:) = p % coord(1) % xyz(:) - 1.0d-9 * p % coord(1) % uvw(:)
             p % coord(1) % xyz(:) = p % coord(1) % xyz(:) - 100*TINY_BIT * uvw
-			!if(p%n_cross>1000) print *, 'BC',p%coord(1)%xyz(1:2)
 			
             !p%last_material = p%material
             !p % coord(1) % xyz = p % coord(1) % xyz + TINY_BIT * p % coord(1) % uvw
@@ -404,10 +388,6 @@ module geometry
             p % coord(1) % xyz = p % coord(1) % xyz + 10*TINY_BIT * p % coord(1) % uvw
         endif
         call find_cell(p, found)
-		!print *, 'material ', p%material
-		
-		
-			
     end subroutine cross_surface
     
     subroutine reflective_bc (uvw, xyz, surface_crossed)
@@ -555,7 +535,6 @@ module geometry
         integer :: i_univ_cell            ! index of cell in universe cell list
         integer :: i_universe           ! index in universes array
         integer,         intent(inout) :: idx_univ
-        real(8) :: tmp(3) 
         n = universes(idx_univ)%ncell; found = .false.
         CELL_LOOP: do i = 1, n
 
@@ -563,10 +542,6 @@ module geometry
             ! list of cells (this would be for lists of neighbor cells)
             i_cell = universes(idx_univ)%cell(i)
             ! Move on to the next cell if the particle is not inside this cell
-            !print *, n,i,i_cell
-            !print *, 'Negsurf',n,cells(i_cell)%neg_surf_idx(:)
-            !print *, 'Possurf',n,cells(i_cell)%pos_surf_idx(:)
-            !print *, xyz
             if(cell_xyz(cells(i_cell), xyz)) then
                 found = .true.
                 exit
@@ -617,15 +592,12 @@ module geometry
                         i_xyz = lattice_coord(latptr, xyz)!latptr%lat_pos(xyz)
                         !print *, 'lattice coordinate :', i_xyz(1:2)
                         ! Store lower level coordinates
-                        tmp = xyz
                         xyz = get_local_xyz(latptr , xyz, i_xyz)
                         ! Set the next lowest coordinate level.
                         !print *, latptr % lat(i_xyz(1),i_xyz(2))
                         !print *, idx_univ
                         idx_univ = latptr % lat(i_xyz(1),i_xyz(2),i_xyz(3))
                          
-                        !print *, i_xyz(1:2),idx_univ
-                        !print *, tmp(1:2), xyz(1:2)
                     end associate
                     
                     ! Move particle to next level and search for the lower cells.                    
@@ -660,9 +632,4 @@ module geometry
     
     end function getXYZ
     
-	
-	
-	
-
-	
 end module
