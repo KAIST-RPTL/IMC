@@ -127,7 +127,10 @@ module depletion_module
     real(8) :: total_burnup     !Total burnup [MWday/kgHM]    integer :: Matrix_Exponential_Solver
     
     !Location of depletion library 
-    character(100) :: dep_lib
+    character(100) :: dec_lib
+    character(100) :: nfy_lib
+    character(100) :: sfy_lib
+    character(100) :: isom_lib
     
     !Removal/Refueling operator
     real(8) :: eff_gas = 0.d0
@@ -283,148 +286,156 @@ module depletion_module
         rem_noble = (/34,41,42,43,44,45,46,47,51,52/)
         !==============================================================================
         !Read decay library
-        open(rd_decay,file=trim(dep_lib)//'sss_endfb71.dec',action='read')
-        10  continue
-        ! Skipping beginning
-        MT = 0
-        do while (MT /= 457)
+        ! open(rd_decay,file=trim(dep_lib)//'sss_endfb71.dec',action='read')
+        inquire(file=trim(dec_lib), exist = file_exists)
+        if(file_exists) then
+            open(rd_decay,file=trim(dec_lib),action='read')
+            10  continue
+            ! Skipping beginning
+            MT = 0
+            do while (MT /= 457)
+                read(rd_decay,'(A80)',end = 100) line0
+                read(line0(73:75),'(i)') MT
+            enddo
+            ! Read 1st line: get ZAI
+            read(line0(1:11),'(f)') ZA
+            read(line0(34:44),'(i)') inum
+            if(inum>2) goto 15
+            read(line0(56:66),'(f)') real_rad
+            n_rad = int(real_rad)
+            nuclid = int(ZA)
+            anum = nuclid/1000
+            mnum = nuclid-anum*1000
+            nnum = mnum-anum
+            if (nuclide(inum,nnum,anum)%data_exist .and. nuclide(inum,nnum,anum)%iu>0) go to 15
+            nuclide(inum,nnum,anum)%data_exist = .true.
+             
+            nuclide(inum,nnum,anum)%sng = 0.d0
+            nuclide(inum,nnum,anum)%sn2n = 0.d0
+            nuclide(inum,nnum,anum)%sna = 0.d0
+            nuclide(inum,nnum,anum)%snp = 0.d0
+            nuclide(inum,nnum,anum)%sn3n = 0.d0
+            nuclide(inum,nnum,anum)%snf = 0.d0
+            nuclide(inum,nnum,anum)%sngx = 0.d0
+            nuclide(inum,nnum,anum)%sn2nx = 0.d0
+            nuclide(inum,nnum,anum)%fy_idx = 0.d0
+            read(line0(12:22),'(f)') nuclide(inum,nnum,anum)%amu
+            if (ANY(rem_gas==anum)) nuclide(inum,nnum,anum)%removal = eff_gas
+            if (ANY(rem_noble==anum)) nuclide(inum,nnum,anum)%removal = eff_noble
+            ! Initialize fractions; some requires summation
+            nuclide(inum,nnum,anum)%qrec = 0.0
+            ! Read 2nd line: get HL, determine skipping next line
             read(rd_decay,'(A80)',end = 100) line0
-            read(line0(73:75),'(i)') MT
-        enddo
-        ! Read 1st line: get ZAI
-        read(line0(1:11),'(f)') ZA
-        read(line0(34:44),'(i)') inum
-        if(inum>2) goto 15
-        read(line0(56:66),'(f)') real_rad
-        n_rad = int(real_rad)
-        nuclid = int(ZA)
-        anum = nuclid/1000
-        mnum = nuclid-anum*1000
-        nnum = mnum-anum
-        if (nuclide(inum,nnum,anum)%data_exist .and. nuclide(inum,nnum,anum)%iu>0) go to 15
-        nuclide(inum,nnum,anum)%data_exist = .true.
-         
-        nuclide(inum,nnum,anum)%sng = 0.d0
-        nuclide(inum,nnum,anum)%sn2n = 0.d0
-        nuclide(inum,nnum,anum)%sna = 0.d0
-        nuclide(inum,nnum,anum)%snp = 0.d0
-        nuclide(inum,nnum,anum)%sn3n = 0.d0
-        nuclide(inum,nnum,anum)%snf = 0.d0
-        nuclide(inum,nnum,anum)%sngx = 0.d0
-        nuclide(inum,nnum,anum)%sn2nx = 0.d0
-        nuclide(inum,nnum,anum)%fy_idx = 0.d0
-        read(line0(12:22),'(f)') nuclide(inum,nnum,anum)%amu
-        if (ANY(rem_gas==anum)) nuclide(inum,nnum,anum)%removal = eff_gas
-        if (ANY(rem_noble==anum)) nuclide(inum,nnum,anum)%removal = eff_noble
-        ! Initialize fractions; some requires summation
-        nuclide(inum,nnum,anum)%qrec = 0.0
-        ! Read 2nd line: get HL, determine skipping next line
-        read(rd_decay,'(A80)',end = 100) line0
-        read(line0(1:11),'(f)') HL !> HL [sec]
-        read(line0(45:55),'(f)') ST !> 1 if stable, 0 if radioactive
-        if (HL == 0.d0) then
-            nuclide(inum,nnum,anum)%lambda = 0.0
-            nuclide(inum,nnum,anum)%iu = 6
-        else
-            nuclide(inum,nnum,anum)%lambda = 6.931471806d-1/HL
-            nuclide(inum,nnum,anum)%iu = 1
-        endif
-        read(line0(45:55),'(f)') skip
-        nskip = ceiling(skip/6.0) ! Number of lines to skip
-        if (nskip > 0) then
-            do i = 1,nskip
-                read(rd_decay,'(A80)',end=100) line0
-                read(line0(1:11),'(f)') Etmp1
-                read(line0(23:33),'(f)') Etmp2
-                read(line0(45:55),'(f)') Etmp3
-                nuclide(inum,nnum,anum)%qrec = &
-                    nuclide(inum,nnum,anum)%qrec +&
-                    (Etmp1+Etmp2+Etmp3)/1000000
-            enddo
-        endif
-        read(rd_decay,'(A80)',end=100) line0
-        read(line0(56:66),'(i)') n_react ! Number of reactions
-        allocate(nuclide(inum,nnum,anum)%frac(n_react))
-        allocate(nuclide(inum,nnum,anum)%daughter(n_react,3))
-        nuclide(inum,nnum,anum)%daughter=0
-        nuclide(inum,nnum,anum)%n_emit = 0.d0
-        nuclide(inum,nnum,anum)%p_emit = 0.d0
-        nuclide(inum,nnum,anum)%a_emit = 0.d0
-        if (n_react==0) go to 15
-        nuclide(inum,nnum,anum)%react_num = n_react
-        do react = 1,n_react
-            if(.not.allocated(prod)) allocate(prod(3))
-            prod = (/inum,nnum,anum/)
-            flag = 4
-            read(rd_decay,'(A80)',end=100) line1
-            read(line1(1:11),'(f)') r_type
-            read(line1(12:22),'(f)') r_iso
-            read(line1(23:33),'(f)') r_q
-            read(line1(45:55),'(f)') r_ratio
-            nuclide(inum,nnum,anum)%frac(react) = r_ratio
-            rt = floor(r_type)
-            do while(rt<r_type)
-                r_type = r_type * 10.d0
+            read(line0(1:11),'(f)') HL !> HL [sec]
+            read(line0(45:55),'(f)') ST !> 1 if stable, 0 if radioactive
+            if (HL == 0.d0) then
+                nuclide(inum,nnum,anum)%lambda = 0.0
+                nuclide(inum,nnum,anum)%iu = 6
+            else
+                nuclide(inum,nnum,anum)%lambda = 6.931471806d-1/HL
+                nuclide(inum,nnum,anum)%iu = 1
+            endif
+            read(line0(45:55),'(f)') skip
+            nskip = ceiling(skip/6.0) ! Number of lines to skip
+            if (nskip > 0) then
+                do i = 1,nskip
+                    read(rd_decay,'(A80)',end=100) line0
+                    read(line0(1:11),'(f)') Etmp1
+                    read(line0(23:33),'(f)') Etmp2
+                    read(line0(45:55),'(f)') Etmp3
+                    nuclide(inum,nnum,anum)%qrec = &
+                        nuclide(inum,nnum,anum)%qrec +&
+                        (Etmp1+Etmp2+Etmp3)/1000000
+                enddo
+            endif
+            read(rd_decay,'(A80)',end=100) line0
+            read(line0(56:66),'(i)') n_react ! Number of reactions
+            allocate(nuclide(inum,nnum,anum)%frac(n_react))
+            allocate(nuclide(inum,nnum,anum)%daughter(n_react,3))
+            nuclide(inum,nnum,anum)%daughter=0
+            nuclide(inum,nnum,anum)%n_emit = 0.d0
+            nuclide(inum,nnum,anum)%p_emit = 0.d0
+            nuclide(inum,nnum,anum)%a_emit = 0.d0
+            if (n_react==0) go to 15
+            nuclide(inum,nnum,anum)%react_num = n_react
+            do react = 1,n_react
+                if(.not.allocated(prod)) allocate(prod(3))
+                prod = (/inum,nnum,anum/)
+                flag = 4
+                read(rd_decay,'(A80)',end=100) line1
+                read(line1(1:11),'(f)') r_type
+                read(line1(12:22),'(f)') r_iso
+                read(line1(23:33),'(f)') r_q
+                read(line1(45:55),'(f)') r_ratio
+                nuclide(inum,nnum,anum)%frac(react) = r_ratio
                 rt = floor(r_type)
-            enddo
-            ri = int(r_iso) 
-            14 continue
-            typedet = unitdigit(rt)
-            select case(typedet)
-            case(1) !beta- decay: n to p
-                prod(1) = ri
-                prod(2) = prod(2) - 1
-                prod(3) = prod(3) + 1
-            case(2) !electron capture: p to n
-                prod(1) = ri
-                prod(2) = prod(2) + 1
-                prod(3) = prod(3) - 1
-            case(3) !IT
-                prod(1) = ri
-            case(4) !alpha emission: emit a, a-2, n-2
-                nuclide(inum,nnum,anum)%a_emit = &
-                    nuclide(inum,nnum,anum)%a_emit + r_ratio
-                prod(1) = ri
-                prod(2) = prod(2) - 2
-                prod(3) = prod(3) - 2
-            case(5) !neutron emission: emit n, n-1
-                nuclide(inum,nnum,anum)%n_emit = &
-                    nuclide(inum,nnum,anum)%n_emit + r_ratio
-                prod(1) = ri
-                prod(2) = prod(2) - 1
-            case(6)
-                ! Spontaneous fission: prod = 0
-                nuclide(inum,nnum,anum)%sfiss = react
-                prod    = 0
-            case(7) !Proton emission
-                nuclide(inum,nnum,anum)%p_emit = &
-                    nuclide(inum,nnum,anum)%p_emit + r_ratio
-                prod(1) = ri
-                prod(3) = prod(3) - 1
-            case default
-            end select
-            if (rt>10) then !If further decay exists
-                rt = rt/10
-                go to 14
-            endif
-            if (prod(1)>=0 .and. prod(2)>=0 .and. prod(3)>=0) then
-                nuclide(inum,nnum,anum)%daughter(react,1) = prod(1)
-                nuclide(inum,nnum,anum)%daughter(react,2) = prod(2)
-                nuclide(inum,nnum,anum)%daughter(react,3) = prod(3)
-                if(.not. nuclide(prod(1),prod(2),prod(3))%data_exist) then
-                    nuclide(prod(1), prod(2), prod(3)) % data_exist = .true.
-                    nuclide(prod(1), prod(2), prod(3)) % iu = 0
+                do while(rt<r_type)
+                    r_type = r_type * 10.d0
+                    rt = floor(r_type)
+                enddo
+                ri = int(r_iso) 
+                14 continue
+                typedet = unitdigit(rt)
+                select case(typedet)
+                case(1) !beta- decay: n to p
+                    prod(1) = ri
+                    prod(2) = prod(2) - 1
+                    prod(3) = prod(3) + 1
+                case(2) !electron capture: p to n
+                    prod(1) = ri
+                    prod(2) = prod(2) + 1
+                    prod(3) = prod(3) - 1
+                case(3) !IT
+                    prod(1) = ri
+                case(4) !alpha emission: emit a, a-2, n-2
+                    nuclide(inum,nnum,anum)%a_emit = &
+                        nuclide(inum,nnum,anum)%a_emit + r_ratio
+                    prod(1) = ri
+                    prod(2) = prod(2) - 2
+                    prod(3) = prod(3) - 2
+                case(5) !neutron emission: emit n, n-1
+                    nuclide(inum,nnum,anum)%n_emit = &
+                        nuclide(inum,nnum,anum)%n_emit + r_ratio
+                    prod(1) = ri
+                    prod(2) = prod(2) - 1
+                case(6)
+                    ! Spontaneous fission: prod = 0
+                    nuclide(inum,nnum,anum)%sfiss = react
+                    prod    = 0
+                case(7) !Proton emission
+                    nuclide(inum,nnum,anum)%p_emit = &
+                        nuclide(inum,nnum,anum)%p_emit + r_ratio
+                    prod(1) = ri
+                    prod(3) = prod(3) - 1
+                case default
+                end select
+                if (rt>10) then !If further decay exists
+                    rt = rt/10
+                    go to 14
                 endif
-            endif
-        enddo
-        15  continue
-        do while (MT /= 451)
-            read(rd_decay,'(A80)',end = 100) line0 ! Skip until next isotope's description (MT=451)
-            read(line0(73:75),'(i)') MT 
-        enddo
-        read(rd_decay,*,end=100)
-        go to 10
-        100 close(rd_decay)
+                if (prod(1)>=0 .and. prod(2)>=0 .and. prod(3)>=0) then
+                    nuclide(inum,nnum,anum)%daughter(react,1) = prod(1)
+                    nuclide(inum,nnum,anum)%daughter(react,2) = prod(2)
+                    nuclide(inum,nnum,anum)%daughter(react,3) = prod(3)
+                    if(.not. nuclide(prod(1),prod(2),prod(3))%data_exist) then
+                        nuclide(prod(1), prod(2), prod(3)) % data_exist = .true.
+                        nuclide(prod(1), prod(2), prod(3)) % iu = 0
+                    endif
+                endif
+            enddo
+            15  continue
+            do while (MT /= 451)
+                read(rd_decay,'(A80)',end = 100) line0 ! Skip until next isotope's description (MT=451)
+                read(line0(73:75),'(i)') MT 
+            enddo
+            read(rd_decay,*,end=100)
+            go to 10
+            100 close(rd_decay)
+        else
+            if(icore==score) print *, '    FATAL ERROR: .dec file does not exist... terminating calculation'
+            if(icore==score) print *, trim(dec_lib)
+            stop
+        endif
         
         !==============================================================================
 !        !Read one-group transmutation cross section library
@@ -466,148 +477,155 @@ module depletion_module
 
 
         !==============================================================================
-        open(rd_yield, file = trim(dep_lib)//'sss_endfb71.nfy', action = 'read')
-        fid = 0; ifp = 0
-        allocate(tmp_yield(1:2500,1:4,1:100)); tmp_yield = 0.d0
-        allocate(ify_yield(1:2500,1:4,1:100)); ify_yield = 0.d0
-        allocate(cfy_yield(1:2500,1:4,1:100)); cfy_yield = 0.d0
-        allocate(fiss_path(1:2500,1:100));     fiss_path = 0
-        allocate(fp_zai(1:2500)) ! ZAI of fp
-        allocate(fssn_zai(1:100)) ! ZAI of fssn
-        allocate(ace_fssn(1:2000)); ace_fssn = 0.d0
-        allocate(yieldE(1:100,4)); yieldE = 0.d0
-        allocate(yieldnE(1:100)); yieldnE = 0.d0
-        if(Xe_search)then
-        allocate(Xe_cum_yield(1:100)) ! Cumulative yield of Xe135
-        allocate(I_cum_yield(1:100)) ! Cumulative yield of Iodine135
-        endif
-        n_fp_max = 0
-        30  continue
-        MT = 0
-        do while (MT /= 454)
-            read(rd_yield,'(A80)',end = 300) line0
-            read(line0(73:75),'(i)') MT
-        enddo
-        fid = fid + 1
-        read(line0(1:11),'(f)') ZA
-        nuclid = int(ZA)
-        anum = nuclid/1000
-        mnum = nuclid-anum*1000
-        nnum = mnum-anum
-        inum = 0
-        if(anum==95 .and. mnum==242) inum = 1
-        nuclide(inum,nnum,anum)%fiss = .true.
-        fssn_anum = anum; fssn_nnum = nnum; fssn_inum = inum
-        nuclide(inum,nnum,anum)%fy_idx = fid
-        fssn_zai(fid) = nuclid*10+inum
-!        if(find_ACE_iso_idx_zaid(nuclid*10)>0) then
-!            ace_fssn(find_ACE_iso_idx_zaid(nuclid*10+inum)) = fid
-!        endif
-        if(nuclide(inum,nnum,anum)%amu==0.d0) then
-            read(line0(12:22),'(f)') nuclide(inum,nnum,anum)%amu
-        endif
-        read(line0(23:33),'(i)') n_y_eg ! # of energy groups
-        allocate(Ep(n_y_eg)) ! Energy points for yield
-        !Assign boundary energy
-        allocate(nuclide(inum,nnum,anum)%yield_E(n_y_eg))
-                do eg = 1,n_y_eg
-                    read(rd_yield,'(A80)',end = 300) line0
-                    read(line0(1:11),'(f)') Ep(eg)
-                    read(line0(56:66),'(i)') n_fp ! # of fission products
-                    n_fp_max = max(n_fp_max,n_fp) ! Maximal # of FP for given fssn
-                    ! If FPY out of range: constant
-                    do fp = 1,n_fp
-                        flag = mod(fp*4-3,6)
-                        if (flag<3) read(rd_yield,'(A80)',end=300) line1
-                        read(line1(11*flag-10:11*flag),'(f)') ZA
-                        read(line1(11*flag+1:11*flag+11),'(f)') i_real ! Flag for ZA & I
-                        nuclid = int(ZA)
-                        inum = int(i_real)
-                        anum = nuclid/1000
-                        mnum = nuclid-anum*1000
-                        nnum = mnum-anum
-
-                        ! 211109 MODIFICATION: If decay chain of meta. not exists, pass to ground
-                        tmpfp = nuclide(inum,nnum,anum)%fp
-                        if (nuclide(inum,nnum,anum)%fp == 0) then !Assign ifp to nuclide
-                            if(nuclide(inum,nnum,anum)%data_exist) then
-                                ifp = ifp + 1
-                                nuclide(inum,nnum,anum)%fp = ifp
-                                fp_zai(ifp) = nuclid*10+inum
-                                tmpfp = nuclide(inum,nnum,anum)%fp
-                            else
-                                tmpfp = nuclide(0, nnum, anum) % fp
+        inquire(file=trim(nfy_lib), exist = file_exists)
+        if(file_exists) then
+            open(rd_yield, file = trim(nfy_lib), action = 'read')
+            fid = 0; ifp = 0
+            allocate(tmp_yield(1:2500,1:4,1:100)); tmp_yield = 0.d0
+            allocate(ify_yield(1:2500,1:4,1:100)); ify_yield = 0.d0
+            allocate(cfy_yield(1:2500,1:4,1:100)); cfy_yield = 0.d0
+            allocate(fiss_path(1:2500,1:100));     fiss_path = 0
+            allocate(fp_zai(1:2500)) ! ZAI of fp
+            allocate(fssn_zai(1:100)) ! ZAI of fssn
+            allocate(ace_fssn(1:2000)); ace_fssn = 0.d0
+            allocate(yieldE(1:100,4)); yieldE = 0.d0
+            allocate(yieldnE(1:100)); yieldnE = 0.d0
+            if(Xe_search)then
+            allocate(Xe_cum_yield(1:100)) ! Cumulative yield of Xe135
+            allocate(I_cum_yield(1:100)) ! Cumulative yield of Iodine135
+            endif
+            n_fp_max = 0
+            30  continue
+            MT = 0
+            do while (MT /= 454)
+                read(rd_yield,'(A80)',end = 300) line0
+                read(line0(73:75),'(i)') MT
+            enddo
+            fid = fid + 1
+            read(line0(1:11),'(f)') ZA
+            nuclid = int(ZA)
+            anum = nuclid/1000
+            mnum = nuclid-anum*1000
+            nnum = mnum-anum
+            inum = 0
+            if(anum==95 .and. mnum==242) inum = 1
+            nuclide(inum,nnum,anum)%fiss = .true.
+            fssn_anum = anum; fssn_nnum = nnum; fssn_inum = inum
+            nuclide(inum,nnum,anum)%fy_idx = fid
+            fssn_zai(fid) = nuclid*10+inum
+    !        if(find_ACE_iso_idx_zaid(nuclid*10)>0) then
+    !            ace_fssn(find_ACE_iso_idx_zaid(nuclid*10+inum)) = fid
+    !        endif
+            if(nuclide(inum,nnum,anum)%amu==0.d0) then
+                read(line0(12:22),'(f)') nuclide(inum,nnum,anum)%amu
+            endif
+            read(line0(23:33),'(i)') n_y_eg ! # of energy groups
+            allocate(Ep(n_y_eg)) ! Energy points for yield
+            !Assign boundary energy
+            allocate(nuclide(inum,nnum,anum)%yield_E(n_y_eg))
+                    do eg = 1,n_y_eg
+                        read(rd_yield,'(A80)',end = 300) line0
+                        read(line0(1:11),'(f)') Ep(eg)
+                        read(line0(56:66),'(i)') n_fp ! # of fission products
+                        n_fp_max = max(n_fp_max,n_fp) ! Maximal # of FP for given fssn
+                        ! If FPY out of range: constant
+                        do fp = 1,n_fp
+                            flag = mod(fp*4-3,6)
+                            if (flag<3) read(rd_yield,'(A80)',end=300) line1
+                            read(line1(11*flag-10:11*flag),'(f)') ZA
+                            read(line1(11*flag+1:11*flag+11),'(f)') i_real ! Flag for ZA & I
+                            nuclid = int(ZA)
+                            inum = int(i_real)
+                            anum = nuclid/1000
+                            mnum = nuclid-anum*1000
+                            nnum = mnum-anum
+    
+                            ! 211109 MODIFICATION: If decay chain of meta. not exists, pass to ground
+                            tmpfp = nuclide(inum,nnum,anum)%fp
+                            if (nuclide(inum,nnum,anum)%fp == 0) then !Assign ifp to nuclide
+                                if(nuclide(inum,nnum,anum)%data_exist) then
+                                    ifp = ifp + 1
+                                    nuclide(inum,nnum,anum)%fp = ifp
+                                    fp_zai(ifp) = nuclid*10+inum
+                                    tmpfp = nuclide(inum,nnum,anum)%fp
+                                else
+                                    tmpfp = nuclide(0, nnum, anum) % fp
+                                endif
                             endif
-                        endif
-                        flag = mod(fp*4-1,6) ! Flag for yield
-                        if (flag<3) read(rd_yield,'(A80)',end=300) line1
-                        read(line1(11*flag-10:11*flag),'(f)') ify
-
-                        ! Alternate for Meta...
-
-                        if(ify>0.d0) then
+                            flag = mod(fp*4-1,6) ! Flag for yield
+                            if (flag<3) read(rd_yield,'(A80)',end=300) line1
+                            read(line1(11*flag-10:11*flag),'(f)') ify
+    
+                            ! Alternate for Meta...
+    
+                            if(ify>0.d0) then
+                                if(tmpfp>0) then
+                                    ify_yield(tmpfp,eg,fid) = &
+                                    ify_yield(tmpfp,eg,fid) + ify
+                                endif
+                            endif
+                        enddo
+                    enddo
+                    nuclide(fssn_inum,fssn_nnum,fssn_anum)%yield_E = Ep*1.d-6
+                    do eg = 1,n_y_eg
+                        yieldE(fid,eg) = Ep(eg)*1.d-6
+                    enddo
+                    yieldnE(fid) = n_y_eg
+                    deallocate(Ep)
+                    do while (MT /= 0)
+                        read(line0(73:75),'(i)') MT
+                        read(rd_yield,'(A80)',end=300) line0 ! Skip until end of individ. NFY
+                    enddo
+                    ! ====== 211013 ==========
+                    ! Cumulative NFY should be considered for fpcut operation
+                    ! fpcut: Neglect cumul. fp < fpcut
+                    ! May reduce computation burden
+                    ! TODO
+                    read(line0(23:33),'(i)') n_y_eg
+                    do eg = 1,n_y_eg
+                        read(rd_yield,'(A80)',end = 300) line1
+                        read(line1(56:66),'(i)') n_fp
+                        do fp = 1,n_fp
+                            flag = mod(fp*4-3,6)
+                            if(flag<3) read(rd_yield,'(A80)',end=300) line1
+                            read(line1(11*flag-10:11*flag),'(f)') ZA
+                            read(line1(11*flag+1:11*flag+11),'(f)') i_real
+                            nuclid = int(ZA); inum = 0; inum = int(i_real)
+                            anum = nuclid/1000
+                            mnum = nuclid-anum*1000
+                            nnum = mnum-anum
+                            tmpfp = nuclide(inum,nnum,anum)%fp
+                            if(tmpfp==0 .and. nuclide(0,nnum,anum)%fp>0) tmpfp = nuclide(0,nnum,anum)%fp
+                            flag = mod(fp*4-1,6)
+                            if(flag<3) read(rd_yield,'(A80)',end=300) line1
+                            read(line1(11*flag-10:11*flag),'(f)') cfy !CUMUL. FY.
+                            if(cfy>0.d0 .and. tmpfp>0) cfy_yield(tmpfp,eg,fid) = &
+                                cfy_yield(tmpfp,eg,fid) + cfy
+                            ! === 211110 ===
+                            ! Updates on CFY and IFY -> TMP_FY
+                            tmpfp = nuclide(inum, nnum, anum) %fp
                             if(tmpfp>0) then
-                                ify_yield(tmpfp,eg,fid) = &
-                                ify_yield(tmpfp,eg,fid) + ify
+                                if(cfy_yield(tmpfp,eg,fid)>fpcut .or. ify_yield(tmpfp,eg,fid)>fpcut) then
+                                    tmp_yield(tmpfp,eg,fid) = tmp_yield(tmpfp,eg,fid) + ify_yield(tmpfp,eg,fid)
+                                    if(fiss_path(tmpfp,fid)==0) fiss_path(tmpfp,fid) = 1
+                                    nuclide(inum,nnum,anum)%fiss = .true.
+                                endif
                             endif
-                        endif
+                        enddo
                     enddo
-                enddo
-                nuclide(fssn_inum,fssn_nnum,fssn_anum)%yield_E = Ep*1.d-6
-                do eg = 1,n_y_eg
-                    yieldE(fid,eg) = Ep(eg)*1.d-6
-                enddo
-                yieldnE(fid) = n_y_eg
-                deallocate(Ep)
-                do while (MT /= 0)
-                    read(line0(73:75),'(i)') MT
-                    read(rd_yield,'(A80)',end=300) line0 ! Skip until end of individ. NFY
-                enddo
-                ! ====== 211013 ==========
-                ! Cumulative NFY should be considered for fpcut operation
-                ! fpcut: Neglect cumul. fp < fpcut
-                ! May reduce computation burden
-                ! TODO
-                read(line0(23:33),'(i)') n_y_eg
-                do eg = 1,n_y_eg
-                    read(rd_yield,'(A80)',end = 300) line1
-                    read(line1(56:66),'(i)') n_fp
-                    do fp = 1,n_fp
-                        flag = mod(fp*4-3,6)
-                        if(flag<3) read(rd_yield,'(A80)',end=300) line1
-                        read(line1(11*flag-10:11*flag),'(f)') ZA
-                        read(line1(11*flag+1:11*flag+11),'(f)') i_real
-                        nuclid = int(ZA); inum = 0; inum = int(i_real)
-                        anum = nuclid/1000
-                        mnum = nuclid-anum*1000
-                        nnum = mnum-anum
-                        tmpfp = nuclide(inum,nnum,anum)%fp
-                        if(tmpfp==0 .and. nuclide(0,nnum,anum)%fp>0) tmpfp = nuclide(0,nnum,anum)%fp
-                        flag = mod(fp*4-1,6)
-                        if(flag<3) read(rd_yield,'(A80)',end=300) line1
-                        read(line1(11*flag-10:11*flag),'(f)') cfy !CUMUL. FY.
-                        if(cfy>0.d0 .and. tmpfp>0) cfy_yield(tmpfp,eg,fid) = &
-                            cfy_yield(tmpfp,eg,fid) + cfy
-                        ! === 211110 ===
-                        ! Updates on CFY and IFY -> TMP_FY
-                        tmpfp = nuclide(inum, nnum, anum) %fp
-                        if(tmpfp>0) then
-                            if(cfy_yield(tmpfp,eg,fid)>fpcut .or. ify_yield(tmpfp,eg,fid)>fpcut) then
-                                tmp_yield(tmpfp,eg,fid) = tmp_yield(tmpfp,eg,fid) + ify_yield(tmpfp,eg,fid)
-                                if(fiss_path(tmpfp,fid)==0) fiss_path(tmpfp,fid) = 1
-                                nuclide(inum,nnum,anum)%fiss = .true.
-                            endif
-                        endif
+                    ! =======================
+                    do while (MT /= 451)
+                        read(rd_yield,'(A80)',end = 300) line0 ! Skip until next isotope's description (MT=451)
+                        read(line0(73:75),'(i)') MT 
                     enddo
-                enddo
-                ! =======================
-                do while (MT /= 451)
-                    read(rd_yield,'(A80)',end = 300) line0 ! Skip until next isotope's description (MT=451)
-                    read(line0(73:75),'(i)') MT 
-                enddo
-                read(rd_yield,*,end=300)
-                go to 30
-                300 close (rd_yield)
+                    read(rd_yield,*,end=300)
+                    go to 30
+                    300 close (rd_yield)
+                else
+                    if(icore==score) print *, '    FATAL ERROR: .nfy file does not exist... terminating calculation'
+                    if(icore==score) print *, trim(nfy_lib)
+                    stop
+                endif
                
                 !if(Xe_search) then
                 !Xe_source =(/491350,491360,501350,501370,511350,511360,511370,521350,521360,531350/)
@@ -631,78 +649,90 @@ module depletion_module
                 !endif
                 !
                 ! ======= 211116, SFY LIBRARY READ ========
-                open(rd_sfy, file = trim(dep_lib)//'sss_endfb71.sfy', action = 'read')
-                sfid = 0; isfp = 0
-                allocate(sfy_yield(1:2500,1:100)); sfy_yield = 0.d0
-                allocate(sfp_zai(1:2500)) ! ZAI of fp from SFY
-                allocate(sfssn_zai(1:100)) ! ZAI of fssn from SFY
-                n_sfp_max = 0
-                50 continue
-                MT = 0
-                do while (MT/=454)
+                inquire(file=trim(sfy_lib), exist = file_exists)
+                if(file_exists) then
+                    open(rd_sfy, file = trim(sfy_lib), action = 'read')
+                    sfid = 0; isfp = 0
+                    allocate(sfy_yield(1:2500,1:100)); sfy_yield = 0.d0
+                    allocate(sfp_zai(1:2500)) ! ZAI of fp from SFY
+                    allocate(sfssn_zai(1:100)) ! ZAI of fssn from SFY
+                    n_sfp_max = 0
+                    50 continue
+                    MT = 0
+                    do while (MT/=454)
+                        read(rd_sfy,'(A80)',end=500) line0
+                        read(line0(73:75),'(i)') MT
+                    enddo
+                    sfid = sfid + 1
+                    read(line0(1:11),'(f)') ZA; nuclid = int(ZA)
+                    anum = nuclid/1000; mnum = nuclid-anum*1000
+                    nnum = mnum-anum; inum =0
+                    fssn_anum = anum; fssn_nnum = nnum
+                    nuclide(inum,nnum,anum)%sfy_idx = sfid
+                    sfssn_zai(sfid) = nuclid*10 + inum
+                    read(line0(23:33),'(i)') n_y_eg
                     read(rd_sfy,'(A80)',end=500) line0
-                    read(line0(73:75),'(i)') MT
-                enddo
-                sfid = sfid + 1
-                read(line0(1:11),'(f)') ZA; nuclid = int(ZA)
-                anum = nuclid/1000; mnum = nuclid-anum*1000
-                nnum = mnum-anum; inum =0
-                fssn_anum = anum; fssn_nnum = nnum
-                nuclide(inum,nnum,anum)%sfy_idx = sfid
-                sfssn_zai(sfid) = nuclid*10 + inum
-                read(line0(23:33),'(i)') n_y_eg
-                read(rd_sfy,'(A80)',end=500) line0
-                read(line0(56:66),'(i)') n_fp
-                n_sfp_max = max(n_sfp_max,n_fp)
-                do fp = 1,n_fp
-                    flag = mod(fp*4-3,6)
-                    if(flag<3) read(rd_sfy,'(A80)',end=500) line1
-                    read(line1(11*flag-10:11*flag),'(f)') ZA
-                    read(line1(11*flag+1:11*flag+11),'(f)') i_real
-                    nuclid = int(ZA); inum = int(i_real)
-                    anum = nuclid/1000; mnum = nuclid-anum*1000; nnum = mnum-anum
-                    tmpfp = nuclide(inum,nnum,anum)%sfp
-                    if(nuclide(inum,nnum,anum)%sfp ==0 .and. nuclide(inum,nnum,anum)%data_exist) then
-                        isfp = isfp + 1
-                        nuclide(inum,nnum,anum)%sfp = isfp
-                        sfp_zai(isfp) = nuclid*10+inum
+                    read(line0(56:66),'(i)') n_fp
+                    n_sfp_max = max(n_sfp_max,n_fp)
+                    do fp = 1,n_fp
+                        flag = mod(fp*4-3,6)
+                        if(flag<3) read(rd_sfy,'(A80)',end=500) line1
+                        read(line1(11*flag-10:11*flag),'(f)') ZA
+                        read(line1(11*flag+1:11*flag+11),'(f)') i_real
+                        nuclid = int(ZA); inum = int(i_real)
+                        anum = nuclid/1000; mnum = nuclid-anum*1000; nnum = mnum-anum
                         tmpfp = nuclide(inum,nnum,anum)%sfp
-                    endif
-                    flag = mod(fp*4-1,6)
-                    if(flag<3) read(rd_sfy,'(A80)',end=500) line1
-                    read(line1(11*flag-10:11*flag),'(f)') sfy
-                    if(sfy>0.d0 .and. tmpfp>0) sfy_yield(tmpfp,sfid) = &
-                        sfy_yield(tmpfp,sfid) + sfy
-                enddo
-                
-                do while (MT/=451)
-                    read(line0(73:75),'(i)') MT
-                    read(rd_sfy,'(A80)',end=500) line0
-                enddo
-                read(rd_sfy,*,end=500)
-                go to 50
-                500 close(rd_sfy)
+                        if(nuclide(inum,nnum,anum)%sfp ==0 .and. nuclide(inum,nnum,anum)%data_exist) then
+                            isfp = isfp + 1
+                            nuclide(inum,nnum,anum)%sfp = isfp
+                            sfp_zai(isfp) = nuclid*10+inum
+                            tmpfp = nuclide(inum,nnum,anum)%sfp
+                        endif
+                        flag = mod(fp*4-1,6)
+                        if(flag<3) read(rd_sfy,'(A80)',end=500) line1
+                        read(line1(11*flag-10:11*flag),'(f)') sfy
+                        if(sfy>0.d0 .and. tmpfp>0) sfy_yield(tmpfp,sfid) = &
+                            sfy_yield(tmpfp,sfid) + sfy
+                    enddo
+                    
+                    do while (MT/=451)
+                        read(line0(73:75),'(i)') MT
+                        read(rd_sfy,'(A80)',end=500) line0
+                    enddo
+                    read(rd_sfy,*,end=500)
+                    go to 50
+                    500 close(rd_sfy)
+                else
+                    if(icore==score) print *, '    FATAL ERROR: .sfy file does not exist... terminating calculation'
+                    if(icore==score) print *, trim(sfy_lib)
+                    stop
+                endif
 
                 11 continue
 
                 !==================================================================================
                 !ISOMERIC BRANCHING RATIO (UNDER TESTING, 10/18)
-                open(isom_brn,file=trim(dep_lib)//'isomeric_branching',action='read')
-                read(isom_brn,'(A80)',end = 400) line0
-                read(line0,'(i)') num_brn
-
-                allocate(ZAIMT_ism(num_brn))
-                allocate(gnd_frac(num_brn))
-
-                do brn = 1,num_brn
-                   read(isom_brn,'(A80)',end = 400) line0
-                   read(line0(1:6),'(i)') ZAIMT_ism(brn)
-                   read(line0(13:20),'(f)') gnd_frac(brn)
-                   !TESTING
-                enddo
-400             close(isom_brn)
-                do brn = 1, num_brn
-                enddo
+                inquire(file=trim(isom_lib), exist = file_exists)
+                if(file_exists) then
+                    open(isom_brn,file=trim(isom_lib),action='read')
+                    read(isom_brn,'(A80)',end = 400) line0
+                    read(line0,'(i)') num_brn
+    
+                    allocate(ZAIMT_ism(num_brn))
+                    allocate(gnd_frac(num_brn))
+    
+                    do brn = 1,num_brn
+                       read(isom_brn,'(A80)',end = 400) line0
+                       read(line0(1:6),'(i)') ZAIMT_ism(brn)
+                       read(line0(13:20),'(f)') gnd_frac(brn)
+                       !TESTING
+                    enddo
+    400             close(isom_brn)
+                    do brn = 1, num_brn
+                    enddo
+                else
+                    if(icore==score) print *, '    NOTE: isomeric branching file does not exist'
+                endif
                 !==============================================================================
                 ! CROP NFY DATA
                 tmp_yield = tmp_yield(1:ifp,1:4,1:fid)
@@ -1684,6 +1714,7 @@ module depletion_module
                 deallocate(nucexist)
                 !Calculate real flux (volume-averaged)
                 real_flux = ULnorm*mat%flux
+                print *, 'RF', real_flux, ULnorm, mat%flux, mat%mat_name
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
                 toteflux = sum(mat%eflux(0:nueg))

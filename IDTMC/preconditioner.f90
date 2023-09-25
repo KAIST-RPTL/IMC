@@ -197,6 +197,9 @@ subroutine ILU_DECOMPOSE(Mfm)
     integer:: num0, num1   ! matrix number, entry number
     integer:: num2         ! number in a row 
     integer:: io, jo, ko, mo
+    real(8) :: bmtmp((2*maxfill+1)*n_lnodes-maxfill*(maxfill+1)+1)
+    integer :: ibtmp(n_lnodes+1)
+    integer :: jbtmp((2*maxfill+1)*n_lnodes-maxfill*(maxfill+1)+1)
 
     ! first element    : ib(ii)+jo-1
     ! diagonal element : ib(ii)+ln(ii)+jo-2
@@ -247,7 +250,10 @@ subroutine ILU_DECOMPOSE(Mfm)
         end do
 
         ! ILU decomposition
-        call DCSRILUT(n_lnodes,am,ia,ja,bm(mo,:),ib(mo,:),jb(mo,:),tol,maxfill,ipar,dpar,ierr)
+        call DCSRILUT(n_lnodes,am,ia,ja,bmtmp,ibtmp,jbtmp,tol,maxfill,ipar,dpar,ierr)
+        bm(mo,:) = bmtmp
+        ib(mo,:) = ibtmp
+        jb(mo,:) = jbtmp
 
         ! indice of ILU decomposed matrix
         do io = 1, n_lnodes

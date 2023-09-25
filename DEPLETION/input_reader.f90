@@ -1292,8 +1292,8 @@ end subroutine READ_CTRL
 			    
                 case('LIB_PATH')	
                     backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal
-                    read(File_Number,'(A)',iostat=File_Error) acelib
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, acelib
+                    if(File_Error/=0) read(File_Number,'(A)',iostat=File_Error) acelib
                     !allocate(ace(1:500))
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
                     allocate(ace(1:2000))
@@ -1677,12 +1677,33 @@ end subroutine READ_CTRL
                     burn_step(0) = 0.0d0
                     burn_step = burn_step * 86400.d0 !Unit in [sec]      
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                case("LIBRARY_PATH")
+!                case("LIBRARY_PATH")
+!                    backspace(File_Number)
+!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal
+!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+!                    read(File_Number,'(A)',iostat=File_Error) dep_lib(:)
+!                    dep_lib = adjustl(dep_lib)
+                case("DEC_LIB")
                     backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal
+                    read(File_Number, * ,iostat=File_Error) Char_Temp, Equal, dec_lib
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                    read(File_Number,'(A)',iostat=File_Error) dep_lib(:)
-                    dep_lib = adjustl(dep_lib)
+                    dec_lib = trim(directory)//adjustl(dec_lib)
+                    if(icore==score) print *, 'DEC', dec_lib
+                case("NFY_LIB")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, nfy_lib
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+                    nfy_lib = trim(directory)//adjustl(nfy_lib)
+                case("SFY_LIB")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, sfy_lib
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+                    sfy_lib = trim(directory)//adjustl(sfy_lib)
+                case("ISOM_LIB")
+                    backspace(File_Number)
+                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, isom_lib
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+                    isom_lib = trim(directory)//adjustl(isom_lib)
                 ! Own input for removal/refueling
                 case("REMOVAL_GAS")
                     backspace(File_Number)

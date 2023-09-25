@@ -742,7 +742,7 @@ subroutine CYCLE_TALLY_MSG(bat)
     character(3) :: fileid
 
     if ( icore /= score ) return
-	if (do_burn) return 
+	! if (do_burn) return 
 	
     ! multiplication factor
     if ( fmfdon ) then
@@ -798,6 +798,8 @@ subroutine CYCLE_TALLY_MSG(bat)
     write(99999,14), ttemp_sd(:,:,:)
 	close(9999)
 	close(99999)
+    !! INITIALIZE after Printing
+    MC_tally = 0d0
     end if
 
     else

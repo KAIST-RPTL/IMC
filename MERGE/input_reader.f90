@@ -33,17 +33,17 @@ module input_reader
 ! INIT_VAR
 ! =============================================================================
 subroutine init_var
-    allocate(universes(0:0))
-    universes(0)%univ_type = 0
-    universes(0)%univ_id   = 0
-    universes(0)%xyz(:)    = 0
-    universes(0)%ncell     = 0
-    
+!    allocate(universes(0:0))
+!    universes(0)%univ_type = 0
+!    universes(0)%univ_id   = 0
+!    universes(0)%xyz(:)    = 0
+!    universes(0)%ncell     = 0
+!    
     keff = 1D0
     avg_power = 0D0
     n_batch = 1
 
-    if(icore==ncore) iscore = .true.
+    if(icore==score) iscore = .true.
 
 end subroutine
     
@@ -74,12 +74,56 @@ subroutine read_geom
     logical :: found 
     character(20) :: dupname
     character(5) :: char1, char2
+    integer :: File_Error
+    integer :: ncell, nsurf, nlatt, nuniv, npcell, univ_id
 
     if (icore==score) print *, "   geom.inp :: GEOMETRY CARD is being read..."
 
     
     !Read geom.inp
     open(rd_geom, file=trim(trim(directory)//"geom.inp"),action="read", status="old")
+
+
+    ! Count number of universes/surfaces/cells
+    ncell = 0; nsurf = 0; nlatt = 0; nuniv = 0;
+    GEOM_COUNT: do
+        read(rd_geom, *, iostat=File_Error) option
+        if(File_Error/=0) exit GEOM_COUNT
+        call Small_to_Capital(option)
+        select case(adjustL(trim(option)))
+        case("SURF")
+            nsurf = nsurf + 1
+        case("CELL")
+            ncell = ncell + 1
+        case("PIN")
+            nuniv = nuniv + 1
+            backspace(rd_geom)
+            read(rd_geom, *, iostat=File_Error) option, univ_id, npcell
+            ncell = ncell + npcell
+            nsurf = nsurf + npcell - 1
+        case("LAT")
+            nlatt = nlatt + 1
+        end select
+    enddo GEOM_COUNT
+    rewind(rd_geom)
+
+    allocate(surfaces(1:nsurf))
+    allocate(cells(1:ncell))
+    allocate(universes(0:nuniv))
+    universes(0)%univ_type = 0
+    universes(0)%univ_id   = 0
+    universes(0)%xyz(:)    = 0
+    universes(0)%ncell     = 0
+    allocate(lattices(1:nlatt))
+    if(icore==score) then
+        print *, 'Surf #:', nsurf
+        print *, 'Cell #:', ncell
+        print *, 'Univ #:', nuniv
+        print *, 'Latt #:', nlatt
+    endif
+        
+    
+    ncell = 0; nsurf = 0; nlatt = 0; nuniv = 0;
 
     ierr = 0; curr_line = 0 
     do while (ierr.eq.0)
@@ -118,59 +162,161 @@ subroutine read_geom
 			
 			
         case ("SURF")
-            isize = 0
-            if (allocated(surfaces)) isize = size(surfaces) 
-            isize = isize+1
-            allocate(surfaces_temp(1:isize))
-            if ( isize > 1 ) surfaces_temp(1:isize-1) = surfaces(:) 
-            call read_surf(surfaces_temp(isize), args, nargs)
-			call EMSG_surf(surfaces_temp(isize)%surf_type, nargs, curr_line)
-            if(allocated(surfaces)) deallocate(surfaces)
-            call move_alloc(surfaces_temp, surfaces)
+!            isize = 0
+!            if (allocated(surfaces)) isize = size(surfaces) 
+!            isize = isize+1
+!            allocate(surfaces_temp(1:isize))
+!            if ( isize > 1 ) surfaces_temp(1:isize-1) = surfaces(:) 
+!            call read_surf(surfaces_temp(isize), args, nargs)
+!			call EMSG_surf(surfaces_temp(isize)%surf_type, nargs, curr_line)
+!            if(allocated(surfaces)) deallocate(surfaces)
+!           call move_alloc(surfaces_temp, surfaces)
+            nsurf = nsurf + 1
+            call read_surf(surfaces(nsurf), args, nargs)
+			call EMSG_surf(surfaces(nsurf)%surf_type, nargs, curr_line)
             
         case ("CELL")
-            isize = 0
-            if (allocated(cells)) isize = size(cells) 
-            isize = isize+1
-            allocate(cells_temp(1:isize))
-            if (isize > 1) cells_temp(1:isize-1) = cells(:) 
-            call read_cell (cells_temp(isize), args, nargs) 
-            if(allocated(cells)) deallocate(cells)
-            call move_alloc(cells_temp, cells)            
+!            isize = 0
+!            if (allocated(cells)) isize = size(cells) 
+!            isize = isize+1
+!            allocate(cells_temp(1:isize))
+!            if (isize > 1) cells_temp(1:isize-1) = cells(:) 
+!            call read_cell (cells_temp(isize), args, nargs) 
+!            if(allocated(cells)) deallocate(cells)
+!            call move_alloc(cells_temp, cells)            
+            ncell = ncell + 1
+            call read_cell (cells(ncell), args, nargs) 
                         
         case ("PIN")
-            isize = 0
-            if (allocated(universes)) isize = size(universes)-1
-            isize = isize+1
-            allocate(universes_temp(0:isize))
-            if (isize > 1) universes_temp(0:isize-1) = universes(:) 
-            call read_pin (universes_temp(isize), args, nargs) 
-            universes_temp(isize)%xyz(:) = 0
+!            isize = 0
+!            if (allocated(universes)) isize = size(universes)-1
+!            isize = isize+1
+!            allocate(universes_temp(0:isize))
+!            if (isize > 1) universes_temp(0:isize-1) = universes(:) 
+!            call read_pin (universes_temp(isize), args, nargs) 
+!            universes_temp(isize)%xyz(:) = 0
+!            
+!            univptr => universes_temp(isize)
+!            
+!            allocate(univptr%r(1:univptr%ncell-1))
+!            allocate(univptr%cell(1:univptr%ncell))
+!            if(allocated(universes)) deallocate(universes)
+!            call move_alloc(universes_temp, universes)
+!
+!            !> generage cell from pin
+!            if (allocated(cells)) then 
+!                isize = size(cells) 
+!                isize = isize + univptr%ncell
+!                allocate(cells_temp(1:isize))
+!                if (isize > 1) cells_temp(1:isize-univptr%ncell) = cells(:) 
+!                deallocate(cells)
+!            else 
+!                isize = 0
+!                isize = isize + univptr%ncell
+!                allocate(cells_temp(1:isize))
+!            endif
+!            
+!            call move_alloc(cells_temp, cells)
+!            
+!            do i = 1, univptr%ncell-1
+!                j = size(cells)-univptr%ncell+i
+!                univptr%cell(i) = j
+!				call readandparse(rd_geom, args, nargs, ierr, curr_line)
+!				
+!                read(args(1),*) mat_id
+!                read(args(2),*) univptr%r(i)
+!                
+!                if (E_mode == 0) cells(j)%mat_idx = find_mat_idx(XS_MG,mat_id)
+!                if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
+!                if(materials(cells(j)%mat_idx) % duplicable &
+!                    .and. materials(cells(j)%mat_idx) % depletable) then
+!                    !if(icore==score)print *, 'DUPL', materials(cells(j)%mat_idx) % geom_count, mat_id, univptr % univ_id
+!                    tmpidx = cells(j) % mat_idx
+!                    if(materials(cells(j)%mat_idx) % geom_count > 0) then
+!                        if(univptr%univ_id<10) then
+!                            write(char1, '(I1)') univptr%univ_id
+!                        elseif(univptr%univ_id<100) then
+!                            write(char1, '(I2)') univptr%univ_id
+!                        elseif(univptr%univ_id<1000) then
+!                            write(char1, '(I3)') univptr%univ_id
+!                        elseif(univptr%univ_id<10000) then
+!                            write(char1, '(I4)') univptr%univ_id
+!                        elseif(univptr%univ_id<100000) then
+!                            write(char1, '(I5)') univptr%univ_id
+!                        endif
+!
+!                        if(i<10) then
+!                            write(char2, '(I1)') i
+!                        elseif(i<100) then
+!                            write(char2, '(I2)') i
+!                        endif
+!                        !if(icore==score) print *, 'CHCK', char1, char2
+!                        !write(dupname, '(A,A1,A,A1,A)') adjustl(trim(materials(cells(j)%mat_idx) % mat_name)), '_', adjustl(trim(char1)), '_', adjustl(trim(char2))
+!                        dupname = adjustl(trim(materials(cells(j)%mat_idx)%mat_name)) //'_' //adjustl(trim(char1)) // '_' // adjustl(trim(char2))
+!                        if(icore==score) print *, 'DUP ', dupname, materials(cells(j)%mat_idx) % geom_count
+!                        allocate(materials_temp(n_materials+1))
+!                        materials_temp(1:n_materials) = materials(:)
+!                        materials_temp(n_materials+1) = materials(cells(j)%mat_idx)
+!                        materials_temp(n_materials+1) % mat_name = dupname
+!                        if(allocated(materials)) deallocate(materials)
+!                        call move_alloc(materials_temp, materials)
+!                        n_materials = n_materials + 1
+!                        cells(j) % mat_idx = n_materials
+!                    endif
+!                    materials(tmpidx) % geom_count = &
+!                        materials(tmpidx) % geom_count + 1
+!                endif
+!            enddo
+!            j = size(cells)
+!            univptr%cell(i) = j
+!			call readandparse(rd_geom, args, nargs, ierr, curr_line)
+!            read(args(1),*) mat_id
+!            
+!            if (E_mode == 0) cells(j)%mat_idx = find_mat_idx(XS_MG,mat_id)
+!            if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
+!            if(materials(cells(j)%mat_idx) % duplicable &
+!                .and. materials(cells(j)%mat_idx) % depletable) then
+!                if(materials(cells(j)%mat_idx) % geom_count > 0) then
+!                    allocate(materials_temp(n_materials+1))
+!                    materials_temp(1:n_materials) = materials(:)
+!                    materials_temp(n_materials+1) = materials(cells(j)%mat_idx)
+!                    if(allocated(materials)) deallocate(materials)
+!                    call move_alloc(materials_temp, materials)
+!                    n_materials = n_materials + 1
+!                    cells(j) % mat_idx = n_materials
+!                endif
+!                materials(cells(j)%mat_idx) % geom_count = &
+!                    materials(cells(j)%mat_idx) % geom_count + 1
+!                if(icore==score) print *, 'ADDED', n_materials, cells(j)%mat_idx
+!            endif
+!            call gen_cells_from_pin (univptr, cells(j-univptr%ncell+1:j)) 
+!            
+!            
+!            !> generate surface from pin
+!            if (univptr%ncell > 1) then 
+!                isize = 0
+!                if (allocated(surfaces)) isize = size(surfaces) 
+!                isize = isize + univptr%ncell -1
+!                allocate(surfaces_temp(1:isize))
+!                if (isize > 1 .and. allocated(surfaces)) surfaces_temp(1:isize-univptr%ncell+1) = surfaces(:) 
+!                if(allocated(surfaces)) deallocate(surfaces)
+!                call move_alloc(surfaces_temp, surfaces)
+!                j = size(surfaces)
+!                call gen_surfs_from_pin (univptr, surfaces(j-univptr%ncell+2:j)) 
+!            endif 
+            nuniv = nuniv + 1
+            call read_pin (universes(nuniv), args, nargs) 
+            universes(nuniv)%xyz(:) = 0
             
-            univptr => universes_temp(isize)
+            univptr => universes(nuniv)
             
             allocate(univptr%r(1:univptr%ncell-1))
             allocate(univptr%cell(1:univptr%ncell))
-            if(allocated(universes)) deallocate(universes)
-            call move_alloc(universes_temp, universes)
 
-            !> generage cell from pin
-            if (allocated(cells)) then 
-                isize = size(cells) 
-                isize = isize + univptr%ncell
-                allocate(cells_temp(1:isize))
-                if (isize > 1) cells_temp(1:isize-univptr%ncell) = cells(:) 
-                deallocate(cells)
-            else 
-                isize = 0
-                isize = isize + univptr%ncell
-                allocate(cells_temp(1:isize))
-            endif
-            
-            call move_alloc(cells_temp, cells)
-            
+            !> generate cell from pin
+            ncell = ncell + univptr%ncell 
             do i = 1, univptr%ncell-1
-                j = size(cells)-univptr%ncell+i
+                j = ncell-univptr%ncell+i
                 univptr%cell(i) = j
 				call readandparse(rd_geom, args, nargs, ierr, curr_line)
 				
@@ -218,8 +364,7 @@ subroutine read_geom
                         materials(tmpidx) % geom_count + 1
                 endif
             enddo
-            j = size(cells)
-            univptr%cell(i) = j
+            univptr%cell(i) = ncell
 			call readandparse(rd_geom, args, nargs, ierr, curr_line)
             read(args(1),*) mat_id
             
@@ -245,41 +390,54 @@ subroutine read_geom
             
             !> generate surface from pin
             if (univptr%ncell > 1) then 
-                isize = 0
-                if (allocated(surfaces)) isize = size(surfaces) 
-                isize = isize + univptr%ncell -1
-                allocate(surfaces_temp(1:isize))
-                if (isize > 1 .and. allocated(surfaces)) surfaces_temp(1:isize-univptr%ncell+1) = surfaces(:) 
-                if(allocated(surfaces)) deallocate(surfaces)
-                call move_alloc(surfaces_temp, surfaces)
-                j = size(surfaces)
-                call gen_surfs_from_pin (univptr, surfaces(j-univptr%ncell+2:j)) 
+                nsurf = nsurf + univptr%ncell - 1
+                call gen_surfs_from_pin (univptr, surfaces(nsurf-univptr%ncell+2:j)) 
             endif 
         
         case ("LAT")
-            isize = 0
-            if (allocated(lattices)) isize = size(lattices) 
-            isize = isize+1
-            allocate(lattices_temp(1:isize))
-            if (isize > 1) lattices_temp(1:isize-1) = lattices(:) 
-            
-            lat_ptr => lattices_temp(isize)
+!            isize = 0
+!            if (allocated(lattices)) isize = size(lattices) 
+!            isize = isize+1
+!            allocate(lattices_temp(1:isize))
+!            if (isize > 1) lattices_temp(1:isize-1) = lattices(:) 
+!            
+!            lat_ptr => lattices_temp(isize)
+!            call read_lat(lat_ptr, args, nargs) 
+!            allocate(lat_ptr%lat(1:lat_ptr%n_xyz(1),1:lat_ptr%n_xyz(2),1:lat_ptr%n_xyz(3))) 
+!            
+!			!do iz = 1, lat_ptr%n_xyz(3)
+!			!	do iy = 1, lat_ptr%n_xyz(2)
+!			!		call readandparse(rd_geom, args, nargs, ierr, curr_line)
+!			!		if (nargs /= lat_ptr%n_xyz(1)) then
+!			!			write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice element number"
+!			!			stop
+!			!		endif
+!			!		do ix = 1, lat_ptr%n_xyz(1)
+!			!			read (args(ix), *) lat_ptr%lat(ix,iy,iz)
+!			!		enddo 
+!			!	enddo 
+!			!enddo 
+!			
+!			do iy = 1, lat_ptr%n_xyz(2)
+!				call readandparse(rd_geom, args, nargs, ierr, curr_line)
+!				if (nargs /= lat_ptr%n_xyz(1)) then
+!					write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice element number"
+!					stop
+!				endif
+!				do ix = 1, lat_ptr%n_xyz(1)
+!				  do iz = 1, lat_ptr%n_xyz(3)
+!					read (args(ix), *) lat_ptr%lat(ix,iy,iz)
+!				  enddo 
+!				enddo 
+!			enddo 
+!			
+!			
+!            if(allocated(lattices)) deallocate(lattices)
+!            call move_alloc(lattices_temp, lattices)    
+            nlatt = nlatt + 1
+            lat_ptr => lattices(nlatt)
             call read_lat(lat_ptr, args, nargs) 
             allocate(lat_ptr%lat(1:lat_ptr%n_xyz(1),1:lat_ptr%n_xyz(2),1:lat_ptr%n_xyz(3))) 
-            
-			!do iz = 1, lat_ptr%n_xyz(3)
-			!	do iy = 1, lat_ptr%n_xyz(2)
-			!		call readandparse(rd_geom, args, nargs, ierr, curr_line)
-			!		if (nargs /= lat_ptr%n_xyz(1)) then
-			!			write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice element number"
-			!			stop
-			!		endif
-			!		do ix = 1, lat_ptr%n_xyz(1)
-			!			read (args(ix), *) lat_ptr%lat(ix,iy,iz)
-			!		enddo 
-			!	enddo 
-			!enddo 
-			
 			do iy = 1, lat_ptr%n_xyz(2)
 				call readandparse(rd_geom, args, nargs, ierr, curr_line)
 				if (nargs /= lat_ptr%n_xyz(1)) then
@@ -292,20 +450,9 @@ subroutine read_geom
 				  enddo 
 				enddo 
 			enddo 
-			
-			
-            if(allocated(lattices)) deallocate(lattices)
-            call move_alloc(lattices_temp, lattices)    
-            
-            
             
         case ('BC') 
-            !if (do_gmsh) then 
-			!	read (args(2), '(I)') tet_bc
-
-			!else
-				call read_bc (surfaces, args, nargs)
-            !endif 
+			call read_bc (surfaces, args, nargs)
             
         case ('SGRID') 
             allocate(sgrid(1:6))
@@ -507,6 +654,14 @@ subroutine read_geom
             
     !> READ DONE
     close(rd_geom)
+
+    if(icore==score) then
+        print *, 'TST'
+        print *, 'Surf #:', nsurf
+        print *, 'Cell #:', ncell
+        print *, 'Univ #:', nuniv
+        print *, 'Latt #:', nlatt
+    endif
     if(icore==score) print '(A25)', '    GEOM  READ COMPLETE...' 
     
 end subroutine
@@ -1349,6 +1504,9 @@ end subroutine READ_CTRL
 					a_fm(5) = dfm(1)*dfm(2)
 					a_fm(6) = a_fm(5)
 					v_fm    = dfm(1)*dfm(2)*dfm(3)
+                    n_nodes = nfm(1)*nfm(2)*nfm(3)
+
+
 					!call FMFD_ERR0
 					
 				case("MESH_GRID_TET_VRC")

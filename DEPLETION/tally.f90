@@ -136,7 +136,7 @@ subroutine SET_MC_TALLY
 
     allocate(k_eff(n_batch,n_totcyc))
     if ( tallyon ) then
-        if(icore==score) print *, 'TALLY COND:', n_act, n_type, n_tgroup
+        ! if(icore==score) print *, 'TALLY COND:', n_act, n_type, n_tgroup
         allocate(MC_tally(n_batch,n_act,n_type, &
                           n_tgroup,nfm(1),nfm(2),nfm(3)))
         allocate(MC_thread(n_type,n_tgroup,nfm(1),nfm(2),nfm(3)))

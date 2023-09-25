@@ -292,7 +292,7 @@ subroutine transport(p)
     enddo
     !write(*,'(A,F10.3,F10.3,F10.3)')'PTS', p%coord(1)%xyz(:)
     found_cell = .false.
-    call find_cell(p, found_cell, i_cell)
+    ! call find_cell(p, found_cell, i_cell)
 	
 	
 	

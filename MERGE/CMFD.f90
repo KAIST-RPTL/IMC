@@ -94,7 +94,6 @@ subroutine ONE_NODE_CMFD(k_eff,ecvg,fphi2)
     end do
     error = abs(k_eff-k_eff1)/k_eff
     !error = sum(abs(fphi1-fphi0))/sum(fphi1)
-    !print*, iter, k_eff, error
     end if
 
     ! convergence test
@@ -476,6 +475,7 @@ end subroutine
 subroutine L2G
     implicit none
     real(8):: ssum(1:3)
+    integer :: xx
 
     ! -------------------------------------------------------------------------
     ! homogenization
@@ -720,7 +720,21 @@ subroutine L2G
         end if
     end if
 
-    print *, 'J', sum(cmJn), sum(cmJ0), sum(cmJ1)
+    print *, 'J', sum(cmJn), sum(cmJ0), sum(cmJ1), pcmfdon
+!    if(icore==score) then
+!    do kk = 1, ncm(3)
+!    do jj = 1, ncm(2)
+!    do ii = 1, ncm(1)
+!    do xx = 1, 6
+!        print '(A3,I3,I3,I2,I2,E10.3,E10.3)', 'JX0', ii, jj, kk, xx, (cmJ0(ii,jj,kk,xx)), cmJ1(ii,jj,kk,xx)
+!    enddo
+!    enddo
+!    enddo
+!    enddo
+!    endif
+!
+!    if(icore==score) print *, 'TST', sum(fmJ0(1:fcr,1:fcr,1:fcz,2)), sum(acc(curr_cyc)%fm(1:fcr,1:fcr,1:fcz)%J0(2)), fcr, fcz
+
     print *, 'F', sum(cmF)
     print *, 'D', sum(cmD)
     print *, 'P', sum(cphi1)
@@ -1510,7 +1524,7 @@ subroutine LINEATION2(fm_s)
 
     !$omp parallel do default(shared) private(ij)
     do ij = i_para0, i_para1
-        svec1(ij,:) = reshape(fm_s(ax(ij)+1:ax(ij)+fcr,ay(ij)+1:ay(ij)+fcr,az(ij)+1:az(ij)+fcz),[1])
+        svec1(ij,:) = reshape(fm_s(ax(ij)+1:ax(ij)+fcr,ay(ij)+1:ay(ij)+fcr,az(ij)+1:az(ij)+fcz),(/n_lnodes/))
     end do
     !$omp end parallel do
 

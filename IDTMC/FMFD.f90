@@ -460,7 +460,7 @@ subroutine FMFD_SURF (inside,income, is, id, uvw, wgt, bc)
 
     if ( .not. fmfdon ) return
     
-    print '(I1, I3, I3, I2, L2, I2, I2, F8.3, I2)', icore, id(1:3), inside, income, is, wgt, bc
+    ! print '(I1, I3, I3, I2, L2, I2, I2, F8.3, I2)', icore, id(1:3), inside, income, is, wgt, bc
     ! inner nodes
     if ( inside ) then 
         ! surface partial current
@@ -598,17 +598,6 @@ subroutine NORM_FMFD(cyc)
     end do
     end do
     
-    do i = 1, nfm(1)
-    do j = 1, nfm(2)
-    do k = 1, nfm(3)
-    do mm= 1, 6
-    if(icore == score .and. k==5 .and. curr_cyc == n_inact) then
-        if(fm(i,j,k)%J0(mm)/=0d0 .or. fm(i,j,k)%J1(mm)/=0d0) print '(I4,I4,I2,E15.5,E15.5)', i, j, mm, fm(i,j,k)%J0(mm), fm(i,j,k)%J1(mm)
-    endif
-    enddo
-    enddo
-    enddo
-    enddo
 
     !> gather thread intra-pin FMFD parameters for depletion
     if ( DTMCBU .and. cyc == n_totcyc ) then

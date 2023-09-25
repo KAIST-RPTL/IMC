@@ -1999,10 +1999,10 @@ module depletion_module
         remsum = 0.d0
         iso_idx = 0
         do jnuc=1, nnuc
-            !write(*,*) imat, icore, zai_idx(jnuc), mat%full_numden(jnuc)
+            ! write(*,*) imat, icore, zai_idx(jnuc), mat%full_numden(jnuc)
             tmp = find_ACE_iso_idx_zaid(zai_idx(jnuc))
             !if(mat%full_numden(jnuc)>0.d0 .and. tmp > 0) then 
-            if(tmp>0 .and. mat%full_numden(jnuc)>1d0) then
+            if(tmp>0) then
                 knuc = knuc + 1
                 iso_idx(knuc) = jnuc
             elseif(mat%full_numden(jnuc)>0.d0) then
@@ -2010,8 +2010,6 @@ module depletion_module
                 remsum = remsum + mat%full_numden(jnuc)
             endif
         end do
-
-        !print *, 'FLAG2', imat, icore
 
         mat%n_iso = knuc
         deallocate(mat%ace_idx);allocate(mat%ace_idx(1:knuc));     mat%ace_idx= 0D0
@@ -2026,7 +2024,13 @@ module depletion_module
                 i = i + 1
                 mat%ace_idx(mt_iso) = tmp
                 mat%numden(mt_iso)  = mat%full_numden(iso_idx(mt_iso))
-                !print *, mat%ace_idx(mt_iso), ace(mat%ace_idx(mt_iso))%zaid, zai_idx(iso_idx(mt_iso)), iso_idx(mt_iso), mt_iso
+                !$OMP ATOMIC
+                tot_mass = tot_mass + ace(tmp)%atn * mat%numden(mt_iso) * mat%vol / N_AVOGADRO * m_n
+                if(ace(tmp)%jxs(21)/=0 .or. allocated(ace(tmp)%sigf)) then
+                    !$OMP ATOMIC
+                    tot_fmass = tot_fmass + ace(tmp)%atn * mat%numden(mt_iso) * mat%vol / N_AVOGADRO * m_n
+                endif
+
             endif
         end do
     enddo
@@ -2037,6 +2041,7 @@ module depletion_module
 
 
     ! data sharing
+    if(icore==score) print *, '   Broadcasting Number densities to MPI nodes...'
     do ii = 0, ncore-1
     do jj = 1, ngeom
         imat = mpigeom(jj,ii)
@@ -2072,30 +2077,29 @@ module depletion_module
         enddo
     endif
 
-    do i = 1,n_materials
-        mat => materials(i)
-        do mt_iso = 1,mat%n_iso
-            if(icore==score) then
-            zai = zai_idx(iso_idx(mt_iso))
-            if (zai>0) then
-                anum = zai/10000; mnum = (zai-anum*10000)/10
-                nnum = mnum-anum; inum = zai-anum*10000-mnum*10
-                !$omp atomic
-                tot_mass = tot_mass + &
-                ace(mat%ace_idx(mt_iso))%atn*mat%numden(mt_iso)*mat%vol/N_AVOGADRO*m_n
-                iso = mat%ace_idx(mt_iso)
-                if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then
-                    tot_fmass = tot_fmass + &
-                    ace(mat%ace_idx(mt_iso))%atn*mat%numden(mt_iso)*mat%vol/N_AVOGADRO*m_n
-                endif
-            endif
-            endif
-        enddo
-    enddo
-    if(icore==score) then
-        write(prt_bumat,*) 'Total mass[g]:', tot_mass 
-        write(prt_bumat,*) 'Fiss. mass[g]:', tot_fmass
-    endif
+!    do i = 1,n_materials
+!        mat => materials(i)
+!        do mt_iso = 1,mat%n_iso
+!            zai = zai_idx(iso_idx(mt_iso))
+!            if (zai>0) then
+!                anum = zai/10000; mnum = (zai-anum*10000)/10
+!                nnum = mnum-anum; inum = zai-anum*10000-mnum*10
+!                !$omp atomic
+!                tot_mass = tot_mass + &
+!                ace(mat%ace_idx(mt_iso))%atn*mat%numden(mt_iso)*mat%vol/N_AVOGADRO*m_n
+!                iso = mat%ace_idx(mt_iso)
+!                if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then
+!                    tot_fmass = tot_fmass + &
+!                    ace(mat%ace_idx(mt_iso))%atn*mat%numden(mt_iso)*mat%vol/N_AVOGADRO*m_n
+!                endif
+!            endif
+!            endif
+!        enddo
+!    enddo
+!    if(icore==score) then
+!        write(prt_bumat,*) 'Total mass[g]:', tot_mass 
+!        write(prt_bumat,*) 'Fiss. mass[g]:', tot_fmass
+!    endif
     
     ! PRECO ROUTINE
     istep_burnup = istep_burnup + 1
