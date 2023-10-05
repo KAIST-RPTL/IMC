@@ -888,6 +888,9 @@ end subroutine READ_CTRL
 		character(20) :: surf_id
         integer :: rgb(3)
         real(8) :: l_inact = 0d0
+        real(8) :: dummy
+        integer :: n_ax, zz
+        real(8), allocatable :: tt(:)
 		
 		
         File_Error=0
@@ -1399,15 +1402,34 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ifp
 
+                case("N_AXIAL_MESH")
+                    backspace(File_Number)
+                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, n_mesh_axial
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+                    allocate(fuel_speed(n_mesh_axial))
+                    allocate(active_mesh(n_mesh_axial-1))
+
+
 				case("FUEL_SPEED_AXIAL")
                     backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fuel_speed
+                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, fuel_speed(1:n_mesh_axial)
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                    if(fuel_speed>=0.d0 .and. do_ifp) do_fuel_mv = .true.
-                    if(l_inact > 0d0) then
-                        t_rc = l_inact / fuel_speed
-                        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
-                    endif 
+
+                    if(ANY(fuel_speed<=0d0)) then
+                        if(icore==score) print *, fuel_speed
+                        if(icore==score) print *, '    Fuel is stuck!'
+                        stop
+                    endif
+                    if(do_ifp) do_fuel_mv = .true.
+
+                case("FUEL_SPEED_AXIAL_MESH")
+                    backspace(File_Number)
+                    if(n_mesh_axial >= 1) then ! If axial speed is defined...
+                        read(File_Number, *, iostat=File_Error) Char_Temp, Equal, active_mesh(1:n_mesh_axial-1)
+                    else
+                        read(File_Number, *, iostat=File_Error) Char_Temp
+                    endif   
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
 
                 case("RECIRCULATION_TIME")
                     backspace(File_Number)
@@ -1418,10 +1440,6 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number, *, iostat=File_Error) Char_Temp, Equal, l_inact
                     if(Equal/="=") call Card_Error(Card_Type, Char_Temp)
-                    if(fuel_speed > 0d0) then
-                        t_rc = l_inact / fuel_speed
-                        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
-                    endif
 
                 case("CORE_HEIGHT")
                     backspace(File_Number)
@@ -1437,10 +1455,11 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_base
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                case("N_CORE_MESH")
+                case("CORE_TALLY_MESH")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_core_radial, n_core_axial
-                    allocate(core_prec(8,n_core_axial,n_core_radial)); core_prec = 0.d0
+                    allocate(core_prec(n_core_axial,n_core_radial,8)); core_prec = 0.d0
+                    print *, 'CORE_PREC', n_core_axial, n_core_radial
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
 				
 
@@ -1470,6 +1489,30 @@ end subroutine READ_CTRL
                 end select Card_A_Inp
                 if (Char_Temp=="ENDA") Exit Read_Card_A
             end do Read_Card_A
+
+            if(allocated(active_mesh)) then
+                if( active_mesh(1) <= core_base .or. &
+                    active_mesh(n_mesh_axial-1) >= core_base + core_height ) then
+                    if(icore==score) print *, '   Mesh is not within core'
+                    stop
+                endif
+            endif
+
+            allocate(tt(0:n_mesh_axial))
+            tt(0) = core_base
+            if(allocated(active_mesh)) tt(1:n_mesh_axial-1) = active_mesh(1:n_mesh_axial-1)
+            tt(n_mesh_axial) = core_base + core_height
+            call move_alloc(tt, active_mesh)
+
+            allocate(fuel_stay_time(1:n_mesh_axial))
+            if(icore==score) print *, 'ACT', active_mesh
+            fuel_stay_time = (active_mesh(1:n_mesh_axial)-active_mesh(0:n_mesh_axial-1))/fuel_speed
+            if(icore==score) print *, 'STAY', fuel_stay_time
+
+            if(l_inact > 0d0 .and. sum(fuel_speed) > 0d0) then
+                t_rc = l_inact / (core_height/sum(fuel_stay_time))
+                if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
+            endif 
         
         case('D')
             Read_Card_D : do

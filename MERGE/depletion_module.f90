@@ -1323,7 +1323,7 @@ module depletion_module
             integer :: fy_midx, diff, tmp, ierr
             real(8) :: nxt_full_numden(1:nnuc)
             type (Material_CE), pointer :: mat
-            integer :: iso_idx(nnuc)
+            ! integer :: iso_idx(nnuc)
             integer :: a1, m1,n1
             real(8), allocatable :: frac(:)
             integer, allocatable :: prod(:,:)
@@ -1524,6 +1524,10 @@ module depletion_module
                 if(.not. materials(imat)%depletable) cycle    !material imat is not burned
                 !samarium = 0.d0
                 mat => materials(imat)
+
+                ! allocate iso_idx
+                allocate(mat % iso_idx(nnuc))
+
                 !Call the material independent burnup matrix 
                 
                 allocate(yield_data(nfp,nfssn))
@@ -1997,14 +2001,14 @@ module depletion_module
         ! Reset material isotope inventory
         knuc = 0 
         remsum = 0.d0
-        iso_idx = 0
+        mat % iso_idx = 0
         do jnuc=1, nnuc
             ! write(*,*) imat, icore, zai_idx(jnuc), mat%full_numden(jnuc)
             tmp = find_ACE_iso_idx_zaid(zai_idx(jnuc))
-            !if(mat%full_numden(jnuc)>0.d0 .and. tmp > 0) then 
-            if(tmp>0) then
+            if(mat%full_numden(jnuc)>0.d0 .and. tmp > 0) then 
+            !if(tmp>0) then
                 knuc = knuc + 1
-                iso_idx(knuc) = jnuc
+                mat % iso_idx(knuc) = jnuc
             elseif(mat%full_numden(jnuc)>0.d0) then
                 ! MEASURING LOST TERM
                 remsum = remsum + mat%full_numden(jnuc)
@@ -2019,11 +2023,12 @@ module depletion_module
         i = 0 
         do mt_iso=1, mat % n_iso
             ! find ace_idx
-            tmp = find_ACE_iso_idx_zaid(zai_idx(iso_idx(mt_iso)))
-            if (tmp /= 0 .and. mat%full_numden(iso_idx(mt_iso))>1d0) then 
+            tmp = find_ACE_iso_idx_zaid(zai_idx(mat % iso_idx(mt_iso)))
+            if(trim(mat%mat_name)=='F2401011') print *, 'CHK', mt_iso, mat % iso_idx(mt_iso), zai_idx(mat % iso_idx(mt_iso)), tmp
+            if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>1d0) then 
                 i = i + 1
                 mat%ace_idx(mt_iso) = tmp
-                mat%numden(mt_iso)  = mat%full_numden(iso_idx(mt_iso))
+                mat%numden(mt_iso)  = mat%full_numden(mat % iso_idx(mt_iso))
                 !$OMP ATOMIC
                 tot_mass = tot_mass + ace(tmp)%atn * mat%numden(mt_iso) * mat%vol / N_AVOGADRO * m_n
                 if(ace(tmp)%jxs(21)/=0 .or. allocated(ace(tmp)%sigf)) then
@@ -2053,10 +2058,12 @@ module depletion_module
         if ( icore /= ii ) then
            deallocate(mat%ace_idx); allocate(mat%ace_idx(niso)); mat%ace_idx(:) = 0
            deallocate(mat%numden);  allocate(mat%numden(niso));  mat%numden(:)  = 0
+           deallocate(mat%iso_idx); allocate(mat%iso_idx(nnuc)); mat%iso_idx(:) = 0
        end if
     
        call MPI_BCAST(mat%ace_idx,niso,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
        call MPI_BCAST(mat%numden,niso,MPI_REAL8,ii,MPI_COMM_WORLD,ierr)
+       call MPI_BCAST(mat%iso_idx,nnuc,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
     end do
     end do
 
@@ -2070,6 +2077,7 @@ module depletion_module
             write(prt_bumat,*) 'mat: ', mat%mat_name
             write(prt_bumat,*) ''
             do mt_iso = 1, mat%n_iso
+               print *, 'HMM?', mat%mat_name, mt_iso, mat%ace_idx(mt_iso)
                write(prt_bumat, '(a15,e14.5)') ace(mat%ace_idx(mt_iso))%xslib, mat%numden(mt_iso)*barn 
             enddo
             write(prt_bumat, *) 'Num isotope', i

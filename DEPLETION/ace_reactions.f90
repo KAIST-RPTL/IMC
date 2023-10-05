@@ -826,7 +826,7 @@ end subroutine
 
 
 subroutine MSR_treatment(xyz, t_emit, alive)
-    use variables, only: core_radius, core_height, fuel_speed, core_base, t_rc
+    use variables, only: core_radius, core_height, fuel_speed, core_base, t_rc, n_mesh_axial, fuel_bulk_speed, active_mesh
     implicit none
     real(8), intent(inout) :: xyz(3)
     real(8), intent(in)    :: t_emit
@@ -835,28 +835,73 @@ subroutine MSR_treatment(xyz, t_emit, alive)
     real(8) :: rn1, rn2
     integer :: zidx
     logical, intent(out)  :: alive
+    integer :: i, iz, izz
+    real(8) :: t_tmp
     alive = .true.
     if(.not. do_fuel_mv) return
-    if(fuel_speed <= 0.d0) return
+    if(fuel_bulk_speed <= 0.d0) return
     if(xyz(3)<core_base .or. xyz(3)>core_base + core_height) return ! Out of Active core (Z)
     if(xyz(1)**2+xyz(2)**2>core_radius**2) return ! Out of Active core (r)
-    t_end   = (core_height-(xyz(3)-core_base)) / fuel_speed
-    n_recirc= max(0,floor((t_emit-t_end)/(t_rc + (core_height/fuel_speed))))
-    t_res   = t_emit - t_end - n_recirc * (t_rc + core_height/fuel_speed)
+    ! t_end   = (core_height-(xyz(3)-core_base)) / fuel_bulk_speed
+
+    ! 1. Find Axial mesh
+    FINDMESH:do i = 1, n_mesh_axial
+        if(active_mesh(i-1)<=xyz(3) .and. active_mesh(i) > xyz(3)) then
+            iz = i
+            exit FINDMESH
+        endif
+    enddo FINDMESH
+
+    ! 2. Find time until end of mesh
+    t_end = (active_mesh(iz)-xyz(3))/fuel_speed(iz)
+
+    ! 3. Add time until top of core
+    if(i<n_mesh_axial) t_end = t_end + sum(fuel_stay_time(iz:n_mesh_axial))
+
+    n_recirc= max(0,floor((t_emit-t_end)/(t_rc + sum(fuel_stay_time))))
+    t_res   = t_emit - t_end - n_recirc * (t_rc + sum(fuel_stay_time))
     if(t_emit < t_end) then ! decays before hits top
-        xyz(3) = xyz(3) + fuel_speed * t_emit
+        t_tmp = t_emit
+        ! 1. Check if it hits top of the mesh
+        if(t_tmp < (active_mesh(iz)-xyz(3))/fuel_speed(iz)) then
+            xyz(3) = xyz(3) + fuel_speed(iz) * t_tmp
+        else ! 2. If not, subtract (fuel_stay_time) on and on
+            t_tmp = t_tmp - (active_mesh(iz)-xyz(3))/fuel_speed(iz)
+            if(iz == n_mesh_axial) then
+                print *, 'WTF? something goes wrong'
+            else
+                AXIAL_ITER: do izz = iz+1,n_mesh_axial
+                    if(t_tmp < fuel_stay_time(izz)) then ! If not escaped
+                        xyz(3) = xyz(3) + fuel_speed(izz) * t_tmp
+                        exit AXIAL_ITER 
+                    else ! If escaped from mesh
+                        t_tmp = t_tmp - fuel_stay_time(izz)
+                        xyz(3) = xyz(3) + fuel_speed(izz) * fuel_stay_time(izz)
+                    endif
+                enddo AXIAL_ITER
+            endif
+        endif
+
     elseif(t_res<=t_rc) then ! decays out of the core: exterminates
-        !bank_idx = bank_idx - 1
         MSR_leak = MSR_leak + 1
-        !print *, 'DEAD', t_emit, t_end, t_res, t_rc, MSR_leak
         alive = .false.
         
     elseif(t_res>t_rc) then ! recirculate and decayed
+        t_res = t_res - t_rc ! Time from bottom to emission
         rn1 = rang(); rn2 = rang()
         xyz(1) = rn1 * core_radius * cos(2*pi*rn2)
         xyz(2) = rn1 * core_radius * sin(2*pi*rn2)
-        xyz(3) = core_base + fuel_speed * (t_res-t_rc)
+        ! xyz(3) = core_base + fuel_speed * (t_res-t_rc)
         !print *, 'RECIRC', t_emit, t_end, t_res, t_rc, xyz(1:3)
+        AXIAL_ITER2: do izz = 1, n_mesh_axial
+            if(t_res < fuel_stay_time(izz)) then
+                xyz(3) = xyz(3) + fuel_speed(izz) * t_res
+                exit AXIAL_ITER2
+            else
+                t_res = t_res - fuel_stay_time(izz)
+                xyz(3) = xyz(3) + fuel_speed(izz) * fuel_stay_time(izz)
+            endif
+        enddo AXIAL_ITER2
     else
         bank_idx = bank_idx - 1
         alive = .false.

@@ -37,14 +37,8 @@ function getMacroXS_UEG(mat, erg, kT, urn) result (macro_xs)
     ipfac = max(0D0,min(1D0,(erg-ueggrid(ierg))/(ueggrid(ierg+1)-ueggrid(ierg))))
 
     ! 3. Interpolate
-    !dtemp = abs(mat % acetemp - kT)
-    !if(mat % db .and. dtemp > K_B .and. erg < 1d0) then
-    !    ! CONDITION OBTAINED FROM CONVENTIONAL MACRO XS
-    !    macro_xs(:) = get_OTF_DB_UEG(mat, ierg, dtemp)
-    !else ! NO OTF_DB
-        macro_xs(:) = (mat % macro_ueg(ierg,:) &
-            + ipfac * (mat % macro_ueg(ierg+1,:) - mat % macro_ueg(ierg,:)))
-    !endif
+    macro_xs(:) = (mat % macro_ueg(ierg,:) &
+        + ipfac * (mat % macro_ueg(ierg+1,:) - mat % macro_ueg(ierg,:)))
 
     ! 4. ADDITIONAL XS: URES
     if(n_unr == 0) return

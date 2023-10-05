@@ -1485,18 +1485,18 @@ end subroutine
 
 
     
-subroutine para_range(n1, n2, nprocs, irank, ista, iend)
-    integer :: iwork1, iwork2 
-    integer, intent(in) :: n1, n2, nprocs, irank 
-    integer, intent(inout) :: ista, iend
-    
-    iwork1 = (n2 - n1 + 1) / nprocs
-    iwork2 = MOD(n2 - n1 + 1, nprocs)
-    ista = irank * iwork1 + n1 + MIN(irank, iwork2)
-    iend = ista + iwork1 - 1
-    if (iwork2 > irank) iend = iend + 1
-
-end subroutine 
+!subroutine para_range(n1, n2, nprocs, irank, ista, iend)
+!    integer :: iwork1, iwork2 
+!    integer, intent(in) :: n1, n2, nprocs, irank 
+!    integer, intent(inout) :: ista, iend
+!    
+!    iwork1 = (n2 - n1 + 1) / nprocs
+!    iwork2 = MOD(n2 - n1 + 1, nprocs)
+!    ista = irank * iwork1 + n1 + MIN(irank, iwork2)
+!    iend = ista + iwork1 - 1
+!    if (iwork2 > irank) iend = iend + 1
+!
+!end subroutine 
 
 subroutine gatherSourceBank(bank_main, bank_thread, bank_idx)
 	type(bank), allocatable, intent(inout) :: bank_main(:)

@@ -631,6 +631,7 @@ subroutine PROCESS_FMFD(bat,cyc)
     integer:: length, which_idtmc
     integer:: reactor_type
     integer:: ncell
+    integer:: xjob0, xjob1      ! || MPI-parallelization
 
 
     ! -------------------------------------------------------------------------
@@ -638,6 +639,8 @@ subroutine PROCESS_FMFD(bat,cyc)
     allocate(fsd_MC0(nfm(1),nfm(2),nfm(3)))
 
     dsize = nfm(1)*nfm(2)*nfm(3)
+    
+    call para_range(1, nfm(1), ncore, icore, xjob0, xjob1) 
     lc = mod(cyc-1,n_acc)+1
 
     ac => acc(lc)
@@ -658,8 +661,6 @@ subroutine PROCESS_FMFD(bat,cyc)
     if ( .not. iscore ) then
         deallocate(fsd_MC0)
         nullify(ac)
-        !if ( DTMCBU .and. cyc == n_totcyc ) deallocate(tmflux)
-        !if ( DTMCBU .and. cyc == n_totcyc ) deallocate(tmflux,tmkapa)
         return
     end if
 
@@ -725,12 +726,10 @@ subroutine PROCESS_FMFD(bat,cyc)
         if ( cyc >= n_inact+1 ) print*, "iDTMC2 : ", length
     end if
     end select
-!    else
-!        length = n_acc-acc_skip
-!    end if
 
     ! accumulation
     do ii = 1, nfm(1)
+    !do ii = xjob0, xjob1
     do jj = 1, nfm(2)
     do kk = 1, nfm(3)
     do mm = cyc-length+1, cyc
@@ -759,67 +758,7 @@ subroutine PROCESS_FMFD(bat,cyc)
     end do
     end do
 
-!    ! accumulation
-!    do ii = 1, nfm(1)
-!    do jj = 1, nfm(2)
-!    do kk = 1, nfm(3)
-!    if ( inactive_CMFD ) then
-!    !if ( cyc <= n_inact ) then
-!    do mm = acc_skip+1, cyc
-!       fm_avg(ii,jj,kk)%phi     = fm_avg(ii,jj,kk)%phi     &
-!                                + acc(mm)%fm(ii,jj,kk)%phi
-!       fm_avg(ii,jj,kk)%sig_t   = fm_avg(ii,jj,kk)%sig_t   &
-!                                + acc(mm)%fm(ii,jj,kk)%sig_t
-!       fm_avg(ii,jj,kk)%sig_a   = fm_avg(ii,jj,kk)%sig_a   &
-!                                + acc(mm)%fm(ii,jj,kk)%sig_a
-!       fm_avg(ii,jj,kk)%nusig_f = fm_avg(ii,jj,kk)%nusig_f &
-!                                + acc(mm)%fm(ii,jj,kk)%nusig_f
-!
-!       fm_avg(ii,jj,kk)%J0(:)   = fm_avg(ii,jj,kk)%J0(:)   &
-!                                + acc(mm)%fm(ii,jj,kk)%J0(:)
-!       fm_avg(ii,jj,kk)%J1(:)   = fm_avg(ii,jj,kk)%J1(:)   &
-!                                + acc(mm)%fm(ii,jj,kk)%J1(:)
-!    end do
-!    length = cyc-acc_skip
-!!    else
-!!    do mm = cyc-n_inact+acc_skip, cyc
-!!       fm_avg(ii,jj,kk)%phi     = fm_avg(ii,jj,kk)%phi     &
-!!                                + acc(mm)%fm(ii,jj,kk)%phi
-!!       fm_avg(ii,jj,kk)%sig_t   = fm_avg(ii,jj,kk)%sig_t   &
-!!                                + acc(mm)%fm(ii,jj,kk)%sig_t
-!!       fm_avg(ii,jj,kk)%sig_a   = fm_avg(ii,jj,kk)%sig_a   &
-!!                                + acc(mm)%fm(ii,jj,kk)%sig_a
-!!       fm_avg(ii,jj,kk)%nusig_f = fm_avg(ii,jj,kk)%nusig_f &
-!!                                + acc(mm)%fm(ii,jj,kk)%nusig_f
-!!
-!!       fm_avg(ii,jj,kk)%J0(:)   = fm_avg(ii,jj,kk)%J0(:)   &
-!!                                + acc(mm)%fm(ii,jj,kk)%J0(:)
-!!       fm_avg(ii,jj,kk)%J1(:)   = fm_avg(ii,jj,kk)%J1(:)   &
-!!                                + acc(mm)%fm(ii,jj,kk)%J1(:)
-!!    end do
-!!    length = n_inact-acc_skip+1
-!!    end if
-!    else
-!    do mm = acc_skip+1, n_acc
-!       fm_avg(ii,jj,kk)%phi     = fm_avg(ii,jj,kk)%phi     &
-!                                + acc(mm)%fm(ii,jj,kk)%phi
-!       fm_avg(ii,jj,kk)%sig_t   = fm_avg(ii,jj,kk)%sig_t   &
-!                                + acc(mm)%fm(ii,jj,kk)%sig_t
-!       fm_avg(ii,jj,kk)%sig_a   = fm_avg(ii,jj,kk)%sig_a   &
-!                                + acc(mm)%fm(ii,jj,kk)%sig_a
-!       fm_avg(ii,jj,kk)%nusig_f = fm_avg(ii,jj,kk)%nusig_f &
-!                                + acc(mm)%fm(ii,jj,kk)%nusig_f
-!
-!       fm_avg(ii,jj,kk)%J0(:)   = fm_avg(ii,jj,kk)%J0(:)   &
-!                                + acc(mm)%fm(ii,jj,kk)%J0(:)
-!       fm_avg(ii,jj,kk)%J1(:)   = fm_avg(ii,jj,kk)%J1(:)   &
-!                                + acc(mm)%fm(ii,jj,kk)%J1(:)
-!    end do
-!    length = n_acc-acc_skip
-!    end if
-!    end do
-!    end do
-!    end do
+    ! call MPI_ALLREDUCE(fm_avg(:,:,:), 
 
     where ( fm_avg(:,:,:)%phi /= 0 )
     fm_avg(:,:,:) % sig_t   = fm_avg(:,:,:) % sig_t   / fm_avg(:,:,:) % phi
@@ -840,82 +779,7 @@ subroutine PROCESS_FMFD(bat,cyc)
     ! zigzag at the corner
     if ( zigzagon ) call SET_ZERO_FLUX(fm_avg(:,:,:)%phi)
 
-!    ! intra pin power
-!    if ( DTMCBU .and. cyc == n_totcyc ) then
-!        call INTRA_PIN_MC
-!        deallocate(tmflux)
-!        !deallocate(tmflux,tmkapa)
-!    end if
-
 end subroutine 
-
-!! =============================================================================
-!! INTRA_PIN_POWER
-!! =============================================================================
-!subroutine INTRA_PIN_MC
-!    implicit none
-!    integer:: mm, nn, oo
-!    integer:: nring
-!
-!    ! normalization for the sum to be unity
-!    do mm = 1, nfm(1)
-!    do nn = 1, nfm(2)
-!    do oo = 1, nfm(3)
-!        nring = buring(mm,nn,oo)
-!        buflux(mm,nn,oo,1:nring) = &
-!        buflux(mm,nn,oo,1:nring) / sum(buflux(mm,nn,oo,1:nring))
-!!        bukapa(mm,nn,oo,1:nring) = &
-!!        bukapa(mm,nn,oo,1:nring) / sum(bukapa(mm,nn,oo,1:nring))
-!    end do
-!    end do
-!    end do
-!
-!end subroutine
-
-!
-!! =============================================================================
-!! 
-!! =============================================================================
-!subroutine BU_TALLY_GROUPING(flux,kappa)
-!    implicit none
-!    integer:: n_group
-!    real(8):: n_type
-!    real(8):: flux(:,:,:,:), kappa(:,:,:,:)
-!    real(8), allocatable:: group0(:,:), group1(:,:)
-!
-!    n_group = maxval(butype)
-!
-!    allocate(group0(n_group,n_rings))
-!    allocate(group1(n_group,n_rings))
-!    group0 = 0; group1 = 0
-!    do kk = 1, nfm(3)
-!    do jj = 1, nfm(2)
-!    do ii = 1, nfm(1)
-!        group0(butype(ii,jj,kk),:) = group0(butype(ii,jj,kk),:) + &
-!            flux(ii,jj,kk,:)
-!        group1(butype(ii,jj,kk),:) = group1(butype(ii,jj,kk),:) + &
-!            kappa(ii,jj,kk,:)
-!    end do
-!    end do
-!    end do
-!
-!    do ii = 1, n_group
-!    n_type = count(butype==ii)
-!    group0(ii,:) = group0(ii,:) / n_type
-!    group1(ii,:) = group1(ii,:) / n_type
-!    end do
-!
-!    do kk = 1, nfm(3)
-!    do jj = 1, nfm(2)
-!    do ii = 1, nfm(1)
-!        flux(ii,jj,kk,:)  = group0(butype(ii,jj,kk),:)
-!        kappa(ii,jj,kk,:) = group1(butype(ii,jj,kk),:)
-!    end do
-!    end do
-!    end do
-!
-!end subroutine
-
 
 ! =============================================================================
 ! SET_ZERO_FLUX

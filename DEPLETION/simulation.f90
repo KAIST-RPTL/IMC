@@ -61,7 +61,8 @@ subroutine simulate_history(bat,cyc)
     real(8) :: Jtemp
     real(8), allocatable :: shape(:), rcvbuflong(:)
     integer :: id(3)
-    real(8) :: rcv_buf, rcv_buf_long(8), rcv_msh(8)
+    real(8) :: rcv_buf, rcv_buf_long(8)
+    real(8), allocatable :: rcv_msh(:)
     integer :: realex, intex, restype, ndata, idata
     integer, dimension(0:4) :: blocklength, displacement, oldtype 
     integer, allocatable :: ircnt(:), idisp(:) 
@@ -70,6 +71,7 @@ subroutine simulate_history(bat,cyc)
     real(8) :: adj_sum, totwgt
 
     MSR_leak = 0
+    if(.not.allocated(rcv_msh)) allocate(rcv_msh(n_core_axial))
 
     if (allocated(fission_bank)) call move_alloc(fission_bank, source_bank)
     if ( icore == score ) then
@@ -232,16 +234,16 @@ subroutine simulate_history(bat,cyc)
     endif
 	
     if(do_fuel_mv) then
-        do i = 1,n_core_axial
+        do k = 1,8
             do j = 1,n_core_radial
-            call MPI_REDUCE(core_prec(1:8,i,j),rcv_msh,8,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-            core_prec(1:8,i,j) = rcv_msh
+            call MPI_REDUCE(core_prec(:,j,k),rcv_msh,k,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+            core_prec(:,j,k) = rcv_msh
             enddo
         enddo
         if(curr_cyc>n_inact .and. icore==score) then
             do i = 1,8
                 do j = 1,n_core_radial
-                    write(prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') core_prec(i,1:n_core_axial,j)
+                    write(prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') core_prec(1:n_core_axial,j,i)
                 enddo
             enddo
         endif

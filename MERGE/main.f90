@@ -530,7 +530,7 @@ if ( icore==score ) then
 
     write(*,*)
     write(*,*)
-    write(*,10), '  > Num of Threads per Node   ', omp_get_max_threads()
+    write(*,10), '  > Num of Threads per Node   ', omp_get_num_threads()
     write(*,10), '  > Num of MPI Nodes          ', ncore
     write(*,10), '  > Num of Histories per Cycle', ngen
     write(*,11), '  > Skip Cycles:',n_inact , &

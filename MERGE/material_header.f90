@@ -17,6 +17,7 @@ module material_header
         real(8)              :: density_gpcc   ! total density in g/cm^3
         real(8)              :: vol            ! material volume (cm^3)
         real(8)              :: rgb(3)       ! Color for PLOT option
+        integer, allocatable :: iso_idx(:)     ! Replacing iso_idx in depletion
         
         ! Does this material contain fissionable nuclides? Is it depletable?
         logical :: fissionable = .false.
