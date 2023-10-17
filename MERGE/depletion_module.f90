@@ -1514,6 +1514,8 @@ module depletion_module
             !Normalization constant to be real power
             ULnorm = RealPower/(avg_power*eVtoJoule)
             call MPI_BCAST(ULnorm, 1, MPI_DOUBLE_PRECISION, score, MPI_COMM_WORLD, ierr)
+            if ( DTMCBU ) &
+                call MPI_BCAST(materials(:)%flux,n_materials,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
             !Substitute burnup matrix element
             !do imat = 1, n_materials
             cnt = 0
@@ -1526,7 +1528,8 @@ module depletion_module
                 mat => materials(imat)
 
                 ! allocate iso_idx
-                allocate(mat % iso_idx(nnuc))
+                if(.not. allocated(mat%iso_idx)) &
+                    allocate(mat % iso_idx(nnuc))
 
                 !Call the material independent burnup matrix 
                 
@@ -1799,6 +1802,7 @@ module depletion_module
                             endif
                         endif
                         !if(mt==N_NF .or. mt==N_2NF .or. mt==N_3NF) cycle
+                        !if(ace(iso)%zaid==92235) print *, mat%mat_name, mt, ogxs
                         ! FIND DESTINATION
                         if(mt==18 .or. ace(iso)%TY(rx)==19) then ! In case of Fission
                             if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then 
@@ -1887,11 +1891,6 @@ module depletion_module
                                 !if(knuc/=0) print *, 'MTR', knuc, jnuc, mt, bMat(knuc,jnuc)
                                 if(knuc/=0 .and. (nn+pn+dn+tn+an+a3n)>0) then
                                     bMat(knuc,jnuc) = bMat(knuc,jnuc) + ogxs * bstep_size
-                                    !do i = 1, nnuc
-                                    !    if(icore==score .and. bMat(nnuc,i)/=0) print *, 'RXNN2', rx, ace(iso)%MT(rx), i, bMat(nnuc,i)
-                                    !enddo
-                                    !if(knuc/=0) print *, 'RX', knuc, jnuc, anum1, nnum1,  bMat(knuc,jnuc)
-                                    !if(knuc/=0) print *, 'N', nn, pn, dn, tn, an, a3n
                                     if(nn>0) then
                                     knuc = nuclide(0,1,0)%idx
                                     if(knuc/=0) bMat(knuc,jnuc) = bMat(knuc,jnuc) + &
@@ -2004,9 +2003,9 @@ module depletion_module
         mat % iso_idx = 0
         do jnuc=1, nnuc
             ! write(*,*) imat, icore, zai_idx(jnuc), mat%full_numden(jnuc)
+
             tmp = find_ACE_iso_idx_zaid(zai_idx(jnuc))
-            if(mat%full_numden(jnuc)>0.d0 .and. tmp > 0) then 
-            !if(tmp>0) then
+            if(mat%full_numden(jnuc)>1.d0 .and. tmp > 0) then 
                 knuc = knuc + 1
                 mat % iso_idx(knuc) = jnuc
             elseif(mat%full_numden(jnuc)>0.d0) then
@@ -2024,7 +2023,6 @@ module depletion_module
         do mt_iso=1, mat % n_iso
             ! find ace_idx
             tmp = find_ACE_iso_idx_zaid(zai_idx(mat % iso_idx(mt_iso)))
-            if(trim(mat%mat_name)=='F2401011') print *, 'CHK', mt_iso, mat % iso_idx(mt_iso), zai_idx(mat % iso_idx(mt_iso)), tmp
             if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>1d0) then 
                 i = i + 1
                 mat%ace_idx(mt_iso) = tmp
@@ -2042,7 +2040,9 @@ module depletion_module
     !print *, 'ARRIVED', icore
     call MPI_BARRIER(MPI_COMM_WORLD, ierr)
     if(icore==score) print *, 'Total Flux', tot_flux
-
+    
+    if(DTMCBU .and. allocated(buflux)) &
+        deallocate(buflux)
 
 
     ! data sharing
@@ -2058,7 +2058,8 @@ module depletion_module
         if ( icore /= ii ) then
            deallocate(mat%ace_idx); allocate(mat%ace_idx(niso)); mat%ace_idx(:) = 0
            deallocate(mat%numden);  allocate(mat%numden(niso));  mat%numden(:)  = 0
-           deallocate(mat%iso_idx); allocate(mat%iso_idx(nnuc)); mat%iso_idx(:) = 0
+           if(.not. allocated(mat%iso_idx)) allocate(mat%iso_idx(nnuc))
+           mat%iso_idx(:) = 0
        end if
     
        call MPI_BCAST(mat%ace_idx,niso,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
@@ -2077,7 +2078,6 @@ module depletion_module
             write(prt_bumat,*) 'mat: ', mat%mat_name
             write(prt_bumat,*) ''
             do mt_iso = 1, mat%n_iso
-               print *, 'HMM?', mat%mat_name, mt_iso, mat%ace_idx(mt_iso)
                write(prt_bumat, '(a15,e14.5)') ace(mat%ace_idx(mt_iso))%xslib, mat%numden(mt_iso)*barn 
             enddo
             write(prt_bumat, *) 'Num isotope', i
@@ -2085,30 +2085,6 @@ module depletion_module
         enddo
     endif
 
-!    do i = 1,n_materials
-!        mat => materials(i)
-!        do mt_iso = 1,mat%n_iso
-!            zai = zai_idx(iso_idx(mt_iso))
-!            if (zai>0) then
-!                anum = zai/10000; mnum = (zai-anum*10000)/10
-!                nnum = mnum-anum; inum = zai-anum*10000-mnum*10
-!                !$omp atomic
-!                tot_mass = tot_mass + &
-!                ace(mat%ace_idx(mt_iso))%atn*mat%numden(mt_iso)*mat%vol/N_AVOGADRO*m_n
-!                iso = mat%ace_idx(mt_iso)
-!                if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then
-!                    tot_fmass = tot_fmass + &
-!                    ace(mat%ace_idx(mt_iso))%atn*mat%numden(mt_iso)*mat%vol/N_AVOGADRO*m_n
-!                endif
-!            endif
-!            endif
-!        enddo
-!    enddo
-!    if(icore==score) then
-!        write(prt_bumat,*) 'Total mass[g]:', tot_mass 
-!        write(prt_bumat,*) 'Fiss. mass[g]:', tot_fmass
-!    endif
-    
     ! PRECO ROUTINE
     istep_burnup = istep_burnup + 1
     if( preco == 0 ) then
@@ -2518,9 +2494,6 @@ module depletion_module
             call MPI_ALLREDUCE(sndbufarrlong, rcvbufarrlong, 1+nueg, MPI_DOUBLE_PRECISION, MPI_SUM, core, ierr)
             rcvbufarrlong(0:nueg) = rcvbufarrlong(0:nueg)/ val
             materials(imat)%eflux = rcvbufarrlong
-            deallocate(rcvbufarrlong); deallocate(sndbufarrlong)
-            
-            allocate(rcvbufarrlong(0:nueg)); allocate(sndbufarrlong(0:nueg))
             sndbufarrlong(0:nueg) = materials(imat)%e2flux(0:nueg)
             call MPI_ALLREDUCE(sndbufarrlong, rcvbufarrlong, 1+nueg, MPI_DOUBLE_PRECISION, MPI_SUM, core, ierr)
             rcvbufarrlong(0:nueg) = rcvbufarrlong(0:nueg)/ val

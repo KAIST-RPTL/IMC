@@ -1166,6 +1166,7 @@ subroutine INTRA_PIN_DTMC
 
     ! DTMC volume-weighted flux for normalized for real power
     fphi1(:,:,:) = factor*fphi1(:,:,:)
+    print *, 'FPHI', factor, Nominal_Power
 
 
     ! -------------------------------------------------------------------------
@@ -1214,6 +1215,7 @@ subroutine INTRA_PIN_DTMC
             smflux = smflux + fphi1(id1(1),id1(2),id1(3))
         end do
         mat%flux = smflux/dble(mat%vol)*tmring(id0(1),id0(2),id0(3),id0(4))
+        print *, 'MAT', mat%mat_name, mat%flux
     end do
     if ( allocated(tmring) ) deallocate(tmring)
 

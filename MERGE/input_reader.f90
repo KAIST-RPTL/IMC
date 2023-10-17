@@ -1059,6 +1059,9 @@ end subroutine READ_CTRL
 
         ! For MSR-related feature
         real(8) :: l_inact = 0d0
+
+        ! For Automatic Fissionable
+        integer :: iso
 		
 		
         File_Error=0
@@ -1948,7 +1951,15 @@ end subroutine READ_CTRL
                         if (Char_Temp(1:7)=="END_MAT") Exit Read_Mat
                         
                     enddo Read_Mat
-					
+
+                    ! 23/10/13: Automatically enable 'FISSIONABLE'
+                    if(.not. CE_mat_ptr % fissionable) then
+                        do i = 1, CE_mat_ptr%n_iso
+                            iso = CE_mat_ptr%ace_idx(i)
+                            if(ace(iso)%jxs(2)/=0) &
+                                CE_mat_ptr % fissionable = .true.
+                        enddo
+				    endif	
 					if (CE_mat_ptr%temp == 0) CE_mat_ptr%temp = ace(CE_mat_ptr%ace_idx(1))%temp
                     !if(allocated(materials)) deallocate(materials)
                     !call move_alloc(materials_temp, materials)

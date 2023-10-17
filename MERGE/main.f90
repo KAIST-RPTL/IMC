@@ -1,7 +1,7 @@
 program main
 use constants
 use variables
-use FMFD, only: DET_POWER
+use FMFD, only: DET_POWER, INTRA_PIN_DTMC
 use FMFD_HEADER, only: p_fmfd, k_fmfd, fmfdon, cmfdon, nfm
 use ENTROPY,    only : mprupon, entrp0
 use TH_HEADER, only: th_on
@@ -279,6 +279,9 @@ end do TH
         time_dep = omp_get_wtime() 
 		!> Gather Burnup Tallies
 		call MPI_reduce_burnup()
+        
+        !> Intra-pin flux distribution for iDTMC
+        if ( fmfdon ) call INTRA_PIN_DTMC
 
 		!> Make & Solve depletion matrix
 		call depletion
@@ -761,13 +764,13 @@ subroutine CYCLE_TALLY_MSG(bat)
     call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
     call NORM_DIST(p_fmfd(1:n_batch,1:n_act,:,:,:))
 
-    !! computing time
-    !t_MC = t_tot - t_det
-    !write(*,*), "   Computing time"
-    !do ii = 1, n_totcyc
-    !    write(*,15), AVG(t_MC(1:,ii)), AVG(t_det(1:,ii)), AVG(t_tot(1:,ii))
-    !end do
-    !write(*,*)
+    ! computing time
+    t_MC = t_tot - t_det
+    write(*,*), "   Computing time"
+    do ii = 1, n_totcyc
+        write(*,15), AVG(t_MC(1:,ii)), AVG(t_det(1:,ii)), AVG(t_tot(1:,ii))
+    end do
+    write(*,*)
     end if
 
 	

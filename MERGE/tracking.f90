@@ -103,7 +103,6 @@ subroutine transport(p)
 	
     !> Surface distance(boundary)
     call distance_to_boundary(p, d_boundary, surface_crossed)
-    !print *, 'TST',p%n_cross,p%coord(1)%dist
     !> Sample distances from special boundaries in univ 0
     i_cell = p % coord(1) % cell
     call cell_distance(cells(i_cell), p%coord(1)%xyz, p%coord(1)%uvw, surfaces, d_s, idx_surf)
@@ -192,6 +191,7 @@ subroutine transport(p)
 		!endif 
 	endif
     distance = min(d_boundary, d_collision, d_mesh, d_gmsh)
+    ! print *, 'TST',p%n_cross,p%coord(1)%xyz, distance, d_boundary, d_collision, d_mesh
     p % trvltime = p % trvltime + distance / speedn 
     if(distance>TOOLONG) then
         print *, 'ESCAPED',distance,p%coord(1)%xyz(1:2),p%coord(1)%uvw(1:2)

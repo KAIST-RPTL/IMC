@@ -125,14 +125,7 @@ subroutine simulate_history(bat,cyc)
 			endif 
 			
             do while (p%alive == .true.)
-                !if (do_gmsh) then 
-				!	call transport_tet(p)
-				!else
-					!print *, 'particle idx', i
-					call transport(p)
-					!call transport_DT(p)
-					!call transport_VRC(p)
-				!endif
+				call transport(p)
             enddo 
 			
             !if buffer is almost full -> add to the fission bank
@@ -1271,9 +1264,9 @@ subroutine bank_initialize(this)
         min(1:3) = sgrid(1:3)
         max(1:3) = sgrid(4:6)
     endif 
-            
+    
     univ_idx = 0
-    do i = 1, size(this)
+    do i = 1, size(this) 
         this(i) % wgt = 1
         found         = .false.
         this(i) % uvw = rand_vec()
@@ -1354,14 +1347,10 @@ subroutine bank_initialize(this)
 					endif
 					mat_idx = cells(cell_idx)%mat_idx
 					! within a fissionable material region
-					do j = 1, materials(mat_idx)%n_iso
-						iso = materials(mat_idx)%ace_idx(j)
-						if(ace(iso)%jxs(2) /= 0) then 
-							found = .true.  
-						endif 
-					enddo 
+                    found = materials(mat_idx)%fissionable
 					
 				enddo search_CE 
+                print *, 'DONE', icore, i, '/', size(this), this(i)%xyz(1:3)
                 endif
             endif
             

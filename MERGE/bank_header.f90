@@ -52,7 +52,7 @@ module bank_header
     type(Bank), allocatable, target :: source_bank(:)
     type(Bank), allocatable, target :: fission_bank(:)
     type(Bank), allocatable         :: temp_bank(:)
-    type(Bank)                      :: thread_bank(15000)
+    type(Bank)                      :: thread_bank(20000)
     !$OMP THREADPRIVATE(thread_bank)
     integer                         :: bank_idx
     !$OMP THREADPRIVATE(bank_idx)

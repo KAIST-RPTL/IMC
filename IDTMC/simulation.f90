@@ -108,7 +108,7 @@ subroutine simulate_history(bat,cyc)
                 call transport(p)
             enddo 
             
-            if ( bank_idx > 5000 ) then 
+            if ( bank_idx > 7500 ) then 
                 !$omp critical
                 call gatherBank(fission_bank, thread_bank, bank_idx)
                 !$omp end critical

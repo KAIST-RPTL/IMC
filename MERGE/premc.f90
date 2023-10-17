@@ -139,6 +139,7 @@ subroutine premc
     allocate(betaarr(n_act-latent,0:8)); allocate(genarr(n_act-latent));
     allocate(alphaarr(n_act-latent)); allocate(lamarr(n_act-latent,0:8))
     allocate(betad(0:8,n_act)); betad = 0.d0
+
     allocate(source_bank(ngen))
     call bank_initialize(source_bank)
 	call MPI_banktype()

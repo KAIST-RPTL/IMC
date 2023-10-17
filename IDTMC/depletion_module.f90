@@ -579,9 +579,6 @@ subroutine TALLY_BURNUP (imat, distance, wgt, erg, macro_xs)
     
     !$omp atomic
     mat%flux = mat%flux + wgt*distance !Volume-integrated flux tally (not normalized)
-
-    !%omp atomic
-    mat%kappa = mat%kappa + wgt*distance*macro_xs
     
     do mt_iso=1, mat%n_iso
         iso = mat%ace_idx(mt_iso)
@@ -702,6 +699,7 @@ if(do_burn==.false.) return
 avg_power = avg_power / dble(n_act)
 
 call MPI_BCAST(avg_power, 1, MPI_DOUBLE_PRECISION, score, MPI_COMM_WORLD, ierr)
+if(icore==score) print *, 'Avg power[MeV]',avg_power 
 
 
 ! Initialize material independent burnup matrix
@@ -890,6 +888,7 @@ do imat = mp1(icore), mp2(icore)
 !        print*, real_flux, buflux(id(1),id(2),id(3),id(4))
 !        real_flux = real_flux/dble(mat%vol*dble(nnum))
 !        real_flux = ULnorm*mat%flux
+        print *, 'RF', mat%mat_name, real_flux
     else
         real_flux = ULnorm*mat%flux
     end if
@@ -1127,6 +1126,7 @@ do imat = mp1(icore), mp2(icore)
     knuc = 0 
     do jnuc=1, nnuc 
         tmp = find_ACE_iso_idx_zaid(zai_idx(jnuc))
+        if(zai_idx(jnuc)==922340) print *, mat%mat_name, mat%full_numden(jnuc)
         if(mat%full_numden(jnuc)>0.d0 .and. tmp > 0) then 
             knuc = knuc + 1
             iso_idx(knuc) = jnuc
