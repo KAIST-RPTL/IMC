@@ -12,18 +12,19 @@ module COSAMPLING
     real(8):: cyclen
     real(8), allocatable:: avg_(:), std_(:), corr(:,:), cor(:,:), chol(:,:), invchol(:,:), tmpchol(:,:)
     real(8), allocatable:: lhs(:,:), unlhs(:,:)
-    real(8), allocatable:: courn(:,:,:,:,:), coxs(:,:,:,:,:)
+    real(8), allocatable:: courn(:,:,:,:,:), coxs(:,:,:,:,:,:)
 
-    integer, parameter:: n_pert = 100
+    integer, parameter :: n_pert = 100
+    integer :: maxiter = 1 
     real(8):: k_pert(n_pert)    ! by perturbation with forward flux
     real(8):: k_pert2(n_pert)   ! with adjoint flux
     real(8):: k_pert3(n_pert)   ! direct calcultion
     real(8), allocatable:: p_pert(:,:,:,:)
     real(8), allocatable:: s_pert(:)
     integer:: types, n_data
-    real(8) :: corcrit = 1d-2
+    real(8) :: corcrit = 5d-3
 
-    real(8) :: damp = 1.2d0
+    real(8) :: damp = 1d0
     ! correlation between nodes
     real(8), allocatable:: avgn(:), stdn(:)
 
@@ -38,7 +39,7 @@ module COSAMPLING
         implicit none 
         integer, intent(in):: cyc
         real(8):: avg_cor(3), oavg(3), ostd(3), incor(3,3), tmp, ucor(3,3), diffcor(3,3), prev(3,3)
-        integer:: nodes1, nodes2, i, it
+        integer:: nodes1, nodes2, i, it, itt
         integer :: aa
         ! parameter allocation
         if ( .not. allocated(avg_)) then
@@ -46,7 +47,7 @@ module COSAMPLING
             allocate(avg_(3),std_(3),corr(3,3),cor(3,3),chol(3,3),invchol(3,3),tmpchol(3,3))
             allocate(lhs(n_pert,3),unlhs(n_pert,3))
             allocate(courn(nfm(1),nfm(2),nfm(3),n_pert,3))
-            allocate(coxs(nfm(1),nfm(2),nfm(3),n_pert,3))
+            allocate(coxs(nfm(1),nfm(2),nfm(3),n_pert,3,0:maxiter))
             allocate(p_pert(n_pert,nfm(1),nfm(2),nfm(3)))
         end if
         
@@ -139,30 +140,30 @@ module COSAMPLING
                                     courn(ii,jj,kk,:,3),dble(n_pert))
             
             ! inverse CDF for XS
-            coxs(ii,jj,kk,:,:) = ICDF_XS(acc_sigt(acc_skip+1:cyc,ii,jj,kk), & 
+            coxs(ii,jj,kk,:,:,0) = ICDF_XS(acc_sigt(acc_skip+1:cyc,ii,jj,kk), & 
                                          acc_siga(acc_skip+1:cyc,ii,jj,kk), &
                                          acc_nufi(acc_skip+1:cyc,ii,jj,kk), &
                                          courn(ii,jj,kk,:,:))
             ! inverse CDF for Jn & phi for BC
             if(iscore) ptphi(:,ii,jj,kk)  = ICDF_PHI(acc_phi(acc_skip+1:cyc,ii,jj,kk))
 
-            call AVG_N_STD(coxs(ii,jj,kk,:,1), & 
-                           coxs(ii,jj,kk,:,2), &
-                           coxs(ii,jj,kk,:,3),dble(n_pert))
+            call AVG_N_STD(coxs(ii,jj,kk,:,1,0), & 
+                           coxs(ii,jj,kk,:,2,0), &
+                           coxs(ii,jj,kk,:,3,0),dble(n_pert))
 
             do i = 1,types
-                coxs(ii,jj,kk,:,i) = coxs(ii,jj,kk,:,i) - avg_(i)
-                coxs(ii,jj,kk,:,i) = coxs(ii,jj,kk,:,i) * ostd(i) / std_(i)
-                coxs(ii,jj,kk,:,i) = coxs(ii,jj,kk,:,i) + oavg(i)
+                coxs(ii,jj,kk,:,i,0) = coxs(ii,jj,kk,:,i,0) - avg_(i)
+                coxs(ii,jj,kk,:,i,0) = coxs(ii,jj,kk,:,i,0) * ostd(i) / std_(i)
+                coxs(ii,jj,kk,:,i,0) = coxs(ii,jj,kk,:,i,0) + oavg(i)
             enddo
             
-            call AVG_N_STD(coxs(ii,jj,kk,:,1), & 
-                           coxs(ii,jj,kk,:,2), &
-                           coxs(ii,jj,kk,:,3),dble(n_pert))
+            call AVG_N_STD(coxs(ii,jj,kk,:,1,0), & 
+                           coxs(ii,jj,kk,:,2,0), &
+                           coxs(ii,jj,kk,:,3,0),dble(n_pert))
 
-            call CORRELATION_MATRIX(coxs(ii,jj,kk,:,1), & 
-                                    coxs(ii,jj,kk,:,2), &
-                                    coxs(ii,jj,kk,:,3), dble(n_pert))
+            call CORRELATION_MATRIX(coxs(ii,jj,kk,:,1,0), & 
+                                    coxs(ii,jj,kk,:,2,0), &
+                                    coxs(ii,jj,kk,:,3,0), dble(n_pert))
 
             ! ADJUST COR: COR = 2COR-INCOR
             ! IF DET(COR) <= 0: Just return
@@ -174,102 +175,106 @@ module COSAMPLING
             !    write(*,'(A,F10.3,F10.3,F10.3,I2)') 'DIF', (incor(1,2)-cor(1,2)), (incor(1,3)-cor(1,3)), (incor(2,3)-cor(2,3)), 0
             !endif
             prev = incor
+            
+            if(maxiter>0) then
+                do it = 1, maxiter
+                if(abs(incor(1,2)-cor(1,2))<corcrit .and. (abs(incor(1,3)-cor(1,3))<corcrit) .and. (abs(incor(2,3)-cor(2,3))<corcrit)) then
+                    do itt = it, maxiter
+                        coxs(ii,jj,kk,:,1:types,itt) = coxs(ii,jj,kk,:,1:types,it-1)
+                    enddo
+                    exit
+                endif
 
-!            do it = 1, 5
-!            cor = erfmat(ierfmat(prev) + (ierfmat(incor) - ierfmat(cor))*damp)
-!            prev= cor
-!
-!            if(cor(1,1)*(cor(2,2)*cor(3,3)-cor(2,3)*cor(3,2)) &
-!              -cor(1,2)*(cor(2,1)*cor(3,3)-cor(2,3)*cor(3,1)) &
-!              +cor(1,3)*(cor(2,1)*cor(3,2)-cor(2,2)*cor(3,1)) <= 0) exit
-!
-!            ! random number generation by LHS
-!            call LHS_SAMPLING
-!            
-!            ! inverse normal CDF
-!            do mm = 1, n_pert
-!                lhs(mm,:) = ICDF_NORMAL(lhs(mm,:))
-!            end do
-!
-!            ! Cholesky decomposition
-!            !corcvg = .false.
-!            !do while( .not. corcvg)
-!            call DECHOLESKY(cor, chol)
-!            tmpchol = chol
-!            
-!            call AVG_N_STD(lhs(:,1), &
-!                           lhs(:,2), &
-!                           lhs(:,3),dble(n_pert))
-!            call CORRELATION_MATRIX(lhs(:,1), &
-!                           lhs(:,2), &
-!                           lhs(:,3),dble(n_pert))
-!            
-!            call DECHOLESKY(cor, chol)
-!            
-!            select case(types)
-!            case(2)
-!                invchol(1:2,1:2) = matinv2(chol)
-!            case(3)
-!                invchol(1:3,1:3) = matinv3(chol)
-!            end select
-!
-!            do mm = 1,n_pert
-!            do nn = 1,types
-!                unlhs(mm,nn) = sum(lhs(mm,1:types)*invchol(1:types,nn))
-!            enddo
-!            enddo
-!            
-!            do mm = 1, n_pert
-!            do nn = 1, types
-!                courn(ii,jj,kk,mm,nn) = sum(unlhs(mm,1:types)*tmpchol(1:types,nn))
-!            end do
-!            end do
-!
-!            call AVG_N_STD(courn(ii,jj,kk,:,1), & 
-!                           courn(ii,jj,kk,:,2), &
-!                           courn(ii,jj,kk,:,3),dble(n_pert))
-!            call CORRELATION_MATRIX(courn(ii,jj,kk,:,1), & 
-!                                    courn(ii,jj,kk,:,2), &
-!                                    courn(ii,jj,kk,:,3),dble(n_pert))
-!
-!            ! CFD for correlated urn generation
-!            do mm = 1, n_pert
-!            courn(ii,jj,kk,mm,:) = CDF_COURN(courn(ii,jj,kk,mm,:))
-!            end do
-!            call AVG_N_STD(courn(ii,jj,kk,:,1), & 
-!                           courn(ii,jj,kk,:,2), &
-!                           courn(ii,jj,kk,:,3),dble(n_pert))
-!            call CORRELATION_MATRIX(courn(ii,jj,kk,:,1), & 
-!                                    courn(ii,jj,kk,:,2), &
-!                                    courn(ii,jj,kk,:,3),dble(n_pert))
-!            
-!            ! inverse CDF for XS
-!            coxs(ii,jj,kk,:,:) = ICDF_XS(acc_sigt(acc_skip+1:cyc,ii,jj,kk), & 
-!                                         acc_siga(acc_skip+1:cyc,ii,jj,kk), &
-!                                         acc_nufi(acc_skip+1:cyc,ii,jj,kk), &
-!                                         courn(ii,jj,kk,:,:))
-!
-!            call AVG_N_STD(coxs(ii,jj,kk,:,1), & 
-!                           coxs(ii,jj,kk,:,2), &
-!                           coxs(ii,jj,kk,:,3),dble(n_pert))
-!
-!            do i = 1,types
-!                coxs(ii,jj,kk,:,i) = coxs(ii,jj,kk,:,i) - avg_(i)
-!                coxs(ii,jj,kk,:,i) = coxs(ii,jj,kk,:,i) * ostd(i) / std_(i)
-!                coxs(ii,jj,kk,:,i) = coxs(ii,jj,kk,:,i) + oavg(i)
-!            enddo
-!            
-!            call AVG_N_STD(coxs(ii,jj,kk,:,1), & 
-!                           coxs(ii,jj,kk,:,2), &
-!                           coxs(ii,jj,kk,:,3),dble(n_pert))
-!
-!            call CORRELATION_MATRIX(coxs(ii,jj,kk,:,1), & 
-!                                    coxs(ii,jj,kk,:,2), &
-!                                    coxs(ii,jj,kk,:,3), dble(n_pert))
-!            if(cyc==31 .and. iscore .and. istep_burnup==0) then
-!                write(*,'(A,F10.3,F10.3,F10.3,I2)') 'DIF', (incor(1,2)-cor(1,2)), (incor(1,3)-cor(1,3)), (incor(2,3)-cor(2,3)), it
-!            endif
-!            enddo
+                cor = erfmat(ierfmat(prev) + (ierfmat(incor) - ierfmat(cor))*damp)
+                prev= cor
+    
+                if(cor(1,1)*(cor(2,2)*cor(3,3)-cor(2,3)*cor(3,2)) &
+                  -cor(1,2)*(cor(2,1)*cor(3,3)-cor(2,3)*cor(3,1)) &
+                  +cor(1,3)*(cor(2,1)*cor(3,2)-cor(2,2)*cor(3,1)) <= 0) then
+                    do itt = it, maxiter
+                        coxs(ii,jj,kk,:,1:types,itt) = coxs(ii,jj,kk,:,1:types,it-1)
+                    enddo
+                    exit
+                endif
+
+    
+                ! random number generation by LHS
+                call LHS_SAMPLING
+                
+                ! inverse normal CDF
+                do mm = 1, n_pert
+                    lhs(mm,:) = ICDF_NORMAL(lhs(mm,:))
+                end do
+    
+                ! Cholesky decomposition
+                !corcvg = .false.
+                !do while( .not. corcvg)
+                call DECHOLESKY(cor, chol)
+                tmpchol = chol
+                
+                call AVG_N_STD(lhs(:,1), &
+                               lhs(:,2), &
+                               lhs(:,3),dble(n_pert))
+                call CORRELATION_MATRIX(lhs(:,1), &
+                               lhs(:,2), &
+                               lhs(:,3),dble(n_pert))
+                
+                call DECHOLESKY(cor, chol)
+                
+                select case(types)
+                case(2)
+                    invchol(1:2,1:2) = matinv2(chol)
+                case(3)
+                    invchol(1:3,1:3) = matinv3(chol)
+                end select
+    
+                do mm = 1,n_pert
+                do nn = 1,types
+                    unlhs(mm,nn) = sum(lhs(mm,1:types)*invchol(1:types,nn))
+                enddo
+                enddo
+                
+                do mm = 1, n_pert
+                do nn = 1, types
+                    courn(ii,jj,kk,mm,nn) = sum(unlhs(mm,1:types)*tmpchol(1:types,nn))
+                end do
+                end do
+    
+                call AVG_N_STD(courn(ii,jj,kk,:,1), & 
+                               courn(ii,jj,kk,:,2), &
+                               courn(ii,jj,kk,:,3),dble(n_pert))
+                call CORRELATION_MATRIX(courn(ii,jj,kk,:,1), & 
+                                        courn(ii,jj,kk,:,2), &
+                                        courn(ii,jj,kk,:,3),dble(n_pert))
+    
+                ! CFD for correlated urn generation
+                do mm = 1, n_pert
+                courn(ii,jj,kk,mm,:) = CDF_COURN(courn(ii,jj,kk,mm,:))
+                end do
+                call AVG_N_STD(courn(ii,jj,kk,:,1), & 
+                               courn(ii,jj,kk,:,2), &
+                               courn(ii,jj,kk,:,3),dble(n_pert))
+                call CORRELATION_MATRIX(courn(ii,jj,kk,:,1), & 
+                                        courn(ii,jj,kk,:,2), &
+                                        courn(ii,jj,kk,:,3),dble(n_pert))
+                
+                ! inverse CDF for XS
+                coxs(ii,jj,kk,:,:,it) = ICDF_XS(acc_sigt(acc_skip+1:cyc,ii,jj,kk), & 
+                                             acc_siga(acc_skip+1:cyc,ii,jj,kk), &
+                                             acc_nufi(acc_skip+1:cyc,ii,jj,kk), &
+                                             courn(ii,jj,kk,:,:))
+    
+                call AVG_N_STD(coxs(ii,jj,kk,:,1,it), & 
+                               coxs(ii,jj,kk,:,2,it), &
+                               coxs(ii,jj,kk,:,3,it),dble(n_pert))
+    
+                do i = 1,types
+                    coxs(ii,jj,kk,:,i,it) = coxs(ii,jj,kk,:,i,it) - avg_(i)
+                    coxs(ii,jj,kk,:,i,it) = coxs(ii,jj,kk,:,i,it) * ostd(i) / std_(i)
+                    coxs(ii,jj,kk,:,i,it) = coxs(ii,jj,kk,:,i,it) + oavg(i)
+                enddo
+                enddo
+            endif
             !if(cyc==31 .and. iscore .and. istep_burnup==0) print *, 'DIF DONE'
     
         end do
@@ -810,7 +815,7 @@ module COSAMPLING
             allocate(cor(n_data,n_data),chol(n_data,n_data))
             allocate(lhs(n_pert,n_data))
             allocate(courn(nfm(1),nfm(2),nfm(3),n_pert,3))
-            allocate(coxs(nfm(1),nfm(2),nfm(3),n_pert,3))
+            allocate(coxs(nfm(1),nfm(2),nfm(3),n_pert,3,0:maxiter))
         end if
 
         do ii = 1, ncm(1); ix1 = ii*fcr; ix0 = ix1-fcr+1
@@ -902,7 +907,7 @@ module COSAMPLING
             do mm = 1, fcr; id0 = ix0+mm-1
             do nn = 1, fcr; id1 = iy0+nn-1
             do oo = 1, fcz; id2 = iz0+oo-1
-                coxs(id0,id1,id2,:,:) = ICDF_XS( &
+                coxs(id0,id1,id2,:,:,0) = ICDF_XS( &
                     acc_sigt(cyc-cyclen+1:cyc,id0,id1,id2), & 
                     acc_siga(cyc-cyclen+1:cyc,id0,id1,id2), & 
                     acc_nufi(cyc-cyclen+1:cyc,id0,id1,id2), & 

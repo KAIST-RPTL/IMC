@@ -31,7 +31,7 @@ subroutine PERTURBATION_KEFF(bat, k_eff,cyc)
     integer, intent(in):: cyc, bat
     real(8):: unphi(nfm(1),nfm(2),nfm(3))
     real(8):: inv_k
-    integer:: xx, yy, ierr
+    integer:: xx, yy, ierr, it
 
     real(8) :: cos1, cos2, ktmp, ktmp_std
 
@@ -161,19 +161,15 @@ subroutine PERTURBATION_KEFF(bat, k_eff,cyc)
     if(iscore) write(*,*) 'TIME', cos2-cos1
 
     ! multiplication factor calculation
+    do it = maxiter, maxiter
     do mm = 1, n_pert
     if ( iscore ) then
         ! parameters
         where ( fphi1 /= 0 )
-        fm_t(:,:,:)  = coxs(:,:,:,mm,1)
-        fm_a(:,:,:)  = coxs(:,:,:,mm,2)
-        fm_nf(:,:,:) = coxs(:,:,:,mm,3)
+        fm_t(:,:,:)  = coxs(:,:,:,mm,1,it)
+        fm_a(:,:,:)  = coxs(:,:,:,mm,2,it)
+        fm_nf(:,:,:) = coxs(:,:,:,mm,3,it)
         fphi1(:,:,:) = ptphi(mm,:,:,:)        ! flux sampling
-        !fm_t(:,:,:)  = fm_avg(:,:,:)%sig_t   ! *
-        !fm_a(:,:,:)  = fm_avg(:,:,:)%sig_a   ! *
-        !fm_nf(:,:,:) = fm_avg(:,:,:)%nusig_f ! *
-        !fphi1(:,:,:) = fm_avg(:,:,:)%phi     ! *
-        !del_f(:,:,:) = (fm_nf(:,:,:)-fm_avg(:,:,:)%nusig_f)*inv_k
         del_f(:,:,:) = (fm_nf(:,:,:)-fm_avg(:,:,:)%nusig_f) * inv_k
         elsewhere
         fm_t = 0.d0
@@ -182,16 +178,14 @@ subroutine PERTURBATION_KEFF(bat, k_eff,cyc)
         del_f= 0.d0
         fphi1= 0.d0
         end where
-        !write(*,*) 'TST1', sum(coxs(:,:,:,mm,1)), sum(coxs(:,:,:,mm,2)), sum(coxs(:,:,:,mm,3))
-        !write(*,*) 'TST2', mm, sum(del_f(:,:,:)) 
         do ii = 1, 6
-        where ( fphi1 /= 0 )
-        fmJ0(:,:,:,ii) = fm_avg(:,:,:)%J0(ii)
-        fmJ1(:,:,:,ii) = fm_avg(:,:,:)%J1(ii)
-        elsewhere
-        fmJ0(:,:,:,ii) = 0.d0
-        fmJ1(:,:,:,ii) = 0.d0
-        end where
+            where ( fphi1 /= 0 )
+                fmJ0(:,:,:,ii) = fm_avg(:,:,:)%J0(ii)
+                fmJ1(:,:,:,ii) = fm_avg(:,:,:)%J1(ii)
+            elsewhere
+                fmJ0(:,:,:,ii) = 0.d0
+                fmJ1(:,:,:,ii) = 0.d0
+            end where
         end do
 
         fmJn = fmJ1-fmJ0
@@ -204,24 +198,13 @@ subroutine PERTURBATION_KEFF(bat, k_eff,cyc)
         call D_TILDA_CALCULATION   ! &&&
         call D_PHAT_PERTURB(mm)
         call PFMFD_MATRIX
-        !write(*,*) 'HATTIL', mm, sum(fmDt), sum(fmDh), sum(fm_a), sum(fphi1)
-        !call POWER_TMP(k_pert2(mm))
         if ( zigzagon ) call SET_ZERO_M
         del_m = Mfm-Mfm0
-        !write(*,*) 'TST4', sum(del_m), sum(Mfm), sum(Mfm0)
-
-!        ! 1st perturbation theory
-!        k_pert(mm) = sum(MAT_MUL(del_m,del_f,unphi)*unphi)/sum(fm_s0*unphi)
-!        k_pert(mm) = 1D0/(inv_k-k_pert(mm))
-        
-        ! adjoint flux
-        !write(*,*) 'M'
-        !write(*,*) del_m
-        !write(*,*) 'F'
-        !write(*,*) del_f
         k_pert2(mm) = sum(MAT_MUL(del_m,del_f,unphi)*adjphi)/sum(fm_s0*adjphi)
         k_pert2(mm) = 1D0/(inv_k-k_pert2(mm))
         write(*,'(I3,F12.5,F12.5,F8.3)') mm, k_pert2(mm), AVG(k_pert2(1:mm)), PCM(STD_S(k_pert2(1:mm)))
+        !writE(*,*) 'TEST', sum(fm_t), sum(fm_a), sum(fm_nf)
+        if(it == maxiter) then
         where(fm_avg%nusig_f /= 0)
             p_dep_dt_pert(cyc-n_inact,mm,:,:,:) = &
                 fm_avg(:,:,:)%kappa / fm_avg(:,:,:)%nusig_f &
@@ -229,11 +212,7 @@ subroutine PERTURBATION_KEFF(bat, k_eff,cyc)
         elsewhere
             p_dep_dt_pert(cyc-n_inact,mm,:,:,:) = 0D0
         endwhere
-        !write(*,*) sum(fm_avg(:,:,:)%sig_t), sum(fm_t)
-        !write(*,*) sum(fm_avg(:,:,:)%sig_a), sum(fm_a)
-        !write(*,*) sum(fm_avg(:,:,:)%nusig_f), sum(fm_nf)
-        !write(*,*) 'F', sum(fm_s0), sum(fm_s0*adjphi), sum(fm_nf)
-        !write(*,*) 'M', sum(Mfm), sum(Mfm0)
+        endif
     end if
 
     ! for power distribution
@@ -249,45 +228,11 @@ subroutine PERTURBATION_KEFF(bat, k_eff,cyc)
     !write(*,*) AVG(k_pert2(1:n_pert)), PCM(STD_S(k_pert2(1:n_pert)))
     ! standard deviation
     if(iscore) then
-        write(*,*) 'ACT', cyc-n_inact+1, AVG(k_pert2(:)), PCM(STD_S(k_pert2(:)))
+        write(*,*) 'ACT', it, cyc-n_inact+1, AVG(k_pert2(:)), PCM(STD_S(k_pert2(:)))
         write(*,*) 'PERTK', AVG(k_pert2(:))
-        !k_real(bat,(cyc-1)*n_pert+1:cyc*n_pert) = k_pert2(1:n_pert)
         k_real(bat,cyc,1:n_pert) = k_pert2(1:n_pert)
     endif
-    !if ( icore == score .and. cyc == n_totcyc ) then
-    !if ( icore == score ) then
-    !if ( cyc == n_totcyc ) then
-    !s_pert(cyc-n_inact+1) = PCM(STD_S(k_pert(:)))
-    !print*, AVG(k_pert(:))!, AVG(k_pert2(:)), AVG(k_pert3(1:60))
-    !print*, s_pert(cyc-n_inact+1)!, PCM(STD_S(k_pert2(:))), PCM(STD_S(k_pert3(1:60)))
-    !print*, 'sampling :', AVG(k_pert(:)), '+/-', PCM(STD_S(k_pert(:)))
-    !end if
-
-
-!    if ( cyc == n_inact+1 .or. cyc == n_inact + 5 .or. cyc == n_totcyc ) then
-!    !if ( cyc == n_totcyc ) then
-!    ! error for power distribution
-!    ! - normalization
-!    !do mm = 1, n_pert
-!    do mm = 1, 60
-!    do xx = 1, nfm(1)
-!    do yy = 1, nfm(2)
-!        p_pert(mm,xx,yy,:) = sum(p_pert(mm,xx,yy,:))/dble(nfm(3))
-!    end do
-!    end do
-!        p_pert(mm,:,:,:) = p_pert(mm,:,:,:)/AVG_P(p_pert(mm,:,:,:))
-!    end do
-!
-!    ! - error distribution
-!    write(17,*), "error distribution at cycle :", cyc
-!    do yy = nfm(2), 1, -1
-!        write(17,15), (STD_S(p_pert(1:60,xx,yy,1))/AVG(p_pert(1:60,xx,yy,1)), xx = 1, nfm(1))
-!    end do
-!    write(17,*)
-!    15 format(<nfm(1)>es15.7)
-!    end if
-
-
+    enddo
 end subroutine
 
 ! =============================================================================

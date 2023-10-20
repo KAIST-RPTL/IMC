@@ -102,12 +102,13 @@ subroutine simulate_history(bat,cyc)
 	allocate(prec_bank(0))
 	if (allocated(prompt_bank)) deallocate(prompt_bank)
 	allocate(prompt_bank(0))
+
 	
-    !$omp parallel private(p, cyc_power) shared(source_bank, fission_bank, temp_bank, prec_bank)
+    !$omp parallel private(p) shared(source_bank, fission_bank, temp_bank, prec_bank, ista, iend)
       thread_bank(:)%wgt = 0; bank_idx = 0; prec_idx = 0 ; init_idx = 0
       if (tallyon .and. .not. fmfdon) call TALLY_THREAD_INITIAL(cyc)
       if ( fmfdon ) call FMFD_initialize_thread()
-      !$omp do reduction(+: k_tl, k_col) 
+      !$omp do reduction(+: k_col, k_tl) 
         do i= ista, iend 
             call p%initialize()
             call p%set(source_bank(i))
@@ -123,11 +124,10 @@ subroutine simulate_history(bat,cyc)
 				endif 
 				!if (p%tet .le. 0) p%in_tet = .false.
 			endif 
-			
             do while (p%alive == .true.)
 				call transport(p)
             enddo 
-			
+		
             !if buffer is almost full -> add to the fission bank
             !if (bank_idx > int(size(thread_bank)*0.01*(80-OMP_GET_THREAD_NUM()))) then 
             if ( bank_idx > 7500 ) then 
@@ -260,9 +260,8 @@ subroutine simulate_history(bat,cyc)
     !> Calculate k_eff ==========================================================
     k_col = k_col / real(ngen,8)
     k_tl  = k_tl  / real(ngen,8) 
-    !keff  = (k_tl + k_col) / 2.0d0
-    keff = k_col
-    !keff = k_tl
+    keff  = (k_tl + k_col) / 2.0d0
+    !keff = k_col
     
     if (icore == score) write(prt_keff,*) keff, k_col, k_tl
     

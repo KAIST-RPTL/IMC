@@ -77,6 +77,7 @@ module geometry_header
                                            !> 2 :: vertical hexgon lattice
                                            !> 3 :: horizontal hexgon lattice
         real(8) :: xyz(3)                  !> Universe translation 
+        real(8) :: xyz0(3)                  !> From IH code
         integer :: n_xyz(3)                !> no of repetitions in x y direction
         integer, allocatable :: lat(:,:,:) !> index in the universes array
         real(8) :: pitch(3)
@@ -159,14 +160,21 @@ module geometry_header
         enddo 
 
         if(this%lat_type==1) then !> RECTILINEAR
-            do i = 1, 3
-                if (mod(this%n_xyz(i),2)==0) then  !> both even 
-                    coord_lat(i) = floor(xyz_tr(i)/this%pitch(i)) + (real(this%n_xyz(i),8)/2) + 1
-                else
-                    coord_lat(i) = floor((xyz_tr(i)/this%pitch(i))+0.5) + ceiling(real(this%n_xyz(i),8)/2)
-                endif
-            enddo 
-        
+            ! Old method?
+!            do i = 1, 3
+!                if (mod(this%n_xyz(i),2)==0) then  !> both even 
+!                    coord_lat(i) = floor(xyz_tr(i)/this%pitch(i)) + (real(this%n_xyz(i),8)/2) + 1
+!                else
+!                    coord_lat(i) = floor((xyz_tr(i)/this%pitch(i))+0.5) + ceiling(real(this%n_xyz(i),8)/2)
+!                endif
+!            enddo 
+!        
+!            do i = 1, 3
+!                if (coord_lat(i).le.0) coord_lat(i) = 1
+!                if (coord_lat(i).gt.this%n_xyz(i)) coord_lat(i) = this%n_xyz(i)
+!            enddo 
+            coord_lat(:) = floor((xyz0(:)-this%xyz0(:))/this%pitch(:))+1
+    
             do i = 1, 3
                 if (coord_lat(i).le.0) coord_lat(i) = 1
                 if (coord_lat(i).gt.this%n_xyz(i)) coord_lat(i) = this%n_xyz(i)

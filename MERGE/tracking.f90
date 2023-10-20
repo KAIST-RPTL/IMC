@@ -104,8 +104,8 @@ subroutine transport(p)
     !> Surface distance(boundary)
     call distance_to_boundary(p, d_boundary, surface_crossed)
     !> Sample distances from special boundaries in univ 0
-    i_cell = p % coord(1) % cell
-    call cell_distance(cells(i_cell), p%coord(1)%xyz, p%coord(1)%uvw, surfaces, d_s, idx_surf)
+!    i_cell = p % coord(1) % cell
+!    call cell_distance(cells(i_cell), p%coord(1)%xyz, p%coord(1)%uvw, surfaces, d_s, idx_surf)
 	
 	
 	val = 1.0d0
@@ -121,14 +121,11 @@ subroutine transport(p)
     elseif (E_mode == 1) then
         if(do_ueg) then
             macro_xs = getMacroXS_UEG(materials(p%material), p%E,p%kT,p%urn)
-            !macro_xs(1) = tmparr(1)
-            !macro_xs(4) = tmparr(2)
-            !macro_xs(5) = tmparr(3)
         else
             macro_xs = getMacroXS(materials(p%material), p%E,p%kT,p%urn)
         endif
 	    d_collision = -log(rang())/macro_xs(1)
-        speedn = sqrt(2.d0*p%E*mevj/(m_u*m_n))*1.0d2
+        speedn = sqrt(2.d0*p%E*mevj/(m_u*m_n))*1.0d2 !> meter/sec
     endif 
     
     ! ===================================================
@@ -161,34 +158,14 @@ subroutine transport(p)
 	!> Tetrahedron mesh distance 
 	d_gmsh = INFINITY
 	if (do_gmsh .and. curr_cyc > n_inact) then 
-	!if (do_gmsh .and. curr_cyc > n_inact .and. p%material /= 5 ) then ! *****(TODO) Batch 계산 때만 *********
 		i_bin = FindTallyBin(p)
 		if ( i_bin(1) > 0 ) then
-			!print *, p%coord(p%n_coord)%xyz
-			!print *, sqrt(p%coord(p%n_coord)%xyz(1)**2 + p%coord(p%n_coord)%xyz(2)**2)
 			if (p%in_tet) then 
 				call distance_tet (p, d_gmsh, next_tet, bc)
-				!print *, 'distance_tet',d_gmsh, p%tet, next_tet
 			else 
 				call distance_tet_from_outside (p, d_gmsh, next_tet, tet_face) 
-				!print *, 'distance_tet_from_outside',d_gmsh
-				!print *, sqrt(p%coord(p%n_coord)%xyz(1)**2 + p%coord(p%n_coord)%xyz(2)**2)
 			endif
 		endif
-		!if (d_gmsh < 1.0d-15) then 
-		!	d_gmsh = INFINITY
-		!	p%in_tet = .false.
-		!	p%tet = -1
-		!	p%tet_face = -1
-		!	!do j = 1, p % n_coord
-		!	!	p % coord(j) % xyz = p % coord(j) % xyz + 1.0d-5 * p % coord(j) % uvw
-		!	!enddo
-		!	!p%tet = find_tet(p%coord(p%n_coord)%xyz)
-		!	!p%tet_face = 0
-		!	!p%in_tet = .true.
-		!	!if (p%tet .le. 0) p%in_tet = .false.
-		!	!return 
-		!endif 
 	endif
     distance = min(d_boundary, d_collision, d_mesh, d_gmsh)
     ! print *, 'TST',p%n_cross,p%coord(1)%xyz, distance, d_boundary, d_collision, d_mesh
@@ -197,14 +174,11 @@ subroutine transport(p)
         print *, 'ESCAPED',distance,p%coord(1)%xyz(1:2),p%coord(1)%uvw(1:2)
         p%alive = .false.
     endif
-    !if ( distance == d_collision .and. d_s == d_boundary ) then ! collision 
-	!	p%wgt = p%wgt * val
-	!endif 
-	
 	
     !> Track-length estimator
-!    !$omp atomic 
-!    k_tl = k_tl + distance*p%wgt*macro_xs(4) 
+    !       >> Removed 'ATOMIC' due to Reduction: needs to be verified
+    !$OMP ATOMIC 
+    k_tl = k_tl + distance*p%wgt*macro_xs(4) 
 
     !> Flux Tally ===========================================================================
     if ( tally_switch > 0 .and. do_transient == .false.) then 
@@ -229,10 +203,9 @@ subroutine transport(p)
     endif 
     !> Cycle-power Tally ===================================================================  
     if(curr_cyc > n_inact .and. materials(p%material)%fissionable) then 
-        !cyc_p_arr(icore) = cyc_p_arr(icore) + distance * p%wgt * macro_xs(5)
         !$omp atomic
         cyc_power = cyc_power + distance * p % wgt * macro_xs(5)
-        !if(isnan(macro_xs(5))) print *, 'WTF', macro_xs(1:5)
+
         if(do_mgtally) then
             ! 1. Find MG
             if(p%E > Ebin(1) .or. p%E < Ebin(n_mg+1)) then            
@@ -254,16 +227,14 @@ subroutine transport(p)
         if(do_ifp)then
             ! ADJOINT related
             ! Effective beta calc.
-            !$omp atomic
+            !$omp critical
             denom= denom + distance*p%wgt*macro_xs(4)
-            !$omp atomic
             gen_numer = gen_numer + distance*p%wgt*p%nlifearr(1)*macro_xs(4)
             if(p%delayedarr(1)>0) then
-                !$omp atomic
                 beta_numer(p%delayedarr(1)) = beta_numer(p%delayedarr(1)) + distance*p%wgt*macro_xs(4)
-                !$omp atomic
                 lam_denom(p%delayedarr(1))  = lam_denom(p%delayedarr(1)) + distance*p%wgt*macro_xs(4)/p%delayedlam(1)
             endif
+            !$omp end critical
         endif
     endif 
 
@@ -290,11 +261,6 @@ subroutine transport(p)
     do j = 1, p % n_coord
         p % coord(j) % xyz = p % coord(j) % xyz + distance * p % coord(j) % uvw
     enddo
-    !write(*,'(A,F10.3,F10.3,F10.3)')'PTS', p%coord(1)%xyz(:)
-    found_cell = .false.
-    ! call find_cell(p, found_cell, i_cell)
-	
-	
 	
     if ( distance == d_collision ) then ! collision 
 		
@@ -313,10 +279,6 @@ subroutine transport(p)
         else !(E_mode == 1) 
             call collision_CE(p)
         endif
-!        call MC_TRK_S(cyc,p%last_E,p%E,p%wgt,distance,macro_xs,i_xyz)
-        !if ( tallyon .and. .not. fmfdon .and. cyc > n_inact ) &
-        !    call MC_COL(p%E,p%wgt,distance,macro_xs,i_xyz)
-        !if ( fmfdon .and. inside_mesh ) call FMFD_COL(p%wgt,macro_xs,i_xyz)
         if ( th_on .and. .not. fmfdon ) then
             call TH_INSIDE(p%coord(1)%xyz(:),j_xyz(:),inside_th)
             if ( inside_th ) call TH_COL(p%wgt,macro_xs(1),macro_xs(4),j_xyz(:))
@@ -336,63 +298,13 @@ subroutine transport(p)
         endif 
 		
 	elseif (abs(distance - d_gmsh) < TINY_BIT) then 
-	
-		!print *, 'gmsh', d_gmsh
-		
-		
 		tet_prev = p%tet
 		p%tet_prev = p%tet
 		if (.not. p%in_tet) then   ! outside -> tet 
-			!print *, 'mode 1', next_tet, tet_face
 			p%in_tet = .true. 
 			p%tet = next_tet
 			p%tet_face = tet_face
-
-			!if (.not. in_the_tet(p%coord(p%n_coord)%xyz,  p%tet)) then 
-			!	do j = 1, p % n_coord
-			!		p % coord(j) % xyz = p % coord(j) % xyz + TINY_BIT * p % coord(j) % uvw
-			!	enddo
-			!endif 
 		elseif (next_tet .le. 0) then  ! tet -> outside 
-		
-			!write(prt_wgt,'(6e20.10)') p%coord(1)%xyz, p%coord(p%n_coord)%xyz
-			
-			!if (sqrt(p%coord(1)%xyz(1)**2 + p%coord(1)%xyz(2)**2) > 0.47600 .or. abs(p%coord(1)%xyz(3)) > 0.5  ) then 
-			!	print *, xyz
-			!	print *, p%in_tet 
-			!	print *, p%tet, p%tet_prev, p%tet_face
-			!	print *, p%coord(1)%xyz
-			!	print *, p%coord(1)%uvw
-			!	
-			!	print *, '-----------  node ----------------'
-			!	print *, node(tet(p%tet)%node(1))%xyz
-			!	print *, node(tet(p%tet)%node(2))%xyz
-			!	print *, node(tet(p%tet)%node(3))%xyz
-			!	print *, node(tet(p%tet)%node(4))%xyz
-			!	print *, '----------------------------------'
-			!	
-			!	print *, sqrt(p%coord(1)%xyz(1)**2 + p%coord(1)%xyz(2)**2)
-			!	print *, find_tet(p%coord(1)%xyz)
-			!	print *, d_gmsh, d_boundary 
-			!	print *, in_the_tet(xyz, p%tet)
-			!	
-			!	
-			!	call RayIntersectsTriangle(xyz, p%coord(1)%uvw, node(tet(p%tet)%node(2))%xyz, node(tet(p%tet)%node(3))%xyz, node(tet(p%tet)%node(4))%xyz, d_gmsh)
-			!	print *, d_gmsh 
-			!	call RayIntersectsTriangle(xyz, p%coord(1)%uvw, node(tet(p%tet)%node(1))%xyz, node(tet(p%tet)%node(3))%xyz, node(tet(p%tet)%node(4))%xyz, d_gmsh) 
-			!	print *, d_gmsh 
-			!	call RayIntersectsTriangle(xyz, p%coord(1)%uvw, node(tet(p%tet)%node(1))%xyz, node(tet(p%tet)%node(2))%xyz, node(tet(p%tet)%node(4))%xyz, d_gmsh) 
-			!	print *, d_gmsh 
-			!	call RayIntersectsTriangle(xyz, p%coord(1)%uvw, node(tet(p%tet)%node(1))%xyz, node(tet(p%tet)%node(3))%xyz, node(tet(p%tet)%node(3))%xyz, d_gmsh) 
-			!	print *, d_gmsh 
-			!	
-			!	
-			!	
-			!	
-			!	stop
-			!endif
-			
-		
 			p%in_tet = .false.
 			p%tet = -1
 			p%tet_face = -1
@@ -409,19 +321,8 @@ subroutine transport(p)
 		do j = 1, p % n_coord
 			p % coord(j) % xyz = p % coord(j) % xyz + 1.0d-15 * p % coord(j) % uvw
 		enddo
-		
-		
-		!p%tet = find_tet_old(p%coord(p%n_coord)%xyz)
-		!p%tet_face = 0
-		!p%in_tet = .true.
-		!if (p%tet .le. 0) p%in_tet = .false.
-		
     endif
-	
-	!if (p%material == 0) write(prt_wgt,*) p%coord(1)%xyz
-	!!if (p%material == 0) print '(e14.5,a,2e14.5)' , d_boundary, surfaces(surface_crossed)%surf_id, p%coord(1)%xyz(3), p%coord(1)%uvw(3)
-	
-	
+
 end subroutine transport
 
 !===============================================================================

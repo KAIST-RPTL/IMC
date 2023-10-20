@@ -820,6 +820,15 @@ subroutine read_lat (Latobj, args, nargs)
 	read(args(11), *) Latobj%pitch(2)	
 	read(args(12), *) Latobj%pitch(3)	
 	
+    if(Latobj%lat_type==1) then ! Rectlinear lattice
+        do i = 1, 3
+            if ( mod(Latobj%n_xyz(i),2) == 0 ) then
+                Latobj%xyz0(i) = Latobj%xyz(i) - Latobj%pitch(i) * Latobj%n_xyz(i)/2
+            else
+                Latobj%xyz0(i) = Latobj%xyz(i) - Latobj%pitch(i) * (Latobj%n_xyz(i)/2+5D-1)
+            end if
+        end do
+    endif
 
 end subroutine
 

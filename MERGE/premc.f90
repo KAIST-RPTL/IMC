@@ -13,6 +13,9 @@ subroutine premc
     use TEMPERATURE, only: TH_INITIAL
     use TALLY, only: SET_MC_TALLY
     !use TALLY, only: p_MC, e_MC
+    use FMFD_HEADER, only: p_dep_mc, p_dep_dt, p_dep_dt_pert
+    use COSAMPLING, only: n_pert
+    use PERTURBATION, only: perton
     
     implicit none
     integer :: iwork1, iwork2, mm, i
@@ -49,6 +52,15 @@ subroutine premc
     if (do_burn) then 
         if(icore==score)  print '(A28)', '    Reading Depletion Lib...' 
         call getENDFdepletionlibrary
+        if ( iscore ) then
+        if ( fmfdon ) then
+            allocate(p_dep_dt(n_act,nfm(1),nfm(2),nfm(3)))
+            ! Power distribution
+            if(perton) allocate(p_dep_dt_pert(n_act,n_pert,nfm(1),nfm(2),nfm(3)))
+        else
+            allocate(p_dep_mc(n_act,nfm(1),nfm(2),nfm(3)))
+        end if
+        end if
 
         ngeom = 0; allocate(tmpgeom(1:n_materials))
 

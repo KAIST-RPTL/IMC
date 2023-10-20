@@ -186,27 +186,5 @@ module bank_header
 		call MPI_TYPE_STRUCT (11, blocklength, displacement, oldtype,MPI_precbank, ierr)
 		call MPI_TYPE_COMMIT (MPI_precbank, ierr)
 	end subroutine 	
-    !subroutine MPI_vrcbanktype() 
-	!	integer :: ierr 
-	!	integer :: realex, intex
-	!	integer, dimension(0:3) :: blocklength, displacement, oldtype 
-	!	
-	!	
-	!	blocklength(0) = 1
-	!	blocklength(1) = 3
-	!	blocklength(2) = 1
-	!	blocklength(3) = 1
-	!	
-	!	call MPI_TYPE_EXTENT(MPI_double_precision, realex, ierr) 
-	!	call MPI_TYPE_EXTENT(MPI_INTEGER, intex, ierr) 
-	!	displacement(0) = 0; displacement(1) = realex; displacement(2) = 4*realex
-	!	displacement(3) = 5*realex
-	!	
-	!	oldtype(0:2) = MPI_double_precision
-	!	oldtype(3)   = MPI_INTEGER
-	!			
-	!	call MPI_TYPE_STRUCT (4, blocklength, displacement, oldtype, MPI_vrcbank, ierr)
-	!	call MPI_TYPE_COMMIT (MPI_vrcbank, ierr)
-	!end subroutine 		
 	
 end module

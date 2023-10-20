@@ -642,22 +642,6 @@ subroutine PROCESS_FMFD(bat,cyc)
 
     ac => acc(lc)
     tt0 = MPI_WTIME()
-!    call MPI_REDUCE(fm(:,:,:)%sig_a,ac%fm(:,:,:)%sig_a,dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!    call MPI_REDUCE(fm(:,:,:)%sig_t,ac%fm(:,:,:)%sig_t,dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!    call MPI_REDUCE(fm(:,:,:)%nusig_f,ac%fm(:,:,:)%nusig_f,dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!    call MPI_REDUCE(fm(:,:,:)%kappa,ac%fm(:,:,:)%kappa,dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!    call MPI_REDUCE(fm(:,:,:)%phi,ac%fm(:,:,:)%phi,dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!    call MPI_REDUCE(fsd_MC,fsd_MC0,dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!!    call MPI_REDUCE(fm(:,:,:)%sig_a,ac%fm(:,:,:)%sig_a,dsize,15,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!!    call MPI_REDUCE(fm(:,:,:)%sig_t,ac%fm(:,:,:)%sig_t,dsize,15,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!!    call MPI_REDUCE(fm(:,:,:)%nusig_f,ac%fm(:,:,:)%nusig_f,dsize,15,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!!    call MPI_REDUCE(fm(:,:,:)%kappa,ac%fm(:,:,:)%kappa,dsize,15,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!!    call MPI_REDUCE(fm(:,:,:)%phi,ac%fm(:,:,:)%phi,dsize,15,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!!    call MPI_REDUCE(fsd_MC,fsd_MC0,dsize,15,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!    do ij = 1, 6
-!    call MPI_REDUCE(fm(:,:,:)%J0(ij),ac%fm(:,:,:)%J0(ij),dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!    call MPI_REDUCE(fm(:,:,:)%J1(ij),ac%fm(:,:,:)%J1(ij),dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!    end do
 
     call MPI_REDUCE(fm(:,:,:), ac%fm(:,:,:), dsize*17, MPI_REAL8, MPI_SUM, score, MPI_COMM_WORLD, ierr)
     call MPI_REDUCE(fsd_MC,fsd_MC0,dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)

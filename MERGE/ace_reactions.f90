@@ -55,16 +55,8 @@ subroutine collision_CE (p)
     endif
     call WHAT_TEMPERATURE(p)
 	
-    !if(curr_cyc==1) then
-    !do i = 1,materials(p%material)%n_iso
-    !write(*,*) 'TST', icore, i, materials(p%material)%ace_idx(i), materials(p%material)%numden(i)
-    !enddo
-    !end if
     if(do_ueg) then
         macro_xs = getMacroXS_UEG(materials(p%material), p%E,p%kT, p%urn)
-        !macro_xs(1) = tmparr(1)
-        !macro_xs(4) = tmparr(2)
-        !macro_xs(5) = tmparr(3)
     else
         macro_xs= getMacroXS(materials(p%material), p%E,p%kT, p%urn)
     endif
@@ -101,13 +93,9 @@ subroutine collision_CE (p)
     enddo
 
     !> Collision estimator
-    !$omp atomic
-    
+    !$OMP ATOMIC
     k_col = k_col + p%wgt * macro_xs(4)/macro_xs(1)
 
-   
-    !if(iso == materials(p%material)%n_iso .and. iso > 100) &
-        !print *, 'CHK', iso, rn, temp, macro_xs(1)
 
     call fissionSite_CE(p, iso, micro_xs)
 	
@@ -153,10 +141,12 @@ subroutine collision_CE (p)
     
     call absorption_CE(p)
     
-    do i = 1, n_unr
-        iso = uresiso(i)
-        p % urn(i) = rang()
-    enddo
+    if(do_ures)then
+        do i = 1, n_unr
+            iso = uresiso(i)
+            p % urn(i) = rang()
+        enddo
+    endif
 
 
 

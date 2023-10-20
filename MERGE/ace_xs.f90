@@ -427,7 +427,7 @@ subroutine getierg(iso_,ierg_,erg0)
     if(uidx<1) uidx = 1
     pt1 = ugrid(uidx-1,iso_)
     pt2 = min(ugrid(uidx,iso_)+1,ace(iso_)%nxs(3))
-    
+
     !pt1 = 1 
     !pt2 = size(ace(iso_)%E)
     
