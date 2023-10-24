@@ -965,7 +965,7 @@ subroutine BASE_FMFD_CALCULATION(bat,cyc,phi1)
     
 
     tt2 = MPI_WTIME()
-    if ( iscore ) print*, " - perturbation total : ", tt2-tt1
+    if ( perton .and. iscore ) print*, " - perturbation total : ", tt2-tt1
 
     if ( icore /= score ) return
     print*, "keff ", k_eff

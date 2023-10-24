@@ -1269,6 +1269,11 @@ subroutine bank_initialize(this)
         this(i) % wgt = 1
         found         = .false.
         this(i) % uvw = rand_vec()
+
+        ! Initialize for Latent
+        allocate( this(i) % delayedarr(1:latent) )
+        allocate( this(i) % delayedlam(1:latent) )
+        allocate( this(i) %   nlifearr(1:latent) )
         
         ! multigroup MC
         if (E_mode == 0) then
@@ -1349,7 +1354,7 @@ subroutine bank_initialize(this)
                     found = materials(mat_idx)%fissionable
 					
 				enddo search_CE 
-                print *, 'DONE', icore, i, '/', size(this), this(i)%xyz(1:3)
+                !print *, 'DONE', icore, i, '/', size(this), this(i)%xyz(1:3)
                 endif
             endif
             

@@ -48,16 +48,6 @@ subroutine premc
         if(icore==score)  print '(A28)', '    Reading Depletion Lib...' 
         call getdepletionlibrary
 
-        if ( iscore ) then
-        if ( fmfdon ) then
-            allocate(p_dep_dt(n_act,nfm(1),nfm(2),nfm(3)))
-            ! Power distribution
-            if(perton) allocate(p_dep_dt_pert(n_act,n_pert,nfm(1),nfm(2),nfm(3)))
-        else
-            allocate(p_dep_mc(n_act,nfm(1),nfm(2),nfm(3)))
-        end if
-        end if
-
         ! material indice for parallel calculation
         if(icore==score) print *, 'NMAT', n_materials
         allocate(mp1(0:ncore-1),mp2(0:ncore-1))
@@ -69,6 +59,7 @@ subroutine premc
         if ( iwork2 > mm ) mp2(mm) = mp2(mm) + 1
         end do
     endif 
+
 
     ! =========================================================================
     ! Set tally parameters
@@ -115,6 +106,27 @@ subroutine premc
     call draw_geometry()
 
     ! START COUPLING INIT
-    if(do_child .and. th_iter == 0) call read_coupling
+    if(do_child .and. th_iter == 0) then
+        call read_coupling
+        if ( iscore ) then
+            if ( fmfdon ) then
+                allocate(p_dep_dt(n_act,nfm(1),nfm(2),nfm(3)))
+                ! Power distribution
+                if(perton) allocate(p_dep_dt_pert(n_act,n_pert,nfm(1),nfm(2),nfm(3)))
+            else
+                allocate(p_dep_mc(n_act,nfm(1),nfm(2),nfm(3)))
+            end if
+        end if
+    elseif(do_burn) then
+        if ( iscore ) then
+            if ( fmfdon ) then
+                allocate(p_dep_dt(n_act,nfm(1),nfm(2),nfm(3)))
+                ! Power distribution
+                if(perton) allocate(p_dep_dt_pert(n_act,n_pert,nfm(1),nfm(2),nfm(3)))
+            else
+                allocate(p_dep_mc(n_act,nfm(1),nfm(2),nfm(3)))
+            end if
+        end if
+    endif
 
 end subroutine

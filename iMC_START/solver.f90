@@ -170,7 +170,7 @@ function BiCGSTAB_ILU(M,Q) result(x)
         kt     = FORWARD_FSUB(t)
         ks     = FORWARD_FSUB(s)
         omega  = dot_product(kt,ks)/dot_product(kt,kt)
-        xx     = xx + alpha*y(1:)+ omega*z(1:)
+        xx     = xx + alpha*y(1:n_fnodes)+ omega*z(1:n_fnodes)
         r      = s - omega*t
         norm_r = sum(r*r)
         iter   = iter + 1

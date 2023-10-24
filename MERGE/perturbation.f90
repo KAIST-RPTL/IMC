@@ -9,8 +9,9 @@ module PERTURBATION
     use omp_lib
     implicit none
     logical:: perton = .false.
-    real(8), allocatable, dimension(:,:,:):: avg_sigt, avg_siga, avg_nufi
-    real(8), allocatable, dimension(:,:,:):: std_sigt, std_siga, std_nufi
+    ! Excluded, as they are only used for unused subroutines
+!    real(8), allocatable, dimension(:,:,:):: avg_sigt, avg_siga, avg_nufi
+!    real(8), allocatable, dimension(:,:,:):: std_sigt, std_siga, std_nufi
     real(8), allocatable:: Mfm0(:,:,:,:), fm_s0(:,:,:)
     real(8), allocatable:: del_f(:,:,:), del_m(:,:,:,:)
     real(8), allocatable:: adjphi(:,:,:)
@@ -41,17 +42,10 @@ subroutine PERTURBATION_KEFF(bat, k_eff,cyc)
         sqrt2 = sqrt(2D0)
         sqrt2pi = sqrt2*pi
         allocate(fphi2(nfm(1),nfm(2),nfm(3)))
-        allocate(s_pert(n_act))
         allocate(del_m(nfm(1),nfm(2),nfm(3),7))
         allocate(del_f(nfm(1),nfm(2),nfm(3)))
         allocate(Mfm0(nfm(1),nfm(2),nfm(3),7))
         allocate(fm_s0(nfm(1),nfm(2),nfm(3)))
-        allocate(avg_sigt(nfm(1),nfm(2),nfm(3)))
-        allocate(avg_siga(nfm(1),nfm(2),nfm(3)))
-        allocate(avg_nufi(nfm(1),nfm(2),nfm(3)))
-        allocate(std_sigt(nfm(1),nfm(2),nfm(3)))
-        allocate(std_siga(nfm(1),nfm(2),nfm(3)))
-        allocate(std_nufi(nfm(1),nfm(2),nfm(3)))
         allocate(acc_sigt(n_totcyc,nfm(1),nfm(2),nfm(3)))
         allocate(acc_siga(n_totcyc,nfm(1),nfm(2),nfm(3)))
         allocate(acc_nufi(n_totcyc,nfm(1),nfm(2),nfm(3)))
@@ -140,7 +134,12 @@ subroutine PERTURBATION_KEFF(bat, k_eff,cyc)
         allocate(tmpfphi1(nfm(1),nfm(2),nfm(3)))
         tmpfphi1 = fphi1
         call FM_TRANSPOSE   ! &&&
+        t2 = omp_get_wtime()
+        if(icore==score) print *, 'TRANSPOSE', t2 - t1
+        t1 = omp_get_wtime()
         call POWER_TMP(k_pert2(1))
+        t2 = omp_get_wtime()
+        if(icore==score) print *, 'POWER_TMP', t2 - t1
         where ( fphi1 /= 0 )
             adjphi(:,:,:) = fphi1(:,:,:)
         elsewhere
@@ -148,8 +147,6 @@ subroutine PERTURBATION_KEFF(bat, k_eff,cyc)
         endwhere
         fphi1 = tmpfphi1
         deallocate(tmpfphi1)
-        t2 = omp_get_wtime()
-        if(icore==score) print *, 'T', t2 - t1
     end if
     end if
     
@@ -161,7 +158,6 @@ subroutine PERTURBATION_KEFF(bat, k_eff,cyc)
     if(iscore) write(*,*) 'TIME', cos2-cos1
 
     ! multiplication factor calculation
-    do it = maxiter, maxiter
     do mm = 1, n_pert
     if ( iscore ) then
         ! parameters
@@ -224,7 +220,6 @@ subroutine PERTURBATION_KEFF(bat, k_eff,cyc)
 !    end if
 !    end if
 
-    end do
     !write(*,*) AVG(k_pert2(1:n_pert)), PCM(STD_S(k_pert2(1:n_pert)))
     ! standard deviation
     if(iscore) then
@@ -285,111 +280,110 @@ end subroutine
 
 
 ! =============================================================================
-! 
+! EXCLUDED, SINCE THEY ARE NOT IN USE
 ! =============================================================================
-subroutine STD_FMFD_PARAMETERS(cyc)
-    implicit none
-    integer, intent(in):: cyc
-    real(8):: avg1, avg0, std1, std0, cov
+!subroutine STD_FMFD_PARAMETERS(cyc)
+!    implicit none
+!    integer, intent(in):: cyc
+!    real(8):: avg1, avg0, std1, std0, cov
+!
+!    do ii = 1, nfm(1)
+!    do jj = 1, nfm(2)
+!    do kk = 1, nfm(3)
+!        if ( fphi1(ii,jj,kk) == 0 ) cycle
+!        ! flux
+!        avg0 = AVG(acc_phi(acc_skip+1:cyc,ii,jj,kk))
+!        std0 = STD_M(acc_phi(acc_skip+1:cyc,ii,jj,kk))/avg0
+!
+!        ! total cross section
+!        avg1 = AVG(acc_sigt(acc_skip+1:cyc,ii,jj,kk))
+!        std1 = STD_M(acc_sigt(acc_skip+1:cyc,ii,jj,kk))/avg1
+!        cov  = 2D0*COV_M(acc_sigt(acc_skip+1:cyc,ii,jj,kk), &
+!               acc_phi(acc_skip+1:cyc,ii,jj,kk))/(avg0*avg1)
+!        avg_sigt(ii,jj,kk) = avg1/avg0
+!        std_sigt(ii,jj,kk) = avg_sigt(ii,jj,kk)*sqrt(std1*std1+std0*std0-cov)
+!
+!        ! absorption cross section
+!        avg1 = AVG(acc_siga(acc_skip+1:cyc,ii,jj,kk))
+!        std1 = STD_M(acc_siga(acc_skip+1:cyc,ii,jj,kk))/avg1
+!        cov  = 2D0*COV_M(acc_siga(acc_skip+1:cyc,ii,jj,kk), &
+!               acc_phi(acc_skip+1:cyc,ii,jj,kk))/(avg0*avg1)
+!        avg_siga(ii,jj,kk) = avg1/avg0
+!        std_siga(ii,jj,kk) = avg_siga(ii,jj,kk)*sqrt(std1*std1+std0*std0-cov)
+!
+!        ! fission cross section
+!        avg1 = AVG(acc_nufi(acc_skip+1:cyc,ii,jj,kk))
+!        std1 = STD_M(acc_nufi(acc_skip+1:cyc,ii,jj,kk))/avg1
+!        cov  = 2D0*COV_M(acc_nufi(acc_skip+1:cyc,ii,jj,kk), &
+!               acc_phi(acc_skip+1:cyc,ii,jj,kk))/(avg0*avg1)
+!        avg_nufi(ii,jj,kk) = avg1/avg0
+!        std_nufi(ii,jj,kk) = avg_nufi(ii,jj,kk)*sqrt(std1*std1+std0*std0-cov)
+!    end do
+!    end do
+!    end do
+!
+!end subroutine
 
-    do ii = 1, nfm(1)
-    do jj = 1, nfm(2)
-    do kk = 1, nfm(3)
-        if ( fphi1(ii,jj,kk) == 0 ) cycle
-        ! flux
-        avg0 = AVG(acc_phi(acc_skip+1:cyc,ii,jj,kk))
-        std0 = STD_M(acc_phi(acc_skip+1:cyc,ii,jj,kk))/avg0
-
-        ! total cross section
-        avg1 = AVG(acc_sigt(acc_skip+1:cyc,ii,jj,kk))
-        std1 = STD_M(acc_sigt(acc_skip+1:cyc,ii,jj,kk))/avg1
-        cov  = 2D0*COV_M(acc_sigt(acc_skip+1:cyc,ii,jj,kk), &
-               acc_phi(acc_skip+1:cyc,ii,jj,kk))/(avg0*avg1)
-        avg_sigt(ii,jj,kk) = avg1/avg0
-        std_sigt(ii,jj,kk) = avg_sigt(ii,jj,kk)*sqrt(std1*std1+std0*std0-cov)
-
-        ! absorption cross section
-        avg1 = AVG(acc_siga(acc_skip+1:cyc,ii,jj,kk))
-        std1 = STD_M(acc_siga(acc_skip+1:cyc,ii,jj,kk))/avg1
-        cov  = 2D0*COV_M(acc_siga(acc_skip+1:cyc,ii,jj,kk), &
-               acc_phi(acc_skip+1:cyc,ii,jj,kk))/(avg0*avg1)
-        avg_siga(ii,jj,kk) = avg1/avg0
-        std_siga(ii,jj,kk) = avg_siga(ii,jj,kk)*sqrt(std1*std1+std0*std0-cov)
-
-        ! fission cross section
-        avg1 = AVG(acc_nufi(acc_skip+1:cyc,ii,jj,kk))
-        std1 = STD_M(acc_nufi(acc_skip+1:cyc,ii,jj,kk))/avg1
-        cov  = 2D0*COV_M(acc_nufi(acc_skip+1:cyc,ii,jj,kk), &
-               acc_phi(acc_skip+1:cyc,ii,jj,kk))/(avg0*avg1)
-        avg_nufi(ii,jj,kk) = avg1/avg0
-        std_nufi(ii,jj,kk) = avg_nufi(ii,jj,kk)*sqrt(std1*std1+std0*std0-cov)
-    end do
-    end do
-    end do
-
-end subroutine
-
-
-
-! =============================================================================
-! 
-! =============================================================================
-subroutine PERTURB_M
-    implicit none
-    include 'mkl_vml.f90'
-    real(8):: err(1), inverr(1)
-
-    ! perturbed cross section
-    do ii = 1, nfm(1)
-    do jj = 1, nfm(2)
-    do kk = 1, nfm(3)
-        if ( fphi1(ii,jj,kk) == 0 ) cycle
-        err(1) = 2d0*rang()-1d0
-        call vderfinv(1,err,inverr)
-        fm_t(ii,jj,kk) = std_sigt(ii,jj,kk)*sqrt2*inverr(1)+avg_sigt(ii,jj,kk)
-        err(1) = 2d0*rang()-1d0
-        call vderfinv(1,err,inverr)
-        fm_a(ii,jj,kk) = std_siga(ii,jj,kk)*sqrt2*inverr(1)+avg_siga(ii,jj,kk)
-    end do
-    end do
-    end do
-    fmD = 1D0/(3D0*fm_t)
-    where( fphi1 == 0 ) fmD = 0
-
-    ! perturbed migration matrix
-!    call D_TILDA_CALCULATION   ! &&&
-!    call D_PHAT_CALCULATION
-!    call PFMFD_MATRIX
-!    if ( zigzagon ) call SET_ZERO_M
-!    del_m = Mfm-Mfm0
-
-end subroutine
 
 
 ! =============================================================================
-! 
 ! =============================================================================
-subroutine PERTURB_F(keff)
-    implicit none
-    include 'mkl_vml.f90'
-    real(8), intent(in):: keff
-    real(8):: err(1), inverr(1)
-
-    ! perturbed cross section
-    do ii = 1, nfm(1)
-    do jj = 1, nfm(2)
-    do kk = 1, nfm(3)
-        if ( fphi1(ii,jj,kk) == 0 .or. avg_nufi(ii,jj,kk) == 0 ) cycle
-        err(1) = 2d0*rang()-1d0
-        call vderfinv(1,err,inverr)
-        fm_nf(ii,jj,kk) = std_nufi(ii,jj,kk)*sqrt2*inverr(1)+avg_nufi(ii,jj,kk)
-        del_f(ii,jj,kk) = fm_nf(ii,jj,kk) - fm_avg(ii,jj,kk)%nusig_f
-    end do
-    end do
-    end do
-    where( fphi1 == 0 .or. fphi1 < 1E-13 ) fm_nf = 0
-
-end subroutine
+!subroutine PERTURB_M
+!    implicit none
+!    include 'mkl_vml.f90'
+!    real(8):: err(1), inverr(1)
+!
+!    ! perturbed cross section
+!    do ii = 1, nfm(1)
+!    do jj = 1, nfm(2)
+!    do kk = 1, nfm(3)
+!        if ( fphi1(ii,jj,kk) == 0 ) cycle
+!        err(1) = 2d0*rang()-1d0
+!        call vderfinv(1,err,inverr)
+!        fm_t(ii,jj,kk) = std_sigt(ii,jj,kk)*sqrt2*inverr(1)+avg_sigt(ii,jj,kk)
+!        err(1) = 2d0*rang()-1d0
+!        call vderfinv(1,err,inverr)
+!        fm_a(ii,jj,kk) = std_siga(ii,jj,kk)*sqrt2*inverr(1)+avg_siga(ii,jj,kk)
+!    end do
+!    end do
+!    end do
+!    fmD = 1D0/(3D0*fm_t)
+!    where( fphi1 == 0 ) fmD = 0
+!
+!    ! perturbed migration matrix
+!!    call D_TILDA_CALCULATION   ! &&&
+!!    call D_PHAT_CALCULATION
+!!    call PFMFD_MATRIX
+!!    if ( zigzagon ) call SET_ZERO_M
+!!    del_m = Mfm-Mfm0
+!
+!end subroutine
+!
+!
+!! =============================================================================
+!! 
+!! =============================================================================
+!subroutine PERTURB_F(keff)
+!    implicit none
+!    include 'mkl_vml.f90'
+!    real(8), intent(in):: keff
+!    real(8):: err(1), inverr(1)
+!
+!    ! perturbed cross section
+!    do ii = 1, nfm(1)
+!    do jj = 1, nfm(2)
+!    do kk = 1, nfm(3)
+!        if ( fphi1(ii,jj,kk) == 0 .or. avg_nufi(ii,jj,kk) == 0 ) cycle
+!        err(1) = 2d0*rang()-1d0
+!        call vderfinv(1,err,inverr)
+!        fm_nf(ii,jj,kk) = std_nufi(ii,jj,kk)*sqrt2*inverr(1)+avg_nufi(ii,jj,kk)
+!        del_f(ii,jj,kk) = fm_nf(ii,jj,kk) - fm_avg(ii,jj,kk)%nusig_f
+!    end do
+!    end do
+!    end do
+!    where( fphi1 == 0 .or. fphi1 < 1E-13 ) fm_nf = 0
+!
+!end subroutine
 
 
 ! =============================================================================
@@ -732,7 +726,7 @@ subroutine POWER_TMP (k_eff,phi2)
 
     err = ONE
     iter = 1
-!    tt0 = MPI_WTIME()
+    tt0 = omp_get_wtime()
 !    idx = 1
     if ( dual_fmfd .and. present(phi2) ) fphi1 = phi2
     do while ( ( err > 1D-9 ) .and. ( iter < iter_max ) )
@@ -748,17 +742,17 @@ subroutine POWER_TMP (k_eff,phi2)
         k_eff = k_eff*sum(fm_nf*fphi1*fm_nf*fphi1) &
                / sum(fm_nf*fphi1*fm_nf*phi0)
         !err = abs(k_eff-kpre)/k_eff
-!        if ( err < 1D-3 ) then
-!            tt1 = MPI_WTIME()
-!            print*, tt1-tt0
-!            exit
-!        end if
+        if ( err < 1D-3 ) then
+            tt1 = omp_get_wtime()
+            print*, 'CURR', tt1-tt0
+            exit
+        end if
         err = sum(abs(fphi1-phi0))/sum(fphi1)
         !print*, iter, k_eff, err
         !call CPU_TIME(tt1)
     enddo
-!    tt1 = MPI_WTIME()
-!    print*, "time", tt1-tt0
+    tt1 = omp_get_wtime()
+    print*, "time", tt1-tt0
 
     
 end subroutine 

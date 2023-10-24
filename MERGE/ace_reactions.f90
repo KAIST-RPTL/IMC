@@ -782,23 +782,23 @@ subroutine fissionSite_CE (p, iso, micro_xs)
 		
         if(do_ifp) then
         ! ADJOINT : pass particle's IFP related info. to bank
-        if(latent>1) thread_bank(bank_idx)%delayedarr(1:latent-1) = p%delayedarr(2:latent)
-        if(latent>1) thread_bank(bank_idx)%delayedlam(1:latent-1) = p%delayedlam(2:latent)
-        if(latent>1) thread_bank(bank_idx)%nlifearr(1:latent-1)   = p%nlifearr(2:latent)
-        thread_bank(bank_idx)%nlifearr(latent)    = p%trvltime
-        if(delayed) then
-            thread_bank(bank_idx)%delayedarr(latent) = iMT
-            thread_bank(bank_idx)%delayedlam(latent) = ace(iso) % prcr(iMT) % decay_const
-            thread_bank(bank_idx)%G   = iMT
-            if(do_fuel_mv) then
-                lambda = ace(iso)%prcr(iMT)%decay_const
-                thread_bank(bank_idx)%time= -log(rang())/lambda
-                call MSR_treatment(thread_bank(bank_idx)%xyz, thread_bank(bank_idx)%time)
+            if(latent>1) thread_bank(bank_idx)%delayedarr(1:latent-1) = p%delayedarr(2:latent)
+            if(latent>1) thread_bank(bank_idx)%delayedlam(1:latent-1) = p%delayedlam(2:latent)
+            if(latent>1) thread_bank(bank_idx)%nlifearr(1:latent-1)   = p%nlifearr(2:latent)
+            thread_bank(bank_idx)%nlifearr(latent)    = p%trvltime
+            if(delayed) then
+                thread_bank(bank_idx)%delayedarr(latent) = iMT
+                thread_bank(bank_idx)%delayedlam(latent) = ace(iso) % prcr(iMT) % decay_const
+                thread_bank(bank_idx)%G   = iMT
+                if(do_fuel_mv) then
+                    lambda = ace(iso)%prcr(iMT)%decay_const
+                    thread_bank(bank_idx)%time= -log(rang())/lambda
+                    call MSR_treatment(thread_bank(bank_idx)%xyz, thread_bank(bank_idx)%time)
+                endif
+            else !prompt
+                thread_bank(bank_idx)%delayedarr(latent) = 0
+                thread_bank(bank_idx)%delayedlam(latent) = 0
             endif
-        else !prompt
-            thread_bank(bank_idx)%delayedarr(latent) = 0
-            thread_bank(bank_idx)%delayedlam(latent) = 0
-        endif
         endif
     enddo 
 

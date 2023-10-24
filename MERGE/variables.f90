@@ -77,7 +77,7 @@ implicit none
 
     ! IFP ADJOINT
     logical :: do_ifp = .false.
-    integer, parameter :: latent = 10
+    integer :: latent = 0
     real(8) :: betaeff, gentime
     real(8) :: denom,  gen_numer, gen_prompt, beta_numer(8), lam_denom(8),denom_prompt
     real(8), allocatable :: betaarr(:,:), genarr(:), alphaarr(:), lamarr(:,:), betad(:,:)

@@ -124,10 +124,14 @@ module particle_header
         !integer, allocatable :: urn(:)
         real(8), allocatable :: urn(:)
         
-        ! ADJOINT : IFP related
-        integer :: delayedarr(1:latent)
-        real(8) :: delayedlam(1:latent)
-        real(8) :: nlifearr(1:latent)
+        integer, allocatable :: delayedarr(:)
+        real(8), allocatable :: delayedlam(:)
+        real(8), allocatable :: nlifearr(:)
+        
+!        ! ADJOINT : IFP related : ENABLE if parameterized
+!        integer :: delayedarr(1:latent)
+!        real(8) :: delayedlam(1:latent)
+!        real(8) :: nlifearr(1:latent)
         real(8) :: trvltime ! Traveled distance of the neutron from its born:  Modified to time
     contains
         procedure :: clear
@@ -201,29 +205,18 @@ contains
 		this % tet = 0 
 		this % tet_prev = 0
 
-        this % delayedarr(1:latent) = 0
-        this % delayedlam(1:latent) = ZERO
-        this % nlifearr(1:latent)   = ZERO
-        this % trvltime             = ZERO
+        if(do_ifp) then
+            allocate(this%delayedarr(1:latent))
+            allocate(this%delayedlam(1:latent))
+            allocate(this%nlifearr(1:latent))
+
+            this % delayedarr(1:latent) = 0
+            this % delayedlam(1:latent) = ZERO
+            this % nlifearr(1:latent)   = ZERO
+            this % trvltime             = ZERO
+        endif
         if(.not. allocated(this%urn)) then
             allocate(this % urn(1:n_unr)); this % urn = 0D0
-!            do i = 1, n_unr
-!                iso = uresiso(i) 
-!                do ierg = 1, ace(iso) % UNR % N-1
-!                    if(p%E >= ace(iso) % UNR % E(ierg) .and. &
-!                        p%E < ace(iso) % UNR % E(ierg+1)) exit
-!                enddo
-!        
-!                r = rang()
-!                column = ace(iso) % UNR % M
-!                do mm = 1, ace(iso) % UNR % M-1
-!                    if( r >= ace(iso) % UNR % P(ierg,1,mm) .and. &
-!                        r <  ace(iso) % UNR % P(ierg,1,mm+1)) column = mm
-!                enddo
-!                p % urn(i) = column
-!                
-!        !        p % urn(i) = rang()
-!            enddo
         endif
 
     end subroutine initialize

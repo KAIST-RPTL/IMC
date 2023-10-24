@@ -1503,7 +1503,8 @@ subroutine LINEATION2(fm_s)
 
     !$omp parallel do default(shared) private(ij)
     do ij = i_para0, i_para1
-        svec1(ij,:) = reshape(fm_s(ax(ij)+1:ax(ij)+fcr,ay(ij)+1:ay(ij)+fcr,az(ij)+1:az(ij)+fcz),[1])
+        !svec1(ij,:) = reshape(fm_s(ax(ij)+1:ax(ij)+fcr,ay(ij)+1:ay(ij)+fcr,az(ij)+1:az(ij)+fcz),[1])
+        svec1(ij,:) = reshape(fm_s(ax(ij)+1:ax(ij)+fcr,ay(ij)+1:ay(ij)+fcr,az(ij)+1:az(ij)+fcz),(/n_lnodes/))
     end do
     !$omp end parallel do
 

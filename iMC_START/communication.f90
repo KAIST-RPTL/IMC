@@ -62,22 +62,29 @@ end subroutine
 subroutine TH_ASSIGN_GRID
     use constants, only : K_B
     integer :: ix, iy, iz, idx
+    real(8) :: th_w
 !    t_fuel = 900d0
     
-    t_clad = 300d0 ! TODO
+    if(th_iter>0)then
+        th_w = 0.6d0
+    else
+        th_w = 1d0
+    endif
+    t_clad = 300d0 * K_B ! TODO
     
     do iz = 1, nth(3)
         do iy = 1, nth(2)
             do ix = 1, nth(1)
                 idx = ix + (iy-1) * (nth(1))  
-                t_fuel(ix, iy, iz) = t_comm_fuel(iz, idx)
+                t_fuel(ix, iy, iz) = t_comm_fuel(iz, idx) * th_w * K_B& 
+                    + t_fuel(ix, iy, iz) * (1d0-th_w)
             enddo
         enddo
         if(icore==score) then
             print *, 'ZVAL', iz, th_iter
             print *, 'FUELTEMP'
             do iy = 1, nth(2)
-                write(*,'(<nth(1)+1>F10.3)') (t_fuel(ix, iy, iz), ix = 1, nth(1))
+                write(*,'(<nth(1)+1>F10.3)') (t_fuel(ix, iy, iz)/K_B, ix = 1, nth(1))
             enddo
         endif
     enddo
@@ -85,14 +92,16 @@ subroutine TH_ASSIGN_GRID
         do iy = 1, nth(2)+1
             do ix = 1, nth(1)+1
                 idx = ix + (iy-1) * (nth(1)+1)  
-                t_bulk(ix, iy, iz) = t_comm_cool(iz, idx)
-                rho_bulk(ix,iy,iz) = rho_comm_cool(iz, idx)
+                t_bulk(ix, iy, iz) = t_comm_cool(iz, idx) * th_w * K_B&
+                    + t_bulk(ix,iy,iz) * (1d0-th_w)
+                rho_bulk(ix,iy,iz) = rho_comm_cool(iz, idx) * th_w &
+                    + rho_bulk(ix, iy, iz) * (1d0-th_w)
             enddo
         enddo
         if(icore==score) then
             print *, 'BULKTEMP', iz
             do iy = 1, nth(2)+1
-                write(*,'(<nth(1)+1>F10.3)') (t_bulk(ix, iy, iz), ix = 1, nth(1)+1)
+                write(*,'(<nth(1)+1>F10.3)') (t_bulk(ix, iy, iz)/K_B, ix = 1, nth(1)+1)
             enddo
         endif
 !            print *, 'BULKRHO'
@@ -102,9 +111,9 @@ subroutine TH_ASSIGN_GRID
 !        endif
     enddo
     
-    t_fuel = t_fuel * K_B
-    t_clad = t_clad * K_B
-    t_bulk = t_bulk * K_B
+!    t_fuel = t_fuel * K_B
+!    t_clad = t_clad * K_B
+!    t_bulk = t_bulk * K_B
 end subroutine
 
 end module communication

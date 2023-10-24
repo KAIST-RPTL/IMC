@@ -20,7 +20,6 @@ module COSAMPLING
     real(8):: k_pert2(n_pert)   ! with adjoint flux
     real(8):: k_pert3(n_pert)   ! direct calcultion
     real(8), allocatable:: p_pert(:,:,:,:)
-    real(8), allocatable:: s_pert(:)
     integer:: types, n_data
     real(8) :: corcrit = 5d-3
 
