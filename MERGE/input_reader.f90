@@ -1719,9 +1719,9 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ifp
 
-                case("LATENT")
-                    backspace(File_Number)
-                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, latent
+!                case("LATENT")
+!                    backspace(File_Number)
+!                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, latent
 
 				case("FUEL_SPEED_AXIAL")
                     backspace(File_Number)

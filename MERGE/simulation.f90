@@ -1270,10 +1270,12 @@ subroutine bank_initialize(this)
         found         = .false.
         this(i) % uvw = rand_vec()
 
-        ! Initialize for Latent
-        allocate( this(i) % delayedarr(1:latent) )
-        allocate( this(i) % delayedlam(1:latent) )
-        allocate( this(i) %   nlifearr(1:latent) )
+!        ! Initialize for Latent
+!        if(do_ifp .and. latent > 0) then
+!            allocate( this(i) % delayedarr(1:latent) )
+!            allocate( this(i) % delayedlam(1:latent) )
+!            allocate( this(i) %   nlifearr(1:latent) )
+!        endif
         
         ! multigroup MC
         if (E_mode == 0) then

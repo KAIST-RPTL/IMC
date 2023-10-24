@@ -13,13 +13,13 @@ module bank_header
 		real(8) :: time
 		real(8) :: beta(1:8)
 		real(8) :: lambda(1:8)
-        integer, allocatable :: delayedarr(:)
-        real(8), allocatable :: delayedlam(:), nlifearr(:)
+!        integer, allocatable :: delayedarr(:)
+!        real(8), allocatable :: delayedlam(:), nlifearr(:)
         
         ! In case of latent is defined as 'parameter'
-!        integer :: delayedarr(1:latent)
-!        real(8) :: delayedlam(1:latent)
-!        real(8) :: nlifearr(1:latent)
+        integer :: delayedarr(1:latent)
+        real(8) :: delayedlam(1:latent)
+        real(8) :: nlifearr(1:latent)
       contains 
     end type Bank
     
@@ -32,13 +32,13 @@ module bank_header
 		real(8) :: time
 		real(8) :: beta(1:8)
 		real(8) :: lambda(1:8)
-        integer, allocatable :: delayedarr(:)
-        real(8), allocatable :: delayedlam(:), nlifearr(:)
+!        integer, allocatable :: delayedarr(:)
+!        real(8), allocatable :: delayedlam(:), nlifearr(:)
         
         ! In case of latent is defined as 'parameter'
-!        integer :: delayedarr(1:latent)
-!        real(8) :: delayedlam(1:latent)
-!        real(8) :: nlifearr(1:latent)
+        integer :: delayedarr(1:latent)
+        real(8) :: delayedlam(1:latent)
+        real(8) :: nlifearr(1:latent)
     end type PrecBank
 	
 	

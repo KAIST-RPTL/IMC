@@ -205,16 +205,16 @@ contains
 		this % tet = 0 
 		this % tet_prev = 0
 
-        if(do_ifp) then
-            allocate(this%delayedarr(1:latent))
-            allocate(this%delayedlam(1:latent))
-            allocate(this%nlifearr(1:latent))
-
-            this % delayedarr(1:latent) = 0
-            this % delayedlam(1:latent) = ZERO
-            this % nlifearr(1:latent)   = ZERO
-            this % trvltime             = ZERO
-        endif
+!        if(do_ifp) then
+!            allocate(this%delayedarr(1:latent))
+!            allocate(this%delayedlam(1:latent))
+!            allocate(this%nlifearr(1:latent))
+!
+!            this % delayedarr(1:latent) = 0
+!            this % delayedlam(1:latent) = ZERO
+!            this % nlifearr(1:latent)   = ZERO
+!            this % trvltime             = ZERO
+!        endif
         if(.not. allocated(this%urn)) then
             allocate(this % urn(1:n_unr)); this % urn = 0D0
         endif
@@ -238,10 +238,12 @@ contains
         this % time              = source % time
         !this % ep                = source % ep
 		
-        this % delayedarr  = source % delayedarr
-        this % delayedlam  = source % delayedlam
-        this % nlifearr    = source % nlifearr
-        this % trvltime          = 0.D0
+        if(do_ifp)then
+            this % delayedarr  = source % delayedarr
+            this % delayedlam  = source % delayedlam
+            this % nlifearr    = source % nlifearr
+            this % trvltime          = 0.D0
+        endif
 
         ! MSR
         !if(source%delayed) print *, 'PREC', source%xyz(1:3), source%G, this%wgt

@@ -154,8 +154,8 @@ subroutine premc
 
     allocate(source_bank(ngen))
     call bank_initialize(source_bank)
-	call MPI_banktype()
-	call MPI_precbanktype()
+	call MPI_banktype_ifp()
+	call MPI_precbanktype_ifp()
 	!call MPI_vrcbanktype()
 	
     !===========================================================================
