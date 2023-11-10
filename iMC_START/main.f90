@@ -298,7 +298,7 @@ TH : do
             end do
             end do
             end do
-            call DET_POWER(ttemp(:,:,:))
+            if(fmfdon) call DET_POWER(ttemp(:,:,:))
             
             call POWER_NORM_START
             if(icore==score) then

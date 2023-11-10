@@ -38,6 +38,7 @@ contains
 !===============================================================================
 
 subroutine transport(p)
+    implicit none
 
     type(Particle), intent(inout) :: p
     
@@ -104,8 +105,6 @@ subroutine transport(p)
     !> Surface distance(boundary)
     call distance_to_boundary(p, d_boundary, surface_crossed)
     !> Sample distances from special boundaries in univ 0
-!    i_cell = p % coord(1) % cell
-!    call cell_distance(cells(i_cell), p%coord(1)%xyz, p%coord(1)%uvw, surfaces, d_s, idx_surf)
 	
 	
 	val = 1.0d0
@@ -227,14 +226,16 @@ subroutine transport(p)
         if(do_ifp)then
             ! ADJOINT related
             ! Effective beta calc.
-            !$omp critical
+            !$omp atomic
             denom= denom + distance*p%wgt*macro_xs(4)
+            !$omp atomic
             gen_numer = gen_numer + distance*p%wgt*p%nlifearr(1)*macro_xs(4)
             if(p%delayedarr(1)>0) then
+                !$omp atomic
                 beta_numer(p%delayedarr(1)) = beta_numer(p%delayedarr(1)) + distance*p%wgt*macro_xs(4)
+                !$omp atomic
                 lam_denom(p%delayedarr(1))  = lam_denom(p%delayedarr(1)) + distance*p%wgt*macro_xs(4)/p%delayedlam(1)
             endif
-            !$omp end critical
         endif
     endif 
 
@@ -263,17 +264,13 @@ subroutine transport(p)
     enddo
 	
     if ( distance == d_collision ) then ! collision 
-		
 		if (do_PCQS .and. curr_cyc > n_inact) n_col = n_col + 1 
-		
         if ( fmfdon .and. inside_mesh ) then
         call FMFD_COL(p%wgt,macro_xs,i_xyz)
         if ( DTMCBU .and. curr_cyc > acc_skip ) &
         call DTMC_BU_COL(i_xyz,cells(i_cell)%dtmc,p%wgt/macro_xs(1),macro_xs(5))
         end if
-		
 		p%tet_face = 0 
-		
         if (E_mode == 0) then 
             call collision_MG(p)
         else !(E_mode == 1) 

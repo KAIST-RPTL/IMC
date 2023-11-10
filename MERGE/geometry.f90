@@ -4,7 +4,6 @@ module geometry
     use geometry_header
     use particle_header
     use omp_lib
-
     implicit none
     
     
@@ -46,7 +45,7 @@ module geometry
         type(Cell), intent(in) :: c
         real(8),    intent(in) :: xyz(3)
         logical :: in_cell
-        integer :: i,j, n 
+        integer :: i, j, n 
         
         if (c%operand_flag >= 0) then   !> and 
             in_cell = .true.
@@ -313,7 +312,6 @@ module geometry
                 call lat_distance(lattices(p % coord(j) % lattice), surfaces, p % coord(j) % xyz, &
                                     p % coord(j) % uvw, i_xyz, dist_temp, idx_surf)
                 if (dist_temp < p % coord(j) % dist) p % coord(j) % dist = dist_temp
-                
             endif 
             
             
@@ -371,15 +369,13 @@ module geometry
         !call find_cell(p, found)
         if (surfaces(surface_crossed)%bc == 1) then     !> Vacuum BC
             p % alive = .false.
-			return 
+            return 
         elseif (surfaces(surface_crossed)%bc == 2) then !> Reflective BC 
             
-			uvw = p%coord(1)%uvw
+            uvw = p%coord(1)%uvw
             call reflective_bc(p%coord(1)%uvw, p%coord(1)%xyz, surface_crossed)
-			
             p % n_coord = 1
             p % coord(1) % xyz(:) = p % coord(1) % xyz(:) - 100*TINY_BIT * uvw
-			
             !p%last_material = p%material
             !p % coord(1) % xyz = p % coord(1) % xyz + TINY_BIT * p % coord(1) % uvw
         else
@@ -552,7 +548,7 @@ module geometry
                 
         if ( found ) then
             associate(c => cells(i_cell))
-                CELL_TYPE: if (c % fill_type() == FILL_MATERIAL) then
+                CELL_TYPE: if (c % filltype == FILL_MATERIAL) then
                     ! ======================================================================
                     ! AT LOWEST UNIVERSE, TERMINATE SEARCH
                     !print *, 'FILL_MATERIAL : ', c%cell_id,  c%mat_idx
@@ -561,7 +557,7 @@ module geometry
                         cell_idx = i_cell
                     endif
                     
-                elseif (c % fill_type() == FILL_UNIVERSE) then CELL_TYPE
+                elseif (c % filltype == FILL_UNIVERSE) then CELL_TYPE
                     ! ======================================================================
                     ! CELL CONTAINS LOWER UNIVERSE, RECURSIVELY FIND CELL
                     !print *, 'FILL_UNIVERSE : ', universes(universes%find_idx(c % fill))%univ_id
@@ -581,7 +577,7 @@ module geometry
                     call find_cell_xyz(xyz, idx_univ, cell_idx)
             
             
-                elseif (c % fill_type() == FILL_LATTICE) then CELL_TYPE
+                elseif (c % filltype == FILL_LATTICE) then CELL_TYPE
                     ! ======================================================================
                     ! CELL CONTAINS LATTICE, RECURSIVELY FIND CELL
                     !print *, 'FILL_LATTICE : ', lattices(lattices%find_idx(c % fill))%lat_id 

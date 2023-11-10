@@ -92,6 +92,19 @@ implicit none
     integer :: n_core_axial, n_core_radial
     real(8), allocatable :: core_prec(:,:,:)
     integer :: MSR_leak, MSR_leak0
+
+    ! MODIFIED ( Oct. 29 2023 )
+    ! Modified for RZ
+
+    integer :: nr, nz
+    real(8) :: axial_axis(2)
+    real(8), allocatable :: velocity_r(:,:), velocity_z(:,:) !> nr, nz
+    real(8), allocatable :: &
+        active_r(:), active_z(:) !> nr+1, nz+1 sized
+    real(8) :: riser_r
+    real(8) :: t_recirc
+    
+
 	
     !==============================================================================
     ! MPI parameters 

@@ -71,6 +71,7 @@ subroutine simulate_history(bat,cyc)
     real(8) :: adj_sum, totwgt
     real(8) :: t_fm1, t_fm2
 
+    MSR_leak = 0d0
     if (allocated(fission_bank)) call move_alloc(fission_bank, source_bank)
     if ( icore == score ) then
         call SHENTROPY(source_bank)
@@ -290,7 +291,7 @@ subroutine simulate_history(bat,cyc)
         alphaarr(curr_cyc-n_inact-latent) = &
                 -betaarr(curr_cyc-n_inact-latent,0)/genarr(curr_cyc-n_inact-latent)
         !alphaarr(curr_cyc-n_inact-latent)= -sum(betaarr(curr_cyc-n_inact-latent,1:8))/gen_prompt*denom_prompt
-        write(prt_adjoint,*) 'GENAlpha', genarr(curr_cyc-n_inact-latent), alphaarr(curr_cyc-n_inact-latent)
+        write(prt_adjoint,*) 'GENAlpha', genarr(curr_cyc-n_inact-latent), alphaarr(curr_cyc-n_inact-latent), gen_numer, denom
         write(prt_adjoint,*) 'TOTAL', (betaarr(curr_cyc-n_inact-latent,0)), (lamarr(curr_cyc-n_inact-latent,0))
         do i = 1,8
             write(prt_adjoint,*) i,betaarr(curr_cyc-n_inact-latent,i), lamarr(curr_cyc-n_inact-latent,i)
@@ -364,6 +365,7 @@ subroutine simulate_history(bat,cyc)
     !> Normalize source weight  =================================================
     isize = size(fission_bank)
     fission_bank(:)%wgt = real(ngen,8)/real(isize,8)
+    if(do_fuel_mv) fission_bank(:)%wgt = real(ngen,8) / real(isize+MSR_leak,8)	
 	fission_bank(:)%time = 0 
 	
     !> Normalize tally (flux & power) ===========================================
@@ -1461,7 +1463,7 @@ end subroutine
 		
 		write(*,'(a30,i1,a3,i1,a1)', advance='no')  "    Making ppm image file... (" , i_plot, " / ", n_plot, ")"
 		! output image into file 
-		call im%write("fig.ppm")
+		call im%write(plottitle)
 		!call system("python /home/guest/HyeonTae/src_temp/15_Test/src_merge2/convert_ppm_to_jpg.py")
 		!call system("python /home/guest/inyup/03_ENDF_test/src_merge2/convert_ppm_to_jpg.py")
 		!call system("mv fig.jpg "//trim(plotlist(i_plot))//".jpg") 

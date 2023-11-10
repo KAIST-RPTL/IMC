@@ -473,7 +473,7 @@ subroutine getiueg(erg, ierg)
         return
     endif
 
-    pt1 = unigrid(uidx-1)
+    pt1 = max(unigrid(uidx-1), 1)
     pt2 = min(unigrid(uidx)+1,nueg)
 
     if(ueggrid(pt1) > erg) print *,'LO', ueggrid(pt1), int(log10(erg/ueggrid(1))/unidel), erg
@@ -509,7 +509,6 @@ subroutine setugrid
 
     if(E_mode==0) return
     !Set ugrid to accelerate energy-grid search
-    Emin = 1.d-11
     allocate(ugrid(0:nugrid,1:num_iso))
     !print *, 'ugrid size', nugrid, num_iso
     do iso_ = 1, num_iso
@@ -517,7 +516,9 @@ subroutine setugrid
       ugrid(nugrid,iso_) = ace(iso_)%nxs(3)
     end do
 
-    udelta = log10((Emax+1E-9)/Emin)/dble(nugrid)
+    Emin = 1d-11
+    udelta = log10((Emax+Emin*5d-1)/Emin)/dble(nugrid)
+    print *, 'Em', Emax, Emin
 
     do iso_ = 1, num_iso
       idx = 1
@@ -544,7 +545,7 @@ subroutine setuegrid
     integer :: totngrid
     integer :: i, j, k, iso_, idx
     integer :: pt1
-    real(8), allocatable :: tmpgrid(:)
+    real(8), allocatable :: tmpgrid(:), tmpgrid_2(:)
 
     if(E_mode==0) return
     totngrid = 0
@@ -587,20 +588,28 @@ subroutine setuegrid
     call QUICKSORT(tmpgrid,1,totngrid)
 
     ! 2. COLLECT UNIQUEs
-    allocate(ueggrid(0:totngrid))
+    allocate(tmpgrid_2(0:totngrid))
     idx = 1
-    ueggrid(0)   = 0d0
-    ueggrid(idx) = tmpgrid(1)
+    tmpgrid_2(0)   = 0d0
+    tmpgrid_2(idx) = tmpgrid(1)
     do i = 2, totngrid
-        if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<UEGMAX &
+        if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<Emax &
             )then
-            !.and. tmpgrid(i)-tmpgrid(i-1)>=5E-5*tmpgrid(i-1)) then
             idx = idx + 1
-            ueggrid(idx) = tmpgrid(i)
+            tmpgrid_2(idx) = tmpgrid(i)
         endif
     enddo
     nueg    = idx
-    ueggrid = ueggrid(1:nueg)
+    allocate(ueggrid(0:nueg))
+    ueggrid(0:nueg) = tmpgrid_2(0:nueg)
+
+    deallocate(tmpgrid, tmpgrid_2)
+
+    open(502, file='ueg.out', action='write', status='unknown')
+    if(icore==score)print *, 'NUEG', nueg
+    do i = 1, nueg
+        write(502, *) i, ueggrid(i), log(ueggrid(i))
+    enddo
 
     ! 3. SETUP HASH TABLE
     !   NUNI = len(UNIGRID)
@@ -613,7 +622,7 @@ subroutine setuegrid
     unigrid(0) = 0
     do i = 1, nuni-1
         Etmp = Emin * 1d1 ** (dble(i) * unidel)
-        if(Etmp > nueg) then
+        if(Etmp > ueggrid(nueg)) then
             idx = nuni
             goto 22
         endif
@@ -624,12 +633,105 @@ subroutine setuegrid
 22      unigrid(i) = idx - 1
         if(icore==score) print *, 'hash', i, unigrid(i), Etmp
     enddo
-    unigrid(nuni) = UEGMAX
+    unigrid(nuni) = Emax
 
     if(icore==score) print *, 'NUNI:',nuni,'UNIDEL:',unidel,Emin,Emax
 
     if(icore==score) write(*,'(A,I8,A)') '   UNIONIZED GRID SET: ', nueg, 'grids'
 end subroutine
+
+!subroutine setuegrid
+!    implicit none
+!    real(8) :: Etmp
+!    integer :: totngrid
+!    integer :: i, j, k, iso_, idx
+!    integer :: pt1
+!    real(8), allocatable :: tmpgrid(:)
+!
+!    if(E_mode==0) return
+!    totngrid = 0
+!    !Set ugrid to accelerate energy-grid search
+!    Emin = 1.d-11
+!    !print *, 'ugrid size', nugrid, num_iso
+!    do iso_ = 1, num_iso
+!      totngrid = totngrid + ace(iso_)%NXS(3)
+!      if(ace(iso_) % UNR % URES) & ! URR case
+!          totngrid = totngrid + ace(iso_) % UNR % N
+!    end do
+!
+!    ! SAB case !TODO
+!!    if(sab_iso /= 0) then
+!!        do iso_ = 1, sab_iso
+!!            totngrid = totngrid + sab(iso_) % NXS(3)
+!!        enddo
+!!    endif
+!    allocate(tmpgrid(1:totngrid)); pt1 = 1
+!
+!    udelta = log10((Emax+1E-9)/Emin)/dble(nugrid)
+!
+!    do iso_ = 1, num_iso
+!      tmpgrid(pt1:pt1-1+ace(iso_)%NXS(3)) = ace(iso_) % E(:)
+!      pt1 = pt1 + ace(iso_)%NXS(3)
+!      
+!      !URES
+!      if(ace(iso_) % UNR % URES) then
+!          tmpgrid(pt1:pt1-1+ace(iso_)%UNR%N) = ace(iso_) % UNR % E(:)
+!          pt1 = pt1 + ace(iso_) % UNR % N
+!      endif
+!
+!      !SAB !TODO
+!    enddo
+!
+!    if(icore==score) print *, "   Setting UNIONIZED GRID..."
+!
+!    ! SORT and COLLIDE UEGGRID 
+!    ! 1. SORT
+!    call QUICKSORT(tmpgrid,1,totngrid)
+!
+!    ! 2. COLLECT UNIQUEs
+!    allocate(ueggrid(0:totngrid))
+!    idx = 1
+!    ueggrid(0)   = 0d0
+!    ueggrid(idx) = tmpgrid(1)
+!    do i = 2, totngrid
+!        if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<UEGMAX &
+!            )then
+!            !.and. tmpgrid(i)-tmpgrid(i-1)>=5E-5*tmpgrid(i-1)) then
+!            idx = idx + 1
+!            ueggrid(idx) = tmpgrid(i)
+!        endif
+!    enddo
+!    nueg    = idx
+!    ueggrid = ueggrid(1:nueg)
+!
+!    ! 3. SETUP HASH TABLE
+!    !   NUNI = len(UNIGRID)
+!    Emin = ueggrid(1); Emax = ueggrid(nueg)
+!    unidel = log10((Emax+Emin*1d-1)/Emin)/dble(nuni)
+!
+!    allocate(unigrid(0:nuni))
+!
+!    idx = 1
+!    unigrid(0) = 0
+!    do i = 1, nuni-1
+!        Etmp = Emin * 1d1 ** (dble(i) * unidel)
+!        if(Etmp > nueg) then
+!            idx = nuni
+!            goto 22
+!        endif
+!        do
+!            if(Etmp < ueggrid(idx)) goto 22
+!            idx = idx + 1
+!        enddo
+!22      unigrid(i) = idx - 1
+!        if(icore==score) print *, 'hash', i, unigrid(i), Etmp
+!    enddo
+!    unigrid(nuni) = UEGMAX
+!
+!    if(icore==score) print *, 'NUNI:',nuni,'UNIDEL:',unidel,Emin,Emax
+!
+!    if(icore==score) write(*,'(A,I8,A)') '   UNIONIZED GRID SET: ', nueg, 'grids'
+!end subroutine
 
 ! =============================================================================
 ! GET_SAB_MAC
@@ -1358,9 +1460,7 @@ type(AceFormat), pointer :: ac
 !        ! 2) NuFiss XS and Q Fiss XS
         do i = 1, nueg
             ac % UEG % signuf(i) = ac % UEG % sigf (i) * getnu(iso, ueggrid(i))
-!            ac % UEG % sigqf(i)  = ac % UEG % sigf (i) * ac % qval
         enddo
-        !if(icore==score) print *, 'Fission XS for ', ace(iso) % xslib
         endif
         
         if(allocated(ac % sigel)) then
@@ -1376,93 +1476,7 @@ type(AceFormat), pointer :: ac
             ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
             ac % UEG % sigel(i) = (ac % sigel( ac % UEG % Egrid(i)) + (ac % sigel( ac % UEG % Egrid(i)+1 ) - ac % sigel(ac % UEG % Egrid(i) )) * ipfac)
         enddo
-        !if(icore==score) print *, 'Elastic XS for ', ace(iso) % xslib
         endif
-
-!        do r = 1, ac%NXS(4)
-!            select case(ac % MT(r))
-!            case(N_2N) ! (n,2n)
-!                allocate(ac%UEG%sig2n(1:nueg))
-!                !ac % UEG % sig2n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
-!                ac % UEG % sig2n = 0d0
-!                do i = 1, nueg-1
-!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
-!                        ac % UEG % sig2n(i) = (ac % sig_MT(r) % cx(1))
-!                        cycle
-!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
-!                        ac % UEG % sig2n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
-!                        exit
-!                    endif
-!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
-!                    ac % UEG % sig2n(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
-!                enddo
-!                !if(icore==score) print *, '(n,2n) XS for ', ace(iso) % xslib
-!            case(N_3N) ! (n,3n)
-!                allocate(ac%UEG%sig3n(1:nueg))
-!                !ac % UEG % sig3n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
-!                ac % UEG % sig3n = 0d0
-!                do i = 1, nueg-1
-!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
-!                        ac % UEG % sig3n(i) = (ac % sig_MT(r) % cx(1))
-!                        cycle
-!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
-!                        ac % UEG % sig3n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
-!                        exit
-!                    endif
-!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
-!                    ac % UEG % sig3n(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
-!                enddo
-!                !if(icore==score) print *, '(n,3n) XS for ', ace(iso) % xslib
-!            case(N_4N) ! (n,4n)
-!                allocate(ac%UEG%sig4n(1:nueg))
-!                !ac % UEG % sig4n = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
-!                ac % UEG % sig4n = 0d0
-!                do i = 1, nueg-1
-!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
-!                        ac % UEG % sig4n(i) = (ac % sig_MT(r) % cx(1))
-!                        cycle
-!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
-!                        ac % UEG % sig4n(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
-!                        exit
-!                    endif
-!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
-!                    ac % UEG % sig4n(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
-!                enddo
-!                !if(icore==score) print *, '(n,4n) XS for ', ace(iso) % xslib
-!            case(N_P) ! (n,p)
-!                allocate(ac%UEG%sigp(1:nueg))
-!                !ac % UEG % sigp = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
-!                ac % UEG % sigp = 0d0
-!                do i = 1, nueg-1
-!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
-!                        ac % UEG % sigp(i) = (ac % sig_MT(r) % cx(1))
-!                        cycle
-!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
-!                        ac % UEG % sigp(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
-!                        exit
-!                    endif
-!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
-!                    ac % UEG % sigp(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
-!                enddo
-!                !if(icore==score) print *, '(n,)a XS for ', ace(iso) % xslib
-!            case(N_A) ! (n,al)
-!                allocate(ac%UEG%sigal(1:nueg))
-!                !ac % UEG % sigal = (ac % sig_MT(r) % cx ( ac % NXS(3) ))
-!                ac % UEG % sigal = 0d0
-!                do i = 1, nueg-1
-!                    if( ac % UEG % Egrid(i) == 0 ) then ! For Non-defined XS...
-!                        ac % UEG % sigal(i) = (ac % sig_MT(r) % cx(1))
-!                        cycle
-!                    elseif ( ac % UEG % Egrid(i) == ac % NXS(3) ) then ! For Upper
-!                        ac % UEG % sigal(i:nueg) = ac % sig_MT(r) % cx(ac % NXS(3))
-!                        exit
-!                    endif
-!                    ipfac = max(0D0,min(1D0,(ueggrid(i)-ac % E ( ac % UEG % Egrid(i)) )/( ac % E(ac % UEG % Egrid(i)+1) - ac % E(ac % UEG % Egrid(i)) )))
-!                    ac % UEG % sigal(i) = (ac % sig_MT(r) % cx( ac % UEG % Egrid(i)) + (ac % sig_MT(r) % cx ( ac % UEG % Egrid(i)+1 ) - ac % sig_MT(r) % cx(ac % UEG % Egrid(i) )) * ipfac)
-!                enddo
-!            case default
-!            endselect
-!        enddo
         if(icore==score) write(*,'(A,A,I4,A,I4)') '   UEG XS set for ', trim(ace(iso) % xslib), iso, '/', num_iso
     enddo
     !$OMP END PARALLEL DO

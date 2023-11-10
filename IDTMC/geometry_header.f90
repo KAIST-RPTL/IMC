@@ -147,7 +147,6 @@ module geometry_header
     ! lattice geometry 
     !===============================================================================
     function lattice_coord (this, xyz0) result(coord_lat)
-        !use variables, only: latidx
         implicit none
         type(Lattice) :: this                !> targetted lattice object
         real(8), dimension(3) :: xyz0         !> xyz position of particle in the universe
@@ -306,7 +305,6 @@ module geometry_header
         integer :: i, n, idx_surf
         
         d_surf = INFINITY; idx_surf = 0 
-        
         n = size(this%pos_surf_idx)
         do i = 1, n
             call surf_select(surflist(this%pos_surf_idx(i)),xyz, uvw, d_temp) 
@@ -335,7 +333,7 @@ module geometry_header
         real(8), intent(in) :: xyz(3), uvw(3)
         real(8) :: xyz_(3)
         real(8) :: d_surf, d_temp
-        integer :: i,j, ix, iy, iz, dxyz(3), nxyz(3)
+        integer :: i,j,k, ix, iy, iz, dxyz(3), nxyz(3)
         integer :: idx_temp, idx_surf
 		real(8) :: dist(2)
         integer :: idx(2)

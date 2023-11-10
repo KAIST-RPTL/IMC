@@ -4,7 +4,6 @@ module geometry
     use geometry_header
     use particle_header
     use omp_lib
-    
     implicit none
     
     
@@ -152,8 +151,8 @@ module geometry
                     
                     if ( p%material == 0 ) then 
                         p%alive = .false. 
-                    else 
-                        p%alive = .true. 
+					else 
+						p%alive = .true. 
                     endif
                     
                     if ( present(cell_idx) ) cell_idx = i_cell
@@ -370,15 +369,13 @@ module geometry
         !call find_cell(p, found)
         if (surfaces(surface_crossed)%bc == 1) then     !> Vacuum BC
             p % alive = .false.
-            return
+            return 
         elseif (surfaces(surface_crossed)%bc == 2) then !> Reflective BC 
             
             uvw = p%coord(1)%uvw
             call reflective_bc(p%coord(1)%uvw, p%coord(1)%xyz, surface_crossed)
-            
             p % n_coord = 1
             p % coord(1) % xyz(:) = p % coord(1) % xyz(:) - 100*TINY_BIT * uvw
-            
             !p%last_material = p%material
             !p % coord(1) % xyz = p % coord(1) % xyz + TINY_BIT * p % coord(1) % uvw
         else

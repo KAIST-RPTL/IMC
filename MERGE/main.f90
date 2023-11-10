@@ -31,6 +31,7 @@ real(8), allocatable :: ttemp(:,:,:)
 real(8) :: erg, ipfac
 character(100) :: filename
 real(8) :: kavg, kstd
+character(80) :: dfile, dfile1
 
 !> Preparation for parallelization ===============================================
 !call omp_set_num_threads(14)
@@ -533,7 +534,7 @@ if ( icore==score ) then
 
     write(*,*)
     write(*,*)
-    write(*,10), '  > Num of Threads per Node   ', omp_get_num_threads()
+    write(*,10), '  > Num of Threads per Node   ', omp_get_max_threads()
     write(*,10), '  > Num of MPI Nodes          ', ncore
     write(*,10), '  > Num of Histories per Cycle', ngen
     write(*,11), '  > Skip Cycles:',n_inact , &
@@ -715,8 +716,6 @@ if ( icore == score ) then
         write(prt_adjoint,12), 'BETAOG',i,PCM(AVG(betad(i,1:n_act))),'+/-',PCM(STD_M(betad(i,1:n_act))),' scale:1E-5'
     enddo
 
-    print *, 'GEN', genarr, size(genarr)
-    print *, 'BET', betaarr(1:n_act-latent,0)
 endif
     10 format(A,F10.3,A4,F8.2,A4)
     11 format(A,F10.6,A4,F8.3)
@@ -731,103 +730,359 @@ end if
 
 end subroutine
 
+subroutine CYCLE_TALLY_MSG(bat)
+    use tally, only: MC_tally
+    use TH_HEADER, only: th_on, t_fuel, t_bulk
+    use FMFD_HEADER, only: p_dep_mc, p_dep_dt, k_real, p_dep_dt_pert
+    use MATERIAL_HEADER, only: materials, n_materials
+    use PERTURBATION, only: perton
+    use COSAMPLING, only: n_pert
+    implicit none
+    integer, intent(in):: bat
+    integer:: cc, mm, nn, rr, ci
+    real(8), allocatable:: zavgf(:,:,:,:), zavgp(:,:,:,:)  ! (c,i,j,r)
+    integer:: nsum
+    real(8):: vsum
+    logical:: yes
+
+    if ( icore /= score ) return
+    if ( .not. (fmfdon .or. tallyon)) return
+
+    ! multiplication factor
+    if ( fmfdon .and. bat /= 0 ) then
+        write(*,*)
+        write(*,*), "   DTMC keff"
+        do ii = 1, n_inact
+            write(*,10), ii, k_fmfd(bat,ii)
+        end do
+        do ii = n_inact+1, n_totcyc
+            if ( ii == n_totcyc ) then
+            if ( preco == 1 ) then
+                ! predictor
+                if ( porc == 1 ) then
+                write(*,11), ii, k_fmfd(bat,ii), AVG(k_fmfd(bat,n_inact+1:ii)), &
+                        PCM(STD_M(k_fmfd(bat,n_inact+1:ii))), "iDTMC (predictor)"
+    
+                ! corrector
+                elseif ( porc == 2 ) then
+                write(*,11), ii, k_fmfd(bat,ii), AVG(k_fmfd(bat,n_inact+1:ii)), &
+                        PCM(STD_M(k_fmfd(bat,n_inact+1:ii))), "iDTMC (corrector)"
+    
+                end if
+            else
+                write(*,11), ii, k_fmfd(bat,ii), AVG(k_fmfd(bat,n_inact+1:ii)), &
+                        PCM(STD_M(k_fmfd(bat,n_inact+1:ii))), "iDTMC"
+            end if
+            else
+            write(*,12), ii, k_fmfd(bat,ii), AVG(k_fmfd(bat,n_inact+1:ii)), &
+                        PCM(STD_M(k_fmfd(bat,n_inact+1:ii)))
+            end if
+        end do
+        if(perton) then
+            do ii = n_inact+1,n_totcyc
+                write(*,'(A,I5,I5,F10.6,F10.2)') 'REAL', istep_burnup, ii-n_inact, &
+                    AVG(k_real(bat,ii,1:n_pert)), &
+                    PCM(STD_S(k_real(bat,ii,1:n_pert)))
+            enddo
+            write(*,*)
+        endif
+    end if
+
+    if ( bat == n_batch ) then
+    ! power distribution normalization
+        if ( tallyon ) &
+            call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
+        if ( fmfdon ) &
+            call NORM_DIST(p_fmfd(1:n_batch,1:n_act,:,:,:))
+    end if
+
+    ! computing time
+    !if ( bat == 1 .and. .not. do_burn ) then
+
+    t_MC = t_tot - t_det
+    write(*,*)
+    write(*,*), "   Computing time"
+    do ii = 1, n_totcyc
+        write(*,15), ii, AVG(t_MC(1:,ii)), AVG(t_det(1:,ii)), AVG(t_tot(1:,ii))
+    end do
+    write(*,*)
+    !end if
+
+
+    ! bunrup dependent pin power distribution
+    if ( DO_BURN ) then
+    if ( DTMCBU .and. .not. MCBU ) then
+        if ( istep_burnup == 0 ) then
+        ! find if the file exists
+            nsum = 0
+            dfile = 'dep_dt0.out'
+            do
+                inquire(file=trim(dfile),exist=yes)
+                if ( yes ) then
+                    nsum = nsum + 1
+                    if ( nsum < 10 ) then
+                        write(dfile,'(a,i1,a)'), 'dep_dt',nsum,'.out'
+                    else
+                        write(dfile,'(a,i2,a)'), 'dep_dt',nsum,'.out'
+                    end if
+            
+                else
+                    exit
+                end if
+            end do
+            ! open a new file
+            open(46,file=trim(dfile))
+            close(46)
+        end if
+        ! parameter generation
+        do ii = 1, n_act
+        ! --- average
+            do jj = 1, nfm(1)
+                do kk = 1, nfm(2)
+                    p_dep_dt(ii,jj,kk,1) = AVG(p_dep_dt(ii,jj,kk,1:nfm(3)))
+                    if(.not. perton) cycle
+                    do mm = 1,n_pert
+                        p_dep_dt_pert(ii,mm,jj,kk,1) = &
+                            AVG(p_dep_dt_pert(ii,mm,jj,kk,1:nfm(3)))
+                    enddo
+                end do
+            end do
+            ! --- summation
+            vsum = 0; nsum = 0
+            do jj = 1, nfm(1)
+                do kk = 1, nfm(2)
+                    if ( isnan(p_dep_dt(ii,jj,kk,1)) ) cycle
+                    nsum = nsum + 1
+                    vsum = vsum + p_dep_dt(ii,jj,kk,1)
+                end do
+            end do
+            p_dep_dt(ii,:,:,1) = p_dep_dt(ii,:,:,1)*nsum/dble(vsum)
+            
+            if(perton) then
+            vsum = 0; nsum = 0
+            do jj = 1, nfm(1)
+                do kk = 1, nfm(2)
+                    if ( isnan(sum(p_dep_dt_pert(ii,:,jj,kk,1))) ) cycle
+                    nsum = nsum + n_act
+                    vsum = vsum + sum(p_dep_dt_pert(ii,:,jj,kk,1))
+                end do
+            end do
+            endif
+            p_dep_dt_pert(ii,:,:,:,1) = p_dep_dt_pert(ii,:,:,:,1)*nsum/dble(vsum)
+        
+        end do
+
+        open(46,file=trim(dfile),access='append',status='old')
+        do jj = nfm(2), 1, -1
+            write(46,1), (AVG(p_dep_dt(1:n_act,ii,jj,1)), ii = 1, nfm(1))
+        end do
+        write(46,*)
+        
+        if (perton) then
+            write(*,*) 'PERTURBED AVG'
+            do jj = nfm(2), 1, -1
+                write(46,1), (AVG(p_dep_dt_pert(1,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
+            end do
+            write(46,*)
+            do jj = nfm(2), 1, -1
+                write(46,1), (AVG(p_dep_dt_pert(n_act,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
+            end do
+            write(46,*)
+        endif
+    
+    !    write(46,*), " HERE : SD of pin power"
+        write(*,*) 'APPARENT SD'
+        do jj = nfm(2), 1, -1
+            write(46,1), (STD_M(p_dep_dt(1:n_act,ii,jj,1)) &
+                /AVG(p_dep_dt(1:n_act,ii,jj,1)), ii = 1, nfm(1))
+        end do
+        write(46,*)
+        
+        if (perton) then
+        write(*,*) 'PERTURBED SD'
+        do jj = nfm(2), 1, -1
+            write(46,1), (STD_S(p_dep_dt_pert(1,1:n_pert,ii,jj,1)) &
+                /AVG(p_dep_dt_pert(1,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
+        end do
+        write(46,*)
+        do jj = nfm(2), 1, -1
+            write(46,1), (STD_S(p_dep_dt_pert(n_act,1:n_pert,ii,jj,1)) &
+                /AVG(p_dep_dt_pert(n_act,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
+        end do
+        write(46,*)
+        endif
+        
+        close(46)
+    
+        write(*,*) 'WRITTEN DEP_DT FILE: ', trim(dfile)
+        else
+            if ( istep_burnup == 0 ) then
+                ! find if the file exists
+                nsum = 1
+                dfile = 'dep_mc1.out'
+                do
+                inquire(file=trim(dfile),exist=yes)
+                if ( yes ) then
+                    nsum = nsum + 1
+                    if ( nsum < 10 ) then
+                        write(dfile,'(a,i1,a)'), 'dep_mc',nsum,'.out'
+                    else
+                        write(dfile,'(a,i2,a)'), 'dep_mc',nsum,'.out'
+                    end if
+            
+                else
+                    exit
+                end if
+                end do
+                ! open a new file
+                open(45,file=trim(dfile))
+                close(45)
+            end if
+            ! parameter generation
+            do ii = 1, n_act
+            ! --- average
+                do jj = 1, nfm(1)
+                    do kk = 1, nfm(2)
+                        p_dep_mc(ii,jj,kk,1) = AVG(p_dep_mc(ii,jj,kk,1:nfm(3)))
+                    end do
+                end do
+            ! --- summation
+                vsum = 0; nsum = 0
+                do jj = 1, nfm(1)
+                    do kk = 1, nfm(2)
+                        if ( isnan(p_dep_mc(ii,jj,kk,1)) ) cycle
+                        nsum = nsum + 1
+                        vsum = vsum + p_dep_mc(ii,jj,kk,1)
+                    end do
+                end do
+                p_dep_mc(ii,:,:,1) = p_dep_mc(ii,:,:,1)*nsum/dble(vsum)
+            end do
+            print *, 'DFILE?: ', trim(dfile)
+            open(45,file=trim(dfile),access='append',status='old')
+            !write(45,*), " HERE : pin power", " | step : ", istep_burnup
+            do jj = nfm(2), 1, -1
+                write(45,1), (p_dep_mc(1,ii,jj,1), ii = 1, nfm(1))
+            end do
+            
+            write(45,*)
+        
+            do jj = nfm(2), 1, -1
+                write(45,1), (STD_M(p_dep_mc(1:n_act,ii,jj,1)) &
+                    /AVG(p_dep_mc(1:n_act,ii,jj,1)), ii = 1, nfm(1))
+            end do
+            write(45,*)
+
+            close(45)
+        end if
+    end if
+
+    1 format(1000ES15.7)
+    2 format(2I4,1000ES15.7)
+    10 format(1X,I5,F10.6)
+    11 format(1X,I5,2F10.6,F10.2,2X,A)
+    12 format(1X,I5,2F10.6,F10.2,2X)
+    16 format(4X,2F10.6,F10.2,2x,a)
+    14 format(<nfm(1)>ES15.7)
+    15 format(4X,I4,3F12.3)
+
+end subroutine
 
 ! =============================================================================
 ! CYCLE_TALLY_MSG
 ! =============================================================================
-subroutine CYCLE_TALLY_MSG(bat)
-    use tally, only: MC_tally
-    use TH_HEADER, only: th_on, t_fuel, t_bulk
-    implicit none
-    integer, intent(in):: bat
-    real(8):: ttemp(nfm(1),nfm(2),nfm(3))
-    real(8):: ttemp_sd(nfm(1),nfm(2),nfm(3))
-
-    if ( icore /= score ) return
-	if (do_burn) return 
-	
-    ! multiplication factor
-    if ( fmfdon ) then
-    write(*,*), "   DTMC keff"
-    do ii = 1, n_inact
-        write(*,12), k_fmfd(bat,ii)
-    end do
-    do ii = n_inact+1, n_totcyc
-        write(*,13), k_fmfd(bat,ii), AVG(k_fmfd(bat,n_inact+1:ii)), &
-                    PCM(STD_M(k_fmfd(bat,n_inact+1:ii)))
-    end do
-    write(*,*)
-    end if
-
-    if ( bat == n_batch .and. tallyon) then
-    ! power distribution normalization
-    call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
-    call NORM_DIST(p_fmfd(1:n_batch,1:n_act,:,:,:))
-
-    ! computing time
-    t_MC = t_tot - t_det
-    write(*,*), "   Computing time"
-    do ii = 1, n_totcyc
-        write(*,15), AVG(t_MC(1:,ii)), AVG(t_det(1:,ii)), AVG(t_tot(1:,ii))
-    end do
-    write(*,*)
-    end if
-
-	
-	
-    ! MC power distribution
-    if ( bat == n_batch ) then
-    if ( .not. fmfdon ) then
-    if ( tallyon ) then
-	
-	open(9999,file="mean_tally2.out",action="write",status="replace")
-	open(99999,file="sd_tally2.out",action="write",status="replace")
-	
-    do ii = 1, nfm(1)
-    do jj = 1, nfm(2)
-    do kk = 1, nfm(3)
-        ttemp(ii,jj,kk) = AVG(MC_tally(bat,:,1,1,ii,jj,kk))
-        ttemp_sd(ii,jj,kk) = STD_M(MC_tally(bat,:,1,1,ii,jj,kk))
-    end do
-    end do
-    end do
-    write(*,*), "   Printing MC power distribution"
-    write( 9999,14), ttemp(:,:,:)
-    write(99999,14), ttemp_sd(:,:,:)
-	close(9999)
-	close(99999)
-    end if
-
-    else
-    ! DTMC power distribution
-    do ii = 1, nfm(1)
-    do jj = 1, nfm(2)
-    do kk = 1, nfm(3)
-        ttemp(ii,jj,kk) = AVG(p_fmfd(bat,:,ii,jj,kk))
-    end do
-    end do
-    end do
-    write(*,*), "   DTMC power distribution"
-    write(*,14), ttemp(:,:,:)
-    write(*,*)
-    end if
-
-    ! temperature distribution
-    if ( th_on ) then
-    write(*,*), "   Temperature distribution"
-    write(*,14), t_fuel/k_b
-    write(*,*)
-    write(*,14), t_bulk/k_b
-    write(*,*)
-    end if
-    end if
-
-    12 format(4X,F10.6)
-    13 format(4X,2F10.6,F10.2)
-    14 format(<nfm(1)>ES15.7)
-    15 format(4X,3ES15.7)
-
-end subroutine
+!subroutine CYCLE_TALLY_MSG(bat)
+!    use tally, only: MC_tally
+!    use TH_HEADER, only: th_on, t_fuel, t_bulk
+!    implicit none
+!    integer, intent(in):: bat
+!    real(8):: ttemp(nfm(1),nfm(2),nfm(3))
+!    real(8):: ttemp_sd(nfm(1),nfm(2),nfm(3))
+!
+!    if ( icore /= score ) return
+!	if (do_burn) return 
+!	
+!    ! multiplication factor
+!    if ( fmfdon ) then
+!    write(*,*), "   DTMC keff"
+!    do ii = 1, n_inact
+!        write(*,12), k_fmfd(bat,ii)
+!    end do
+!    do ii = n_inact+1, n_totcyc
+!        write(*,13), k_fmfd(bat,ii), AVG(k_fmfd(bat,n_inact+1:ii)), &
+!                    PCM(STD_M(k_fmfd(bat,n_inact+1:ii)))
+!    end do
+!    write(*,*)
+!    end if
+!
+!    if ( bat == n_batch .and. tallyon) then
+!    ! power distribution normalization
+!    call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
+!    call NORM_DIST(p_fmfd(1:n_batch,1:n_act,:,:,:))
+!
+!    ! computing time
+!    t_MC = t_tot - t_det
+!    write(*,*), "   Computing time"
+!    do ii = 1, n_totcyc
+!        write(*,15), AVG(t_MC(1:,ii)), AVG(t_det(1:,ii)), AVG(t_tot(1:,ii))
+!    end do
+!    write(*,*)
+!    end if
+!
+!	
+!	
+!    ! MC power distribution
+!    if ( bat == n_batch ) then
+!    if ( .not. fmfdon ) then
+!    if ( tallyon ) then
+!	
+!	open(9999,file="mean_tally2.out",action="write",status="replace")
+!	open(99999,file="sd_tally2.out",action="write",status="replace")
+!	
+!    do ii = 1, nfm(1)
+!    do jj = 1, nfm(2)
+!    do kk = 1, nfm(3)
+!        ttemp(ii,jj,kk) = AVG(MC_tally(bat,:,1,1,ii,jj,kk))
+!        ttemp_sd(ii,jj,kk) = STD_M(MC_tally(bat,:,1,1,ii,jj,kk))
+!    end do
+!    end do
+!    end do
+!    write(*,*), "   Printing MC power distribution"
+!    write( 9999,14), ttemp(:,:,:)
+!    write(99999,14), ttemp_sd(:,:,:)
+!	close(9999)
+!	close(99999)
+!    end if
+!
+!    else
+!    ! DTMC power distribution
+!    do ii = 1, nfm(1)
+!    do jj = 1, nfm(2)
+!    do kk = 1, nfm(3)
+!        ttemp(ii,jj,kk) = AVG(p_fmfd(bat,:,ii,jj,kk))
+!    end do
+!    end do
+!    end do
+!    write(*,*), "   DTMC power distribution"
+!    write(*,14), ttemp(:,:,:)
+!    write(*,*)
+!    end if
+!
+!    ! temperature distribution
+!    if ( th_on ) then
+!    write(*,*), "   Temperature distribution"
+!    write(*,14), t_fuel/k_b
+!    write(*,*)
+!    write(*,14), t_bulk/k_b
+!    write(*,*)
+!    end if
+!    end if
+!
+!    12 format(4X,F10.6)
+!    13 format(4X,2F10.6,F10.2)
+!    14 format(<nfm(1)>ES15.7)
+!    15 format(4X,3ES15.7)
+!
+!end subroutine
 
 ! =============================================================================
 ! BATCH_TALLY_MSG
@@ -1117,7 +1372,7 @@ subroutine process_MSR_prec()
     real(8), allocatable :: MSR_prec(:,:,:,:)
 
     if(icore /= score) return
-    if(.not. do_fuel_mv) return
+    ! if(.not. do_fuel_mv) return
 
     allocate(MSR_data(8,n_core_axial,n_core_radial,n_act))
     allocate(MSR_prec(8,n_core_axial,n_core_radial,2))

@@ -73,12 +73,6 @@ subroutine transport(p)
     !found_cell = .false.   ***
     if (p%n_coord == 1) call find_cell(p, found_cell, i_cell)
 
-!    if (p%material < 1 .or. p%material > 1000000) then 
-!        print *, p%material 
-!        print *, p%coord(1)%xyz 
-!        print *, found_cell, cells(i_Cell)%cell_id
-!    endif 
-
     if ( p%material == 0 ) then
         p%alive = .false. 
         print*, p%coord(1)%xyz, "this?"
@@ -287,41 +281,16 @@ subroutine transport(p)
     
 
     if ( distance == d_collision ) then ! collision 
-    
-!        if ( do_PCQS .and. curr_cyc > n_inact ) n_col = n_col + 1
-!
-!        p%tet_face = 0
-
-        !if ( tally_switch > 0 ) then 
-        !    i_bin = FindTallyBin(p)
-        !    if ( i_bin(1) > 0 ) then 
-        !        !$omp atomic
-        !        TallyFlux(i_bin(1)) = TallyFlux(i_bin(1)) + distance
-        !!> ==== Power Tally =====================================================================
-        !        !$omp atomic
-        !        TallyPower(i_bin(1)) = TallyPower(i_bin(1)) + distance*macro_xs(5)
-        !    endif
-        !endif
-        
-     
         if ( fmfdon .and. inside_mesh ) then
         call FMFD_COL(p%wgt,macro_xs,i_xyz)
         if ( DTMCBU .and. curr_cyc > acc_skip ) &
         call DTMC_BU_COL(i_xyz,cells(i_cell)%dtmc,p%wgt/macro_xs(1),macro_xs(5))
         end if
-!        if ( th_on .and. .not. fmfdon ) then
-!            call TH_INSIDE(p%coord(1)%xyz(:),j_xyz(:),inside_th)
-!            if ( inside_th ) call TH_COL(p%wgt,macro_xs(1),macro_xs(4),j_xyz(:))
-!        end if
-
         if (E_mode == 0) then 
             call collision_MG(p)
         else !(E_mode == 1) 
             call collision_CE(p)
         endif
-!        call MC_TRK_S(cyc,p%last_E,p%E,p%wgt,distance,macro_xs,i_xyz)
-        !if ( tallyon .and. .not. fmfdon .and. cyc > n_inact ) &
-        !    call MC_COL(p%E,p%wgt,distance,macro_xs,i_xyz)
 
     elseif  ( distance == d_mesh ) then 
         p%n_cross = p%n_cross + 1 
@@ -336,19 +305,6 @@ subroutine transport(p)
             loss_vrc = loss_vrc + p%wgt! * exp(-macro_xs(1)*d_boundary)
         endif 
     endif
-!        if ( iscore .and. omp_get_thread_num() == 0 ) then
-!        print*, "-----"
-!        if ( istep_burnup > 0 ) print*, p%n_cross
-!        print*, distance, d_collision
-!        print*, d_mesh, d_boundary, ddiff
-!        print*, p%coord(1)%xyz
-!        print*, p%coord(1)%uvw
-!        print*, p%E
-!        print*, p%material
-!        print*, surface_crossed
-!        print*, surfaces(surface_crossed)%surf_type
-!        print*, surfaces(surface_crossed)%parmtrs(:)
-!        end if
 
 end subroutine transport
 

@@ -147,6 +147,7 @@ module geometry_header
     ! lattice geometry 
     !===============================================================================
     function lattice_coord (this, xyz0) result(coord_lat)
+        implicit none
         type(Lattice) :: this                !> targetted lattice object
         real(8), dimension(3) :: xyz0         !> xyz position of particle in the universe
         real(8), dimension(3) :: xyz_tr        !> 
@@ -400,6 +401,7 @@ module geometry_header
     end function
 
     subroutine cell_distance (this,xyz, uvw, surflist, d_surf, idx_surf)
+        implicit none
         type(cell) :: this
         type(surface) :: surflist(:)
         real(8) :: xyz(3), uvw(3) 
@@ -426,7 +428,6 @@ module geometry_header
         enddo 
     end subroutine 
     
-    
     subroutine lat_distance (this,surflist, xyz, uvw,i_xyz, d_surf, idx_surf)
         type(lattice), intent(in) :: this
         type(surface), intent(in) :: surflist(:)
@@ -439,10 +440,9 @@ module geometry_header
         integer :: idx_temp, idx_surf
 		real(8) :: dist(2)
         integer :: idx(2)
-
         real(8) :: newu,newv, tmp
         integer :: ixy(2)
-		
+
         
         
         d_surf = INFINITY
@@ -471,73 +471,22 @@ module geometry_header
                 endif
             end associate
         enddo 
-        !print *, 'DIST',d_surf
-        xyz_(:) = xyz(:) + d_surf*uvw(:) 
-		if(this%lat_type==1) then
-            do i = 1, 3 
-                if(abs(xyz_(i)) > this%pitch(i)*0.5d0) d_surf = INFINITY
-		    enddo 
-!            if(ANY(abs(xyz_(1:3))-this%pitch(1:3)*5d-1 > 0)) d_surf = INFINITY
-        elseif(this%lat_type==2) then
-            tmp = sqrt(3.d0)*0.5d0
-            if(abs(xyz_(1)) > this%pitch(1)*0.5d0) d_surf = INFINITY
-            if(abs(xyz_(1)+xyz_(2)*tmp*2.d0) > this%pitch(2)) d_surf = INFINITY
-            if(abs(xyz_(1)-xyz_(2)*tmp*2.d0) > this%pitch(2)) d_surf = INFINITY
-            !if(abs(xyz_(3)-this%pitch(3)*0.5d0) > this%pitch(3)*0.5d0) d_surf = INFINITY
-        elseif(this%lat_type==3) then
-            tmp = sqrt(3.d0)*0.5d0
-            if(abs(xyz_(2)) > this%pitch(2)*0.5d0) d_surf = INFINITY
-            if(abs(xyz_(2)+xyz_(1)*tmp*2.d0) > this%pitch(1)) d_surf = INFINITY
-            if(abs(xyz_(2)-xyz_(1)*tmp*2.d0) > this%pitch(1)) d_surf = INFINITY
-        endif
+
+!        xyz_(:) = xyz(:) + d_surf*uvw(:) 
+!        do i = 1, 3 
+!            if (abs(xyz_(i)) > this%pitch(i)/2.0) d_surf = INFINITY
+!        enddo 
         if (d_surf < TOOLONG) return
-        !print *, 'TOOLONG',d_surf        
-		
-		! Find distance to the next lattice
-		!d_surf = INFINITY 
-		!do i = 1, 3
-		!	
-		!	dist(1) = (-this%pitch(i)/2.0-xyz(i))/uvw(i)
-		!	dist(2) = ( this%pitch(i)/2.0-xyz(i))/uvw(i)
-		!	
-		!	do j = 1, 2 
-		!		if (d_surf > dist(j) .and. dist(j) > 0) then 
-		!			d_surf = dist(j)
-		!			idx(1) = i
-		!			idx(2) = j 
-		!		endif 
-		!	enddo 
-		!	
-		!enddo 
-		
-		!i = (idx(1)-1)*2 + idx(2)
-		!
-		!if (ix == 1 .and. i == 1) d_surf = INFINITY 
-		!if (iy == 1 .and. i == 3) d_surf = INFINITY 
-		!if (iz == 1 .and. i == 5) d_surf = INFINITY 
-		!if (ix == this%n_xyz(1) .and. i == 2) d_surf = INFINITY 
-		!if (iy == this%n_xyz(2) .and. i == 4) d_surf = INFINITY 
-		!if (iz == this%n_xyz(3) .and. i == 6) d_surf = INFINITY 
-		!
-		!if (d_surf < TOOLONG) idx_surf = 0 
-		!return 
-		
-		
-		
-		
-		
-		
-		
+        
         if (this%lat_type == 1) then ! rectilinear 
-			do i = 1, 3 
-				dxyz(i) = int(sign(1.0d0, uvw(i)))
-				if (dxyz(i) > 0) then 
-					nxyz(i) = this%n_xyz(i)
-				else 
-					nxyz(i) = 1
-				endif 
-			enddo 
-		
+            do i = 1, 3 
+                dxyz(i) = int(sign(1.0d0, uvw(i)))
+                if (dxyz(i) > 0) then 
+                    nxyz(i) = this%n_xyz(i)
+                else 
+                    nxyz(i) = 1
+                endif 
+            enddo 
             do iz = i_xyz(3), nxyz(3), dxyz(3)
                 do iy = i_xyz(2), nxyz(2), dxyz(2)
                     do ix = i_xyz(1), nxyz(1), dxyz(1)
@@ -545,7 +494,7 @@ module geometry_header
                         xyz_(2) = xyz(2) + this%pitch(2)*(i_xyz(2)-iy)
                         xyz_(3) = xyz(3) + this%pitch(3)*(i_xyz(3)-iz)
                         j = this%lat(ix,iy,iz)
-                    
+                        
                         if (allocated(universes(j)%r)) then 
                             associate(c => cells(universes(j)%cell(universes(j)%ncell)))
                                 if(cell_contains_xyz(c, xyz_)) then 
@@ -572,7 +521,6 @@ module geometry_header
                     enddo 
                 enddo 
             enddo 
-
         elseif (this%lat_type == 2) then 
 			! TODO
             ! TWO DIRECTIONS DEFINED:
@@ -702,7 +650,250 @@ module geometry_header
             enddo
             enddo
         endif
+        
+        
     end subroutine
+    
+!    subroutine lat_distance (this,surflist, xyz, uvw,i_xyz, d_surf, idx_surf)
+!        type(lattice), intent(in) :: this
+!        type(surface), intent(in) :: surflist(:)
+!        integer, intent(in) :: i_xyz(3)
+!        !integer, intent(inout) :: i_xyz_out(3)
+!        real(8), intent(in) :: xyz(3), uvw(3)
+!        real(8) :: xyz_(3)
+!        real(8) :: d_surf, d_temp
+!        integer :: i,j,k, ix, iy, iz, dxyz(3), nxyz(3)
+!        integer :: idx_temp, idx_surf
+!		real(8) :: dist(2)
+!        integer :: idx(2)
+!
+!        real(8) :: newu,newv, tmp
+!        integer :: ixy(2)
+!		
+!        
+!        
+!        d_surf = INFINITY
+!        
+!        ! ================== 수 정 사 항 ==================
+!        ! 1. 자기 (ix,iy,iz)에서 d_surf 찾기 
+!        ! if (d_surf < toolong) then 
+!        !     2. uvw 방향의 pin 탐색 
+!        !    if (allocated(univ(j)%r)) then !> pin univ 
+!        !        3.1 제일 바깥 cell에서만 찾기 
+!        !    else 
+!        !        3.2 밑에서 하는 대로 
+!        !    endif 
+!        ! endif  
+!        
+!        ix = i_xyz(1); iy = i_xyz(2); iz = i_xyz(3); 
+!        j = this%lat(ix,iy,iz)
+!        do i = 1, universes(j)%ncell
+!            associate(c => cells(universes(j)%cell(i)))
+!                if(cell_contains_xyz(c, xyz)) then 
+!                    call cell_distance(c,xyz, uvw, surflist, d_temp, idx_temp)
+!                    if (d_surf > d_temp) then 
+!                        d_surf = d_temp
+!                        idx_surf = idx_temp
+!                    endif 
+!                endif
+!            end associate
+!        enddo 
+!        !print *, 'DIST',d_surf
+!        xyz_(:) = xyz(:) + d_surf*uvw(:) 
+!		if(this%lat_type==1) then
+!            do i = 1, 3 
+!                if(abs(xyz_(i)) > this%pitch(i)*0.5d0) d_surf = INFINITY
+!		    enddo 
+!!            if(ANY(abs(xyz_(1:3))-this%pitch(1:3)*5d-1 > 0)) d_surf = INFINITY
+!        elseif(this%lat_type==2) then
+!            tmp = sqrt(3.d0)*0.5d0
+!            if(abs(xyz_(1)) > this%pitch(1)*0.5d0) d_surf = INFINITY
+!            if(abs(xyz_(1)+xyz_(2)*tmp*2.d0) > this%pitch(2)) d_surf = INFINITY
+!            if(abs(xyz_(1)-xyz_(2)*tmp*2.d0) > this%pitch(2)) d_surf = INFINITY
+!            !if(abs(xyz_(3)-this%pitch(3)*0.5d0) > this%pitch(3)*0.5d0) d_surf = INFINITY
+!        elseif(this%lat_type==3) then
+!            tmp = sqrt(3.d0)*0.5d0
+!            if(abs(xyz_(2)) > this%pitch(2)*0.5d0) d_surf = INFINITY
+!            if(abs(xyz_(2)+xyz_(1)*tmp*2.d0) > this%pitch(1)) d_surf = INFINITY
+!            if(abs(xyz_(2)-xyz_(1)*tmp*2.d0) > this%pitch(1)) d_surf = INFINITY
+!        endif
+!        if (d_surf < TOOLONG) return
+!
+!        if (this%lat_type == 1) then ! rectilinear 
+!			do i = 1, 3 
+!				dxyz(i) = int(sign(1.0d0, uvw(i)))
+!				if (dxyz(i) > 0) then 
+!					nxyz(i) = this%n_xyz(i)
+!				else 
+!					nxyz(i) = 1
+!				endif 
+!			enddo 
+!		
+!            do iz = i_xyz(3), nxyz(3), dxyz(3)
+!                do iy = i_xyz(2), nxyz(2), dxyz(2)
+!                    do ix = i_xyz(1), nxyz(1), dxyz(1)
+!                        xyz_(1) = xyz(1) + this%pitch(1)*(i_xyz(1)-ix)
+!                        xyz_(2) = xyz(2) + this%pitch(2)*(i_xyz(2)-iy)
+!                        xyz_(3) = xyz(3) + this%pitch(3)*(i_xyz(3)-iz)
+!                        j = this%lat(ix,iy,iz)
+!                    
+!                        if (allocated(universes(j)%r)) then 
+!                            associate(c => cells(universes(j)%cell(universes(j)%ncell)))
+!                                if(cell_contains_xyz(c, xyz_)) then 
+!                                    call cell_distance(c,xyz_, uvw, surflist, d_temp, idx_temp)
+!                                    if (d_surf > d_temp) then 
+!                                        d_surf = d_temp
+!                                        idx_surf = idx_temp
+!                                    endif 
+!                                endif
+!                            end associate
+!                        else 
+!                            do i = 1, universes(j)%ncell
+!                                associate(c => cells(universes(j)%cell(i)))
+!                                    if(cell_contains_xyz(c, xyz_)) then 
+!                                        call cell_distance(c,xyz_, uvw, surflist, d_temp, idx_temp)
+!                                        if (d_surf > d_temp) then 
+!                                            d_surf = d_temp
+!                                            idx_surf = idx_temp
+!                                        endif 
+!                                    endif
+!                                end associate
+!                            enddo 
+!                        endif
+!                    enddo 
+!                enddo 
+!            enddo 
+!
+!        elseif (this%lat_type == 2) then 
+!			! TODO
+!            ! TWO DIRECTIONS DEFINED:
+!            !  /\+    /\
+!            ! |  |  -|  |+
+!            ! -\/     \/
+!            tmp = sqrt(3.d0)*0.5d0
+!            newu = tmp*uvw(1)-0.5d0*uvw(2)
+!            
+!            dxyz(1) = int(sign(1.0d0,newu))
+!            dxyz(2) = int(sign(1.0d0,uvw(2)))
+!            dxyz(3) = int(sign(1.0d0,uvw(3)))
+!            
+!            do i = 1,3
+!            if(dxyz(i)>0) then
+!                nxyz(i) = this%n_xyz(i)
+!            else
+!                nxyz(i) = 1
+!            endif
+!            enddo
+!            
+!            do i = 1,2
+!            if(dxyz(i)>0) then
+!                ixy(i) = max(1,i_xyz(i)-1)
+!            else
+!                ixy(i) = min(this%n_xyz(i),i_xyz(i)+1)
+!            endif
+!            enddo
+!
+!            do iz = i_xyz(3),nxyz(3),dxyz(3)
+!            do iy = ixy(2),nxyz(2),dxyz(2)
+!            do ix = ixy(1),nxyz(1),dxyz(1)
+!            !do iz = i_xyz(3),nxyz(3),dxyz(3)
+!            !do iy = 1,this%n_xyz(2)
+!            !do ix = 1,this%n_xyz(1)
+!                if(ixy(1)==this%n_xyz(1)-dxyz(1) .and. ixy(2)==this%n_xyz(2)-dxyz(2)) cycle
+!                xyz_(1) = xyz(1) + this%pitch(1)*(i_xyz(1)-ix) + 0.5d0*this%pitch(2)*(i_xyz(2)-iy)
+!                xyz_(2) = xyz(2) + this%pitch(2)*tmp*(i_xyz(2)-iy)
+!                xyz_(3) = xyz(3) + this%pitch(3)*(i_xyz(3)-iz)
+!                j = this%lat(ix,iy,iz)
+!                if(allocated(universes(j)%r)) then
+!                associate(c=>cells(universes(j)%cell(universes(j)%ncell)))
+!                if(cell_contains_xyz(c,xyz_)) then
+!                    call cell_distance(c,xyz_,uvw,surflist,d_temp,idx_temp)
+!                    if(d_surf > d_temp) then
+!                        !print *, 'Case1',d_temp,d_surf
+!                        d_surf = d_temp
+!                        idx_surf = idx_temp
+!                    endif
+!                endif
+!                end associate
+!                else
+!                do i = 1,universes(j)%ncell
+!                associate(c=>cells(universes(j)%cell(i)))
+!                if(cell_contains_xyz(c,xyz_)) then
+!                    call cell_distance(c,xyz_,uvw,surflist,d_temp,idx_temp)
+!                    if (d_surf>d_temp) then
+!                        !print *, 'Case2',d_temp,ix,iy,i
+!                        d_surf = d_temp
+!                        idx_surf = idx_temp
+!                    endif
+!                endif
+!                end associate
+!                enddo
+!                endif
+!            enddo
+!            enddo
+!            enddo
+!		elseif (this%lat_type == 3) then 
+!            ! TWO DIRECTIONS
+!            tmp = sqrt(3.d0)*0.5d0
+!            newv = tmp*uvw(2)-0.5d0*uvw(1)
+!            dxyz(1) = int(sign(1.d0,uvw(1)))
+!            dxyz(2) = int(sign(1.d0,newv))
+!            dxyz(3) = int(sign(1.d0,uvw(3)))
+!
+!            do i = 1,3
+!            if(dxyz(i)>0) then
+!                nxyz(i) = this%n_xyz(i)
+!            else
+!                nxyz(i) = 1
+!            endif
+!            enddo
+!
+!            do i = 1,2
+!            if(dxyz(i)>0) then
+!                ixy(i) = max(1,i_xyz(i)-1)
+!            else
+!                ixy(i) = min(this%n_xyz(i),i_xyz(i)+1)
+!            endif
+!            enddo
+!
+!            do iz = i_xyz(3),nxyz(3),dxyz(3)
+!            do iy = ixy(2),nxyz(2),dxyz(2)
+!            do ix = ixy(1),nxyz(1),dxyz(1)
+!                if(ixy(1)==this%n_xyz(1)-dxyz(1) .and. ixy(2)==this%n_xyz(2)-dxyz(2)) cycle
+!                xyz_(1) = xyz(1) + this%pitch(1)*tmp*(i_xyz(1)-ix)
+!                xyz_(2) = xyz(2) + 0.5d0*this%pitch(1)*(i_xyz(1)-ix) + this%pitch(2)*(i_xyz(2)-iy)
+!                xyz_(3) = xyz(3) + this%pitch(3)*(i_xyz(3)-iz)
+!                j = this%lat(ix,iy,iz)
+!                if(allocated(universes(j)%r)) then
+!                associate(c=>cells(universes(j)%cell(universes(j)%ncell)))
+!                if(cell_contains_xyz(c,xyz_)) then
+!                    call cell_distance(c,xyz_,uvw,surflist,d_temp,idx_temp)
+!                    if(d_surf > d_temp) then
+!                        !print *, 'Case1',d_temp,d_surf
+!                        d_surf = d_temp
+!                        idx_surf = idx_temp
+!                    endif
+!                endif
+!                end associate
+!                else
+!                do i = 1,universes(j)%ncell
+!                associate(c=>cells(universes(j)%cell(i)))
+!                if(cell_contains_xyz(c,xyz_)) then
+!                    call cell_distance(c,xyz_,uvw,surflist,d_temp,idx_temp)
+!                    if (d_surf>d_temp) then
+!                        !print *, 'Case2',d_temp,ix,iy,i
+!                        d_surf = d_temp
+!                        idx_surf = idx_temp
+!                    endif
+!                endif
+!                end associate
+!                enddo
+!                endif
+!            enddo
+!            enddo
+!            enddo
+!        endif
+!    end subroutine
     
 	
 	

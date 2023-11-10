@@ -76,7 +76,7 @@ module depletion_module
 
 
     !Real Power to normalize flux
-    real(8) :: RealPower  ![MW]
+    real(8) :: RealPower  !MWth
     real(8) :: ULnorm     !Unit less normalization factor
     real(8) :: Wnorm      !Power normalization factor [MeV/s to W]
 

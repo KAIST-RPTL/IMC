@@ -188,122 +188,6 @@ subroutine read_geom
             call read_cell (cells(ncell), args, nargs) 
                         
         case ("PIN")
-!            isize = 0
-!            if (allocated(universes)) isize = size(universes)-1
-!            isize = isize+1
-!            allocate(universes_temp(0:isize))
-!            if (isize > 1) universes_temp(0:isize-1) = universes(:) 
-!            call read_pin (universes_temp(isize), args, nargs) 
-!            universes_temp(isize)%xyz(:) = 0
-!            
-!            univptr => universes_temp(isize)
-!            
-!            allocate(univptr%r(1:univptr%ncell-1))
-!            allocate(univptr%cell(1:univptr%ncell))
-!            if(allocated(universes)) deallocate(universes)
-!            call move_alloc(universes_temp, universes)
-!
-!            !> generage cell from pin
-!            if (allocated(cells)) then 
-!                isize = size(cells) 
-!                isize = isize + univptr%ncell
-!                allocate(cells_temp(1:isize))
-!                if (isize > 1) cells_temp(1:isize-univptr%ncell) = cells(:) 
-!                deallocate(cells)
-!            else 
-!                isize = 0
-!                isize = isize + univptr%ncell
-!                allocate(cells_temp(1:isize))
-!            endif
-!            
-!            call move_alloc(cells_temp, cells)
-!            
-!            do i = 1, univptr%ncell-1
-!                j = size(cells)-univptr%ncell+i
-!                univptr%cell(i) = j
-!				call readandparse(rd_geom, args, nargs, ierr, curr_line)
-!				
-!                read(args(1),*) mat_id
-!                read(args(2),*) univptr%r(i)
-!                
-!                if (E_mode == 0) cells(j)%mat_idx = find_mat_idx(XS_MG,mat_id)
-!                if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
-!                if(materials(cells(j)%mat_idx) % duplicable &
-!                    .and. materials(cells(j)%mat_idx) % depletable) then
-!                    !if(icore==score)print *, 'DUPL', materials(cells(j)%mat_idx) % geom_count, mat_id, univptr % univ_id
-!                    tmpidx = cells(j) % mat_idx
-!                    if(materials(cells(j)%mat_idx) % geom_count > 0) then
-!                        if(univptr%univ_id<10) then
-!                            write(char1, '(I1)') univptr%univ_id
-!                        elseif(univptr%univ_id<100) then
-!                            write(char1, '(I2)') univptr%univ_id
-!                        elseif(univptr%univ_id<1000) then
-!                            write(char1, '(I3)') univptr%univ_id
-!                        elseif(univptr%univ_id<10000) then
-!                            write(char1, '(I4)') univptr%univ_id
-!                        elseif(univptr%univ_id<100000) then
-!                            write(char1, '(I5)') univptr%univ_id
-!                        endif
-!
-!                        if(i<10) then
-!                            write(char2, '(I1)') i
-!                        elseif(i<100) then
-!                            write(char2, '(I2)') i
-!                        endif
-!                        !if(icore==score) print *, 'CHCK', char1, char2
-!                        !write(dupname, '(A,A1,A,A1,A)') adjustl(trim(materials(cells(j)%mat_idx) % mat_name)), '_', adjustl(trim(char1)), '_', adjustl(trim(char2))
-!                        dupname = adjustl(trim(materials(cells(j)%mat_idx)%mat_name)) //'_' //adjustl(trim(char1)) // '_' // adjustl(trim(char2))
-!                        if(icore==score) print *, 'DUP ', dupname, materials(cells(j)%mat_idx) % geom_count
-!                        allocate(materials_temp(n_materials+1))
-!                        materials_temp(1:n_materials) = materials(:)
-!                        materials_temp(n_materials+1) = materials(cells(j)%mat_idx)
-!                        materials_temp(n_materials+1) % mat_name = dupname
-!                        if(allocated(materials)) deallocate(materials)
-!                        call move_alloc(materials_temp, materials)
-!                        n_materials = n_materials + 1
-!                        cells(j) % mat_idx = n_materials
-!                    endif
-!                    materials(tmpidx) % geom_count = &
-!                        materials(tmpidx) % geom_count + 1
-!                endif
-!            enddo
-!            j = size(cells)
-!            univptr%cell(i) = j
-!			call readandparse(rd_geom, args, nargs, ierr, curr_line)
-!            read(args(1),*) mat_id
-!            
-!            if (E_mode == 0) cells(j)%mat_idx = find_mat_idx(XS_MG,mat_id)
-!            if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
-!            if(materials(cells(j)%mat_idx) % duplicable &
-!                .and. materials(cells(j)%mat_idx) % depletable) then
-!                if(materials(cells(j)%mat_idx) % geom_count > 0) then
-!                    allocate(materials_temp(n_materials+1))
-!                    materials_temp(1:n_materials) = materials(:)
-!                    materials_temp(n_materials+1) = materials(cells(j)%mat_idx)
-!                    if(allocated(materials)) deallocate(materials)
-!                    call move_alloc(materials_temp, materials)
-!                    n_materials = n_materials + 1
-!                    cells(j) % mat_idx = n_materials
-!                endif
-!                materials(cells(j)%mat_idx) % geom_count = &
-!                    materials(cells(j)%mat_idx) % geom_count + 1
-!                if(icore==score) print *, 'ADDED', n_materials, cells(j)%mat_idx
-!            endif
-!            call gen_cells_from_pin (univptr, cells(j-univptr%ncell+1:j)) 
-!            
-!            
-!            !> generate surface from pin
-!            if (univptr%ncell > 1) then 
-!                isize = 0
-!                if (allocated(surfaces)) isize = size(surfaces) 
-!                isize = isize + univptr%ncell -1
-!                allocate(surfaces_temp(1:isize))
-!                if (isize > 1 .and. allocated(surfaces)) surfaces_temp(1:isize-univptr%ncell+1) = surfaces(:) 
-!                if(allocated(surfaces)) deallocate(surfaces)
-!                call move_alloc(surfaces_temp, surfaces)
-!                j = size(surfaces)
-!                call gen_surfs_from_pin (univptr, surfaces(j-univptr%ncell+2:j)) 
-!            endif 
             nuniv = nuniv + 1
             call read_pin (universes(nuniv), args, nargs) 
             universes(nuniv)%xyz(:) = 0
@@ -327,7 +211,6 @@ subroutine read_geom
                 if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
                 if(materials(cells(j)%mat_idx) % duplicable &
                     .and. materials(cells(j)%mat_idx) % depletable) then
-                    !if(icore==score)print *, 'DUPL', materials(cells(j)%mat_idx) % geom_count, mat_id, univptr % univ_id
                     tmpidx = cells(j) % mat_idx
                     if(materials(cells(j)%mat_idx) % geom_count > 0) then
                         if(univptr%univ_id<10) then
@@ -364,7 +247,8 @@ subroutine read_geom
                         materials(tmpidx) % geom_count + 1
                 endif
             enddo
-            univptr%cell(i) = ncell
+            j = ncell
+            univptr%cell(i) = j
 			call readandparse(rd_geom, args, nargs, ierr, curr_line)
             read(args(1),*) mat_id
             
@@ -391,7 +275,7 @@ subroutine read_geom
             !> generate surface from pin
             if (univptr%ncell > 1) then 
                 nsurf = nsurf + univptr%ncell - 1
-                call gen_surfs_from_pin (univptr, surfaces(nsurf-univptr%ncell+2:j)) 
+                call gen_surfs_from_pin (univptr, surfaces(nsurf-univptr%ncell+2:nsurf)) 
             endif 
         
         case ("LAT")
@@ -742,6 +626,7 @@ subroutine read_cell (Cellobj, args, nargs)
 		!write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Requires Operand for Cell-Surface Definition"
 		!stop 
 	endif
+
 	
 	nsurf = nargs-n
 	allocate(Cellobj%list_of_surface_IDs(nsurf))
@@ -749,7 +634,6 @@ subroutine read_cell (Cellobj, args, nargs)
     do i = 1, nsurf
         read(args(i+n),*) Cellobj%list_of_surface_IDs(i)
     enddo 
-
 	
 end subroutine 
 
@@ -1071,6 +955,8 @@ end subroutine READ_CTRL
 
         ! For Automatic Fissionable
         integer :: iso
+
+        character(10) :: v_type
 		
 		
         File_Error=0
@@ -1719,10 +1605,6 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ifp
 
-!                case("LATENT")
-!                    backspace(File_Number)
-!                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, latent
-
 				case("FUEL_SPEED_AXIAL")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fuel_speed
@@ -1732,6 +1614,7 @@ end subroutine READ_CTRL
                         t_rc = l_inact / fuel_speed
                         if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
                     endif 
+                    
 
                 case("RECIRCULATION_TIME")
                     backspace(File_Number)
@@ -1764,33 +1647,30 @@ end subroutine READ_CTRL
                 case("N_CORE_MESH")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_core_radial, n_core_axial
+                    print *, 'HM?', Char_Temp, Equal, n_core_radial
                     allocate(core_prec(8,n_core_axial,n_core_radial)); core_prec = 0.d0
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-				
-
-					
-					
-					!select case (plottype) 
-					!case (1) 
-					!	read(File_Number,*,iostat=File_Error) plt_x0, plt_x1, plt_nx, plt_y0, plt_y1, plt_ny, plt_z0
-					!	plt_dx = (plt_x1 - plt_x0) / real(plt_nx,8)
-					!	plt_dy = (plt_y1 - plt_y0) / real(plt_ny,8)
-					!	
-					!case (2) 
-					!	read(File_Number,*,iostat=File_Error) plt_y0, plt_y1, plt_ny, plt_z0, plt_z1, plt_nz, plt_x0
-					!	plt_dy = (plt_y1 - plt_y0) / real(plt_ny,8)
-					!	plt_dz = (plt_z1 - plt_z0) / real(plt_nz,8)
-					!	
-					!case (3) 
-					!	read(File_Number,*,iostat=File_Error) plt_z0, plt_z1, plt_nz, plt_x0, plt_x1, plt_nx, plt_y0
-					!	plt_dz = (plt_z1 - plt_z0) / real(plt_nz,8)
-					!	plt_dx = (plt_x1 - plt_x0) / real(plt_nx,8)
-					!	
-					!end select 
-					
-					
-					
-				
+                case("MSR_FLOW")
+                    backspace(File_Number)
+                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, do_fuel_mv, v_type
+                    if(Equal/="=") call Card_Error(Card_Type, Char_Temp)
+                    call Small_to_Capital(v_type)
+                    if(do_fuel_mv) then
+                        select case(v_type)
+                            case("RZ")
+                                call READ_MSR_RZ
+                            case("BULK")
+                                ! DO NOTHING...
+                                continue
+                            case default
+                                if(icore==score) then
+                                    print *, '  Something is wrong with Type'
+                                    print *, '  Check your input: Currently supports RZ'
+                                    print *, '  Or it may be not supported in this version...'
+                                endif
+                                do_fuel_mv = .false.
+                        end select
+                    endif
                 end select Card_A_Inp
                 if (Char_Temp=="ENDA") Exit Read_Card_A
             end do Read_Card_A
@@ -1934,7 +1814,6 @@ end subroutine READ_CTRL
 					
 						case("TEMPERATURE")
 							if ( .not. CE_mat_ptr%db ) then
-							print*, CE_mat_ptr%mat_name
 							call MSG1(CE_mat_ptr%ace_idx(1),trim(CE_mat_ptr%mat_name))
 							cycle
 							end if
@@ -3246,6 +3125,71 @@ end function
 		endif 
 		
 	end function 
+
+    subroutine READ_MSR_RZ
+    implicit none
+    integer :: File_Error, ierr
+	character(30):: Char_Temp
+    integer :: z
+
+    if(icore==score) print *, '   Reading MSR_RZ.inp'
+    filename = trim(directory) // 'MSR_RZ.inp'
+    open(rd_rz, file=trim(filename), action='read', status='old')
+    ierr = 0
+
+    axial_axis = 0d0
+    do while (ierr == 0)
+        read(rd_rz, *, iostat=ierr) Char_Temp
+        if(ierr/=0) exit
+        call Small_to_Capital(Char_Temp)
+        select case(Char_Temp)
+            case("N_MESH")
+                backspace(rd_rz)
+                read(rd_rz, *, iostat=File_Error) Char_Temp, nr, nz
+                if(nr <= 0 .or. nz <= 0) then
+                    do_fuel_mv = .false. ; return
+                endif
+                allocate(velocity_r(nr, nz), velocity_z(nr, nz))
+                allocate(active_r(nr+1), active_z(nz+1))
+            case("R_MESH")
+                backspace(rd_rz)
+                read(rd_rz, *, iostat=File_Error) Char_Temp, active_r(1:nr+1)
+            case("Z_MESH")
+                backspace(rd_rz)
+                read(rd_rz, *, iostat=File_Error) Char_Temp, active_z(1:nz+1)
+            case("V_R")
+                do z = nz, 1, -1
+                    read(rd_rz, *, iostat=File_Error) velocity_r(1:nr,z)
+                enddo
+            case("V_Z")
+                do z = nz, 1, -1
+                    read(rd_rz, *, iostat=File_Error) velocity_z(1:nr,z)
+                enddo
+            case("R_RISER")
+                backspace(rd_rz)
+                read(rd_rz, *, iostat=File_Error) Char_Temp, riser_r
+            case("T_RECIRCULATION")
+                backspace(rd_rz)
+                read(rd_rz, *, iostat=File_Error) Char_Temp, t_recirc
+            case("Z_AXIS")
+                backspace(rd_rz)
+                read(rd_rz, *, iostat=File_Error) Char_Temp, axial_axis(1:2)
+            case("PLOT_MESH")
+                backspace(rd_rz)
+                read(rd_rz, *, iostat=File_Error) Char_Temp, n_core_radial, n_core_axial
+                allocate(core_prec(8, n_core_axial, n_core_radial))
+
+                core_prec = 0d0
+        end select
+    enddo
+    core_base = active_z(1); core_height = active_z(nz+1)-core_base
+    core_radius = active_r(nr+1)
+    velocity_r = velocity_r * 1d2; velocity_z = velocity_z * 1d2
+    close(rd_rz)
+    
+
+
+    end subroutine
 	
 	
 end module

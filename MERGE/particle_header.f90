@@ -250,6 +250,7 @@ contains
         if(do_fuel_mv .and. source % delayed .and. curr_cyc > n_inact ) then
             zidx = floor((this%coord(1)%xyz(3)-core_base)/(core_height/real(N_core_axial,8)))+1
             !ridx = floor((this%coord(1)%xyz(1)**2+this%coord(1)%xyz(2)**2)/core_radius**2*real(n_core_radial,8))+1
+            zidx = max(1,min(n_core_axial, zidx))
             !print *, 'prec', this%coord(1)%xyz(3)-core_base, zidx, source%G
             core_prec(source%G,zidx,1) = core_prec(source%G,zidx,1) + this % wgt
         endif
