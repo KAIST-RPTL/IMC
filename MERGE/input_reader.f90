@@ -955,8 +955,9 @@ end subroutine READ_CTRL
 
         ! For Automatic Fissionable
         integer :: iso
-
+        
         character(10) :: v_type
+
 		
 		
         File_Error=0
@@ -1421,25 +1422,6 @@ end subroutine READ_CTRL
 					a_fm(6) = a_fm(5)
 					v_fm    = dfm(1)*dfm(2)*dfm(3)
 
-				!case("HGC") 
-                !    backspace(File_Number)
-                !    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_HGC
-                !    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-				!case("NUMBER_GROUP") 
-                !    backspace(File_Number)
-                !    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, g_HGC
-                !    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-				!	allocate(E_grid(1:g_HGC))
-				!case("E_GRID")
-                !    backspace(File_Number)
-                !    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_timestep
-                !    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                !    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, E_grid(1)
-                !    do i = 2, NSTEP_BURNUP
-                !        read(File_Number,*,iostat=File_Error) E_grid(i)
-                !    enddo 
-					
-					
 				case("NUM_PSEUDO_RAY")
 					backspace(File_Number)
 					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, m_pseudo
@@ -1658,6 +1640,7 @@ end subroutine READ_CTRL
                     if(do_fuel_mv) then
                         select case(v_type)
                             case("RZ")
+                                flowtype = 1    !> 1 for RZ
                                 call READ_MSR_RZ
                             case("BULK")
                                 ! DO NOTHING...

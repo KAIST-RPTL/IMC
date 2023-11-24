@@ -91,7 +91,7 @@ implicit none
     real(8) :: core_base
     integer :: n_core_axial, n_core_radial
     real(8), allocatable :: core_prec(:,:,:)
-    integer :: MSR_leak, MSR_leak0
+    integer :: MSR_leak, MSR_leak_kcol
 
     ! MODIFIED ( Oct. 29 2023 )
     ! Modified for RZ
@@ -104,7 +104,7 @@ implicit none
     real(8) :: riser_r
     real(8) :: t_recirc
     
-
+    integer :: flowtype = 0
 	
     !==============================================================================
     ! MPI parameters 

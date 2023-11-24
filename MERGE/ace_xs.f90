@@ -473,7 +473,7 @@ subroutine getiueg(erg, ierg)
         return
     endif
 
-    pt1 = max(unigrid(uidx-1), 1)
+    pt1 = max(unigrid(uidx-1), 0)
     pt2 = min(unigrid(uidx)+1,nueg)
 
     if(ueggrid(pt1) > erg) print *,'LO', ueggrid(pt1), int(log10(erg/ueggrid(1))/unidel), erg
@@ -518,7 +518,6 @@ subroutine setugrid
 
     Emin = 1d-11
     udelta = log10((Emax+Emin*5d-1)/Emin)/dble(nugrid)
-    print *, 'Em', Emax, Emin
 
     do iso_ = 1, num_iso
       idx = 1

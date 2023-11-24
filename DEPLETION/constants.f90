@@ -102,7 +102,11 @@ module constants
                 sph  = 10, & 
 				!hexz = 11, &
                 hexxc = 11, &
-                hexyc = 12
+                hexyc = 12, &
+
+                ! DERIVED FORMAT STARTS FROM 3-digits
+                gcross = 101
+
     !==============================================================================
     
   ! Maximum number of collisions/crossings

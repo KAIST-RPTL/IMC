@@ -34,6 +34,7 @@ FSRCS := \
 		FMFD.f90\
 		HGC.f90\
 		scattering_laws.f90\
+        msr_precursor.f90\
 		ace_reactions.f90\
 		physics.f90\
 		transient.f90\

@@ -1459,17 +1459,17 @@ end subroutine
 		
 		end select 
 		
-		plottitle = plotlist(i_plot) // ".ppm"
+		plottitle = adjustl(trim(plotlist(i_plot))) // ".ppm"
 		
 		write(*,'(a30,i1,a3,i1,a1)', advance='no')  "    Making ppm image file... (" , i_plot, " / ", n_plot, ")"
 		! output image into file 
 		call im%write(plottitle)
 		!call system("python /home/guest/HyeonTae/src_temp/15_Test/src_merge2/convert_ppm_to_jpg.py")
-		!call system("python /home/guest/inyup/03_ENDF_test/src_merge2/convert_ppm_to_jpg.py")
 		!call system("mv fig.jpg "//trim(plotlist(i_plot))//".jpg") 
 		write(*,*) " - ", trim(plotlist(i_plot)), ".jpg"
 
 		enddo 
+		call system("python /home/guest/Inyup/convert_ppm_to_jpg.py")
 		
 		deallocate(plt_x0, plt_y0, plt_z0, plt_x1, plt_y1, plt_z1, &
 					plt_dx, plt_dy, plt_dz, plt_nx, plt_ny, plt_nz, &
