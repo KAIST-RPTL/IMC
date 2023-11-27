@@ -176,6 +176,7 @@ subroutine transport(p)
 	
     !> Track-length estimator
     !       >> Removed 'ATOMIC' due to Reduction: needs to be verified
+    !           >> NO... While loop doesn't work for Reduction
     !$OMP ATOMIC 
     k_tl = k_tl + distance*p%wgt*macro_xs(4) 
 

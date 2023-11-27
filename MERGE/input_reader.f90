@@ -279,62 +279,33 @@ subroutine read_geom
             endif 
         
         case ("LAT")
-!            isize = 0
-!            if (allocated(lattices)) isize = size(lattices) 
-!            isize = isize+1
-!            allocate(lattices_temp(1:isize))
-!            if (isize > 1) lattices_temp(1:isize-1) = lattices(:) 
-!            
-!            lat_ptr => lattices_temp(isize)
-!            call read_lat(lat_ptr, args, nargs) 
-!            allocate(lat_ptr%lat(1:lat_ptr%n_xyz(1),1:lat_ptr%n_xyz(2),1:lat_ptr%n_xyz(3))) 
-!            
-!			!do iz = 1, lat_ptr%n_xyz(3)
-!			!	do iy = 1, lat_ptr%n_xyz(2)
-!			!		call readandparse(rd_geom, args, nargs, ierr, curr_line)
-!			!		if (nargs /= lat_ptr%n_xyz(1)) then
-!			!			write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice element number"
-!			!			stop
-!			!		endif
-!			!		do ix = 1, lat_ptr%n_xyz(1)
-!			!			read (args(ix), *) lat_ptr%lat(ix,iy,iz)
-!			!		enddo 
-!			!	enddo 
-!			!enddo 
-!			
-!			do iy = 1, lat_ptr%n_xyz(2)
-!				call readandparse(rd_geom, args, nargs, ierr, curr_line)
-!				if (nargs /= lat_ptr%n_xyz(1)) then
-!					write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice element number"
-!					stop
-!				endif
-!				do ix = 1, lat_ptr%n_xyz(1)
-!				  do iz = 1, lat_ptr%n_xyz(3)
-!					read (args(ix), *) lat_ptr%lat(ix,iy,iz)
-!				  enddo 
-!				enddo 
-!			enddo 
-!			
-!			
-!            if(allocated(lattices)) deallocate(lattices)
-!            call move_alloc(lattices_temp, lattices)    
             nlatt = nlatt + 1
             lat_ptr => lattices(nlatt)
             call read_lat(lat_ptr, args, nargs) 
             allocate(lat_ptr%lat(1:lat_ptr%n_xyz(1),1:lat_ptr%n_xyz(2),1:lat_ptr%n_xyz(3))) 
-			do iy = 1, lat_ptr%n_xyz(2)
-				call readandparse(rd_geom, args, nargs, ierr, curr_line)
-				if (nargs /= lat_ptr%n_xyz(1)) then
-					write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice element number"
-					stop
-				endif
-				do ix = 1, lat_ptr%n_xyz(1)
-				  do iz = 1, lat_ptr%n_xyz(3)
-					read (args(ix), *) lat_ptr%lat(ix,iy,iz)
-				  enddo 
-				enddo 
-			enddo 
-            
+            if(lat_ptr % lat_type /= 9) then ! non vertical stack
+    			do iz = 1, lat_ptr%n_xyz(3)
+    			do iy = 1, lat_ptr%n_xyz(2)
+    				call readandparse(rd_geom, args, nargs, ierr, curr_line)
+    				if (nargs /= lat_ptr%n_xyz(1)) then
+    					write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice element number"
+    					stop
+    				endif
+    				do ix = 1, lat_ptr%n_xyz(1)
+    					read (args(ix), *) lat_ptr%lat(ix,iy,iz)
+    				enddo 
+    			enddo 
+                enddo
+            else ! Vertical stack: Z and Mat
+                do iz = 1, lat_ptr % n_xyz(3)
+                    call readandparse(rd_geom, args, nargs, ierr, curr_line)
+                    if(nargs /= 2) then
+                        stop
+                    endif
+                    read(args(1), *) lat_ptr%lat(1,1,iz)
+                    read(args(2), *) lat_ptr%z_lb(iz)
+                enddo
+            endif
         case ('BC') 
 			call read_bc (surfaces, args, nargs)
             
@@ -685,34 +656,81 @@ subroutine read_lat (Latobj, args, nargs)
 	character(*) :: args(:)
 	integer :: nargs
     integer :: i
+    integer :: type8(3), type12(3)
 
-	if (nargs /= 12) then 
-		write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice parameters"
-		stop 
-	endif 
-	
-	
-	read(args( 2), *) Latobj%lat_id   	
-	read(args( 3), *) Latobj%lat_type 	
-	read(args( 4), *) Latobj%xyz(1) 	
-	read(args( 5), *) Latobj%xyz(2) 	
-	read(args( 6), *) Latobj%xyz(3) 	
-	read(args( 7), *) Latobj%n_xyz(1)	
-	read(args( 8), *) Latobj%n_xyz(2)	
-	read(args( 9), *) Latobj%n_xyz(3)	
-	read(args(10), *) Latobj%pitch(1)	
-	read(args(11), *) Latobj%pitch(2)	
-	read(args(12), *) Latobj%pitch(3)	
-	
-    if(Latobj%lat_type==1) then ! Rectlinear lattice
-        do i = 1, 3
-            if ( mod(Latobj%n_xyz(i),2) == 0 ) then
-                Latobj%xyz0(i) = Latobj%xyz(i) - Latobj%pitch(i) * Latobj%n_xyz(i)/2
-            else
-                Latobj%xyz0(i) = Latobj%xyz(i) - Latobj%pitch(i) * (Latobj%n_xyz(i)/2+5D-1)
-            end if
-        end do
+!	if (nargs /= 12) then 
+!		write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice parameters"
+!		stop 
+!	endif 
+!	
+    if(nargs == 12) then ! Z-finite	
+    	read(args( 2), *) Latobj%lat_id   	
+    	read(args( 3), *) Latobj%lat_type 	
+    	read(args( 4), *) Latobj%xyz(1) 	
+    	read(args( 5), *) Latobj%xyz(2) 	
+    	read(args( 6), *) Latobj%xyz(3) 	
+    	read(args( 7), *) Latobj%n_xyz(1)	
+    	read(args( 8), *) Latobj%n_xyz(2)	
+    	read(args( 9), *) Latobj%n_xyz(3)	
+    	read(args(10), *) Latobj%pitch(1)	
+    	read(args(11), *) Latobj%pitch(2)	
+    	read(args(12), *) Latobj%pitch(3)	
+    	
+        if(Latobj%lat_type==11) then ! Rectlinear lattice
+            do i = 1, 3
+                if ( mod(Latobj%n_xyz(i),2) == 0 ) then
+                    Latobj%xyz0(i) = Latobj%xyz(i) - Latobj%pitch(i) * Latobj%n_xyz(i)/2
+                else
+                    Latobj%xyz0(i) = Latobj%xyz(i) - Latobj%pitch(i) * (Latobj%n_xyz(i)/2+5D-1)
+                end if
+            end do
+        endif
+        if(Latobj%lat_type==1 .or. Latobj%lat_type==2 .or. Latobj%lat_type==3) &
+            Latobj%lat_type = Latobj%lat_type + 10
+        type12 = (/11, 12, 13/)
+        if(.not. any(type12==Latobj%lat_type)) then
+            if(icore==score) then
+                print *, "    Lattice type doesn't match with input parameters"
+                stop
+            endif
+        endif
+
+    elseif(nargs == 8) then ! Z-infinite, square or hexagonal...
+    	read(args( 2), *) Latobj%lat_id   	
+    	read(args( 3), *) Latobj%lat_type 	
+    	read(args( 4), *) Latobj%xyz(1) 	
+    	read(args( 5), *) Latobj%xyz(2) 	
+    	read(args( 6), *) Latobj%n_xyz(1)	
+    	read(args( 7), *) Latobj%n_xyz(2)	
+    	read(args( 8), *) Latobj%pitch(1)	
+
+        Latobj%xyz(3)   = 0d0
+        Latobj%n_xyz(3) = 0
+        Latobj%pitch(2) = Latobj%pitch(1)
+        Latobj%pitch(3) = 0d0
+        type8 = (/1, 2, 3/)
+        if(.not. any(type8==Latobj%lat_type)) then
+            if(icore==score) then
+                print *, "    Lattice type doesn't match with input parameters"
+                stop
+            endif
+        endif
+
+    elseif(nargs == 6) then! Vertical stack
+        read(args( 2), *) Latobj%lat_id
+        read(args( 3), *) Latobj%lat_type
+        read(args( 4), *) Latobj%xyz(1)
+        read(args( 5), *) Latobj%xyz(2)
+        read(args( 6), *) Latobj%n_xyz(3)
+
+        Latobj%xyz(3) = 0d0
+        Latobj%n_xyz(1:2) = 0
+        Latobj%pitch(1) = 0d0
+        Latobj%pitch(2) = 0d0
+        Latobj%pitch(3) = 0d0
+        allocate(Latobj%z_lb(Latobj % n_xyz(3)))
     endif
+
 
 end subroutine
 
