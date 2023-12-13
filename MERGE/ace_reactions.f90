@@ -124,7 +124,12 @@ subroutine collision_CE (p)
         if ( p%yes_sab .and. isab > 0 ) then
             call SAB_CE(p,iso,isab,micro_xs(2),micro_xs(6))
         elseif( p % yes_sab .and. isab < 0) then
-            call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
+            !call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
+            if( rang() > therm(-isab) % f ) then
+                call SAB_CE(p, iso, therm(-isab) % iso_low, micro_xs(2), micro_xs(6))
+            else
+                call SAB_CE(p, iso, therm(-isab) % iso_high, micro_xs(2), micro_xs(6))
+            endif
         else
             call elastic_CE (p, iso)
         end if
@@ -277,6 +282,7 @@ subroutine SAB_THERM_EL_CE(p,iso,isab_l,isab_h,f)
     E_h = p%E * aa / ((1D0+awr)*(1D0+awr))
     mu = (1D0+mu*awr)/sqrt(aa)
     uvw_h = rotate_angle(p%coord(1)%uvw,mu)
+
     if ( associated(ab1) ) nullify(ab1)
     if ( associated(ab2) ) nullify(ab2)
 

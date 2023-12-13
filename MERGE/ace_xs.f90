@@ -131,7 +131,7 @@ function getMacroXS (mat, erg,kT, urn) result (macro_xs)
         if ( isab /= 0 .and. erg < 4D-6 ) then
             if(isab > 0) then
                 call GET_SAB_MAC(mat%numden(i_iso),iso_,isab,erg,macro_t,macro_a)
-                cycle
+                cycle MAT_ISO_LOOP
             else ! MODER
                 isab_l = therm(-isab) % iso_low
                 isab_h = therm(-isab) % iso_high
@@ -888,11 +888,11 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs)
         if ( associated(abi) ) nullify(abi)
         if ( associated(abe) ) nullify(abe)
     
-        abi => sab(isab_h)%itie
-        abe => sab(isab_h)%itce
-    
         ! HIGH TEMP:
         ! thermal inelastic
+        abi => sab(isab_h)%itie
+        abe => sab(isab_h)%itce
+
         call GET_IERG_SABI(isab_h,ierg,erg)
         ipfac = max(0D0,min(1D0,(erg-abi%erg(ierg)) &
             /(abi%erg(ierg+1)-abi%erg(ierg))))
@@ -907,14 +907,14 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs)
             xs6h = abe%xs(ierg) + ipfac*(abe%xs(ierg+1)-abe%xs(ierg))
             if ( sab(isab_h)%nxs(5) == 4 ) xs6h = xs6h / abe%erg(ierg)
         end if
+        if ( associated(abi) ) nullify(abi)
+        if ( associated(abe) ) nullify(abe)
 
         xs(2) = (1d0-f) * xs2l + f * xs2h
         xs(6) = (1d0-f) * xs6l + f * xs6h
         xs(2) = xs(2) + xs(6)  ! thermal scattering = inelastic + elastic
         xs(1) = xs(1) + xs(2)  ! total += thermal scattering
     
-        if ( associated(abi) ) nullify(abi)
-        if ( associated(abe) ) nullify(abe)
     endif
 
 end subroutine
