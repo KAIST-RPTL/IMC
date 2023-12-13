@@ -123,10 +123,13 @@ implicit none
     ! (MODIFYING...) ACE library path
     character(len=80):: acelib
     character(len=80), allocatable :: libname(:), libpath(:)
+    real(8), allocatable :: libtemp(:)
     logical, allocatable :: acerecord(:)
 
     character(len=80) :: directory
     character(len=20) :: title
+
+    integer :: ncell, nsurf, nlatt, nuniv, npcell
 
 contains
 

@@ -18,6 +18,7 @@ module material_header
         real(8)              :: vol            ! material volume (cm^3)
         real(8)              :: rgb(3)       ! Color for PLOT option
         integer, allocatable :: iso_idx(:)     ! Replacing iso_idx in depletion
+        integer, allocatable :: zaid(:)
         
         ! Does this material contain fissionable nuclides? Is it depletable?
         logical :: fissionable = .false.
@@ -55,6 +56,8 @@ module material_header
         
         ! Isotopes for S(a,b)?
         logical :: sab = .false.
+        logical :: therm = .false.
+        integer, allocatable :: sablist(:)
 
         ! Doppler broadening
         logical :: db = .false.

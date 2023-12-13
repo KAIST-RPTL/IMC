@@ -110,33 +110,18 @@ real(8) :: UEGMAX = 3D1
 
 !> 22/08/05 ~ UNIONIZED ENERGY GRID
 type UNITED
-  integer, allocatable ::  Egrid(:) 
-!real, allocatable ::   sigt(:) !> Total XS in united grid
-!real, allocatable ::  sigel(:) !> Elastic XS in ...
-!real, allocatable ::  sig2n(:) !> (n,2n) XS in ...
-!real, allocatable ::  sig3n(:) !> (n,3n) XS in ...
-!real, allocatable ::  sig4n(:) !> (n,4n) XS in ...
-!real, allocatable ::   sigd(:) !> (n,gamma) XS
-!real, allocatable ::   sigf(:) !> Fission XS in ...
-!real, allocatable :: signuf(:) !> Fission Neutron Production
-!real, allocatable ::  sigqf(:) !> Fission heating ..
-!real, allocatable ::  sigal(:) !> (n,Alpha) XS
-!real, allocatable ::   sigp(:) !> (n,p) XS
-!real, allocatable :: sig2n2(:) !> (n,2nx) XS
-!real, allocatable :: sig3n2(:) !> (n,3nx) XS
-!real, allocatable :: sig4n2(:) !> (n,4nx) XS
-
-real(8), allocatable ::   sigt(:) !> Total XS in united grid
-real(8), allocatable ::  sigel(:) !> Elastic XS in ...
-real(8), allocatable ::  sig2n(:) !> (n,2n) XS in ...
-real(8), allocatable ::  sig3n(:) !> (n,3n) XS in ...
-real(8), allocatable ::  sig4n(:) !> (n,4n) XS in ...
-real(8), allocatable ::   sigd(:) !> (n,gamma) XS
-real(8), allocatable ::   sigf(:) !> Fission XS in ...
-real(8), allocatable :: signuf(:) !> Fission Neutron Production
-real(8), allocatable ::  sigqf(:) !> Fission heating ..
-real(8), allocatable ::  sigal(:) !> (n,Alpha) XS
-real(8), allocatable ::   sigp(:) !> (n,p) XS
+    integer, allocatable ::  Egrid(:) 
+    real(8), allocatable ::   sigt(:) !> Total XS in united grid
+    real(8), allocatable ::  sigel(:) !> Elastic XS in ...
+    real(8), allocatable ::  sig2n(:) !> (n,2n) XS in ...
+    real(8), allocatable ::  sig3n(:) !> (n,3n) XS in ...
+    real(8), allocatable ::  sig4n(:) !> (n,4n) XS in ...
+    real(8), allocatable ::   sigd(:) !> (n,gamma) XS
+    real(8), allocatable ::   sigf(:) !> Fission XS in ...
+    real(8), allocatable :: signuf(:) !> Fission Neutron Production
+    real(8), allocatable ::  sigqf(:) !> Fission heating ..
+    real(8), allocatable ::  sigal(:) !> (n,Alpha) XS
+    real(8), allocatable ::   sigp(:) !> (n,p) XS
 endtype
 
 
@@ -161,8 +146,8 @@ type AceFormat
   real(8), allocatable :: sigel(:) !> elastic cross sections, sigel(I), I=1,NXS(3)
   real(8), allocatable :: sigf(:)  !> fission cross sections, sigf(I), I=IE, IE+NE-1
   real(8), allocatable :: sigqf(:) !> Q-fission cross sections
+  real(8), allocatable :: siga(:)  !> (ADDITIONAL) siga = sigf + sigd
   real(8), allocatable :: H(:)     !> average heating numbers, H(I), I=1,NXS(3)
-  !real(8), allocatable :: signuf(:)!> nu*sigf, identical size with sigf(:) // nu is generated in NU block
 
   real(8) :: qval
   
@@ -178,33 +163,26 @@ type AceFormat
   !> MTR Block
   integer, allocatable :: MT(:) !> ENDF MT numbers, MT(I), I=1,NXS(4)
 
-
   !> LQR Block
   real(8), allocatable :: Q(:) !> Q-value of reaction MT, Q(I), I=1,NXS(4)
-
 
   !> TYR Block
   integer, allocatable :: TY(:) !> Neutron release for reaction MT, TY(I), I=1,NXS(4)
 
-
   !> SIG Block
   type (CrossSectionDataForm), allocatable :: sig_MT(:) !> cross section arrays for reaction MT(I), sig_MT(I), I=1,NXS(4)
-
 
   !> AND Block
   integer, allocatable :: ang_flag(:)       !> flags for angular distribution arrays, for reaction MT(I), ang_flag(I), I=0,NXS(5)
   type (AngularDist), allocatable :: ang(:) !> angular distribution arrays, for reaction MT(I), ang_flag(I), I=0,NXS(5)
-
 
   !> DLW Block // Delayed Neutron Energy Distribution // DLWP Block
   type (EnergyDist), allocatable :: pneg(:)  !> prompt neutron energy distribution arrays, for reaction MT(I), pneg(I), I=1,NXS(5)
   type (EnergyDist), allocatable :: dneg(:)  !> delayed neutron energy distribution arrays, for delayed neutron group I, dneg(I), I=1,NXS(8)
   type (EnergyDist), allocatable :: ppeg(:)  !> prompt photon energy distribution arrays, for reaction MT(I), ppeg(I), I=1,NXS(8)
 
-
   !> Energy-Dependent Neutron Yields
   type(TabularDataForm), allocatable :: nyd(:)  !> neutron yield data, nyd(I), I=1,NXS(4) 
-
 
   !> UNR Block
   type(UNRtype) :: UNR
@@ -212,10 +190,8 @@ type AceFormat
   !> UNIONIZED ENERGY GRID
   type(UNITED) :: UEG
   
-
   integer :: isab
   integer :: iso0K
-
 
 end type
 type (AceFormat), allocatable, target :: ace(:)
@@ -245,9 +221,10 @@ real(8), allocatable :: ueggrid(:)
 logical :: do_OTFDB
 integer :: scat_kernel  ! scattering kernel : cons = 0, wcm = 1, dbrc = 2
 real(8) :: DBRC_E_min,  DBRC_E_max  ! (MeV) For U-238, min = 0.4eV, max = 210eV
-integer :: n_iso0K      ! # of isotopes treated by exact scattering kernel 
+integer :: n_iso0K = 0      ! # of isotopes treated by exact scattering kernel 
 type AceFormat0K
-  character(20) :: library      !> name of library for each isotope
+  character(200) :: library      !> name of library for each isotope
+  character(200) :: xslib
   integer :: ZAID       ! ZAID number
   integer :: NXS(1:16)  ! number array in ace format
   integer :: JXS(1:32)  ! pointer array in ace format
@@ -288,7 +265,7 @@ type SAB_EL_ANG
 end type
 
 type SAB_ACEFORMAT
-    character(20):: library
+    character(200):: library
     integer:: NXS(1:16)
     integer:: JXS(1:32)
     integer:: ZAID                !> ZAID number
@@ -300,12 +277,25 @@ type SAB_ACEFORMAT
     type(SAB_INEL_E)::  ITXE
     type(SAB_EL_ANG)::  ITCA
 
+    character(20) :: xslib
+
 end type
 type(Sab_AceFormat), allocatable, target:: sab(:)
-integer:: sab_iso   !> No. of isotopes considering thermal scattering S(a,b)
+integer:: sab_iso = 0   !> No. of isotopes considering thermal scattering S(a,b)
 
 real(8), allocatable :: XSS(:)        !> temporary XSS array for currently reading isotope
 real(8), allocatable :: sab_XSS(:,:)  !> temporary XSS array for currently reading isotope for S(alfa,beta)
+
+type THERM_HEADER ! Identical to therm option in Serpent 2 ( ref. to wiki )
+    character(20) :: tag                !> Tag for id (CE and SAB)
+    character(20) :: lib_low, lib_high  !> Library for processing
+    integer :: issab                    !> Determines whether they're sab
+    integer :: iso_low, iso_high        !> ace (or sab) index for low and high E
+    real(8) :: temp                     !> Temperature in K * Boltzmann
+    real(8) :: f                        !> Fraction used for MAKXSF
+end type
+type(THERM_HEADER), allocatable, target :: therm(:)
+integer :: therm_iso = 0
 
 
 ! Doppler broadening
@@ -403,8 +393,10 @@ real(8),parameter :: wghq2(1:16) = (/1.42451415249E-02, &
         
     end function 
 
-    function find_ACE_iso_idx_zaid (zaid) result (idx) 
+    function find_ACE_iso_idx_zaid (zaid, temp) result (idx) 
+        use constants, only: K_B
         integer, intent(in) :: zaid 
+        real(8), intent(in), optional :: temp
         integer :: i, idx
         integer :: hund
         !do i = 1, num_iso
@@ -426,8 +418,15 @@ real(8),parameter :: wghq2(1:16) = (/1.42451415249E-02, &
                 if(.not. ace(i)%excited) cycle
                 hund = 3-mod(zaid/1000,10)
                 if(ace(i)%zaid-hund*100==zaid/10) then
-                    idx = i
-                    return
+                    if(present(temp)) then
+                        if(abs(ace(i)%temp-temp)<=1E-3*K_B) then
+                            idx = i
+                            return
+                        endif
+                    else
+                        idx = i
+                        return
+                    endif
                 endif
             enddo
         endif

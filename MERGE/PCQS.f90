@@ -641,7 +641,7 @@ subroutine collision_PCQS_CE (p)
 	use ace_reactions
     implicit none 
     type(particle), intent(inout) :: p
-    integer :: iso, i, i_iso, xn
+    integer :: iso, i, i_iso, xn, isab
     real(8) :: rn, el, noel, r, sigt_sum, temp, sum1, sum2
     real(8) :: micro_xs(6), macro_xs(5)
     ! * microscopic cross section
@@ -687,6 +687,7 @@ subroutine collision_PCQS_CE (p)
         temp = temp + micro_xs(1)*materials(p%material)%numden(i)*barn
         if ( rn < temp/macro_xs(1) ) then
             iso = materials(p%material)%ace_idx(i)
+            isab = materials(p%material) % sablist(i)
             i_iso = i
             if ( materials(p%material)%sab .and. ace(iso)%sab_iso /= 0 &
                 .and. p%E < 4D-6 ) then
@@ -909,10 +910,12 @@ subroutine collision_PCQS_CE (p)
 
     r = rang()*(noel+el)-el
     if( ace(iso)%nxs(5) == 0 .or. r <= 0.0d0 ) then 
-        if ( p%yes_sab ) then
-        call SAB_CE(p,iso,micro_xs(2),micro_xs(6))
+        if ( p%yes_sab .and. isab > 0 ) then
+            call SAB_CE(p,iso,isab,micro_xs(2),micro_xs(6))
+        elseif( p % yes_sab .and. isab < 0) then
+            call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
         else
-        call elastic_CE (p, iso)
+            call elastic_CE (p, iso)
         end if
     else
         call notElastic_CE (p, iso, xn)
@@ -936,7 +939,7 @@ subroutine collision_PCQS_CE_init (p)
     use constants, only: k_b
     implicit none 
     type(particle), intent(inout) :: p
-    integer :: iso, i, i_iso, xn
+    integer :: iso, i, i_iso, xn, isab
     real(8) :: rn, el, noel, r, sigt_sum, temp, sum1, sum2
     real(8) :: micro_xs(6), macro_xs(5)
     ! * microscopic cross section
@@ -983,6 +986,7 @@ subroutine collision_PCQS_CE_init (p)
         temp = temp + micro_xs(1)*materials(p%material)%numden(i)*barn
         if ( rn < temp/macro_xs(1) ) then
             iso = materials(p%material)%ace_idx(i)
+            isab = materials(p%material) % sablist(i)
             i_iso = i
             if ( materials(p%material)%sab .and. ace(iso)%sab_iso /= 0 &
                 .and. p%E < 4D-6 ) then
@@ -1160,10 +1164,12 @@ subroutine collision_PCQS_CE_init (p)
 
     r = rang()*(noel+el)-el
     if( ace(iso)%nxs(5) == 0 .or. r <= 0.0d0 ) then 
-        if ( p%yes_sab ) then
-        call SAB_CE(p,iso,micro_xs(2),micro_xs(6))
+        if ( p%yes_sab .and. isab > 0 ) then
+            call SAB_CE(p,iso,isab,micro_xs(2),micro_xs(6))
+        elseif( p % yes_sab .and. isab < 0) then
+            call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
         else
-        call elastic_CE (p, iso)
+            call elastic_CE (p, iso)
         end if
     else
         call notElastic_CE (p, iso, xn)

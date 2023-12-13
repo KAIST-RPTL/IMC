@@ -744,6 +744,7 @@ subroutine CYCLE_TALLY_MSG(bat)
     integer:: nsum
     real(8):: vsum
     logical:: yes
+    real(8), allocatable :: p_mc(:,:,:), s_mc(:,:,:)
 
     if ( icore /= score ) return
     if ( .not. (fmfdon .or. tallyon)) return
@@ -790,8 +791,8 @@ subroutine CYCLE_TALLY_MSG(bat)
 
     if ( bat == n_batch ) then
     ! power distribution normalization
-        if ( tallyon ) &
-            call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
+        !if ( tallyon ) &
+        !    call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
         if ( fmfdon ) &
             call NORM_DIST(p_fmfd(1:n_batch,1:n_act,:,:,:))
     end if
@@ -806,13 +807,14 @@ subroutine CYCLE_TALLY_MSG(bat)
         write(*,15), ii, AVG(t_MC(1:,ii)), AVG(t_det(1:,ii)), AVG(t_tot(1:,ii))
     end do
     write(*,*)
+
     !end if
 
 
     ! bunrup dependent pin power distribution
     if ( DO_BURN ) then
     if ( DTMCBU .and. .not. MCBU ) then
-        if ( istep_burnup == 0 ) then
+        if ( istep_burnup == 0 .or. .not. do_burn) then
         ! find if the file exists
             nsum = 0
             dfile = 'dep_dt0.out'
@@ -974,7 +976,41 @@ subroutine CYCLE_TALLY_MSG(bat)
 
             close(45)
         end if
-    end if
+    elseif(fmfdon)then
+        do ii = 1, nfm(3)
+            do jj = 1, nfm(2)
+                write(*,21), p_fmfd(1,1,:,jj,ii)
+            end do
+        end do
+    elseif (tallyon ) then
+
+        allocate(p_mc(nfm(1), nfm(2), nfm(3)))
+        allocate(s_mc(nfm(1), nfm(2), nfm(3)))
+        do ii = 1, nfm(1)
+        do jj = 1, nfm(2)
+        do kk = 1, nfm(3)
+            p_mc(ii,jj,kk) = AVG(MC_tally(1, :, 1, 1,  ii, jj, kk))
+            s_mc(ii,jj,kk) = STD_S(MC_tally(1,:,1,1,ii,jj,kk))
+        enddo
+        enddo
+        enddo
+
+        write(*,*) 'AVG POWER:'
+        do kk = 1, nfm(3)
+        do jj = 1, nfm(2)
+            write(*, 21), p_mc(:, jj, kk)
+        enddo
+        enddo
+
+        write(*,*) 'STD:'
+        do kk = 1, nfm(3)
+        do jj = 1, nfm(2)
+            write(*, 21) s_mc(:, jj, kk)
+        enddo
+        enddo
+
+        deallocate(p_mc)
+    endif
 
     1 format(1000ES15.7)
     2 format(2I4,1000ES15.7)
@@ -984,105 +1020,9 @@ subroutine CYCLE_TALLY_MSG(bat)
     16 format(4X,2F10.6,F10.2,2x,a)
     14 format(<nfm(1)>ES15.7)
     15 format(4X,I4,3F12.3)
+    21 format(<nfm(1)>es15.7)
 
 end subroutine
-
-! =============================================================================
-! CYCLE_TALLY_MSG
-! =============================================================================
-!subroutine CYCLE_TALLY_MSG(bat)
-!    use tally, only: MC_tally
-!    use TH_HEADER, only: th_on, t_fuel, t_bulk
-!    implicit none
-!    integer, intent(in):: bat
-!    real(8):: ttemp(nfm(1),nfm(2),nfm(3))
-!    real(8):: ttemp_sd(nfm(1),nfm(2),nfm(3))
-!
-!    if ( icore /= score ) return
-!	if (do_burn) return 
-!	
-!    ! multiplication factor
-!    if ( fmfdon ) then
-!    write(*,*), "   DTMC keff"
-!    do ii = 1, n_inact
-!        write(*,12), k_fmfd(bat,ii)
-!    end do
-!    do ii = n_inact+1, n_totcyc
-!        write(*,13), k_fmfd(bat,ii), AVG(k_fmfd(bat,n_inact+1:ii)), &
-!                    PCM(STD_M(k_fmfd(bat,n_inact+1:ii)))
-!    end do
-!    write(*,*)
-!    end if
-!
-!    if ( bat == n_batch .and. tallyon) then
-!    ! power distribution normalization
-!    call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
-!    call NORM_DIST(p_fmfd(1:n_batch,1:n_act,:,:,:))
-!
-!    ! computing time
-!    t_MC = t_tot - t_det
-!    write(*,*), "   Computing time"
-!    do ii = 1, n_totcyc
-!        write(*,15), AVG(t_MC(1:,ii)), AVG(t_det(1:,ii)), AVG(t_tot(1:,ii))
-!    end do
-!    write(*,*)
-!    end if
-!
-!	
-!	
-!    ! MC power distribution
-!    if ( bat == n_batch ) then
-!    if ( .not. fmfdon ) then
-!    if ( tallyon ) then
-!	
-!	open(9999,file="mean_tally2.out",action="write",status="replace")
-!	open(99999,file="sd_tally2.out",action="write",status="replace")
-!	
-!    do ii = 1, nfm(1)
-!    do jj = 1, nfm(2)
-!    do kk = 1, nfm(3)
-!        ttemp(ii,jj,kk) = AVG(MC_tally(bat,:,1,1,ii,jj,kk))
-!        ttemp_sd(ii,jj,kk) = STD_M(MC_tally(bat,:,1,1,ii,jj,kk))
-!    end do
-!    end do
-!    end do
-!    write(*,*), "   Printing MC power distribution"
-!    write( 9999,14), ttemp(:,:,:)
-!    write(99999,14), ttemp_sd(:,:,:)
-!	close(9999)
-!	close(99999)
-!    end if
-!
-!    else
-!    ! DTMC power distribution
-!    do ii = 1, nfm(1)
-!    do jj = 1, nfm(2)
-!    do kk = 1, nfm(3)
-!        ttemp(ii,jj,kk) = AVG(p_fmfd(bat,:,ii,jj,kk))
-!    end do
-!    end do
-!    end do
-!    write(*,*), "   DTMC power distribution"
-!    write(*,14), ttemp(:,:,:)
-!    write(*,*)
-!    end if
-!
-!    ! temperature distribution
-!    if ( th_on ) then
-!    write(*,*), "   Temperature distribution"
-!    write(*,14), t_fuel/k_b
-!    write(*,*)
-!    write(*,14), t_bulk/k_b
-!    write(*,*)
-!    end if
-!    end if
-!
-!    12 format(4X,F10.6)
-!    13 format(4X,2F10.6,F10.2)
-!    14 format(<nfm(1)>ES15.7)
-!    15 format(4X,3ES15.7)
-!
-!end subroutine
 
 ! =============================================================================
 ! BATCH_TALLY_MSG
@@ -1234,73 +1174,6 @@ subroutine BATCH_TALLY_MSG
     end do
     end do
     1 format(51es15.7)
-
-!    ! 3D power distribution
-!    write(*,11), '   =========================================='
-!    write(*,*), "   3D Power distribution"
-!    if ( .not. fmfdon ) then
-!    write(*,*), "   MC"
-!    do xx = 1, nfm(1)
-!    do yy = 1, nfm(2)
-!    do zz = 1, nfm(3)
-!    do ii = 1, n_batch
-!        t_avg(ii,1,xx,yy,zz) = AVG(MC_tally(ii,1:n_act,1,1,xx,yy,zz))
-!    end do
-!        t_avg(1,1,xx,yy,zz) = AVG(t_avg(1:n_batch,1,xx,yy,zz))
-!    end do
-!    end do
-!    end do
-!    write(*,16), t_avg(1,1,:,:,:)
-!    write(*,*)
-!    else
-!    write(*,*), "   FMFD"
-!    do xx = 1, nfm(1)
-!    do yy = 1, nfm(2)
-!    do zz = 1, nfm(3)
-!    do ii = 1, n_batch
-!        t_avg(ii,1,xx,yy,zz) = AVG(p_fmfd(ii,1:jj,xx,yy,zz))
-!    end do
-!        t_avg(1,1,xx,yy,zz) = AVG(t_avg(1:n_batch,1,xx,yy,zz))
-!    end do
-!    end do
-!    end do
-!    write(*,16), t_avg(1,1,:,:,:)
-!    write(*,*)
-!    end if
-!
-!    ! 2D real error distribution
-!    write(*,11), '   =========================================='
-!    write(*,*), "   2D Error distribution"
-!    if ( .not. fmfdon ) then
-!    write(*,*), "   MC"
-!    do xx = 1, nfm(1)
-!    do yy = 1, nfm(2)
-!    do ii = 1, n_batch
-!    do jj = 1, n_act
-!        t_avg(ii,jj,xx,yy,1) = AVG(MC_tally(ii,jj,1,1,xx,yy,1:nfm(3)))
-!    end do
-!        t_avg(ii,1,xx,yy,1) = AVG(t_avg(ii,1:n_act,xx,yy,1))
-!    end do
-!        t_avg(1,1,xx,yy,1) = STD_S(t_avg(1:n_batch,1,xx,yy,1))
-!    end do
-!    end do
-!    write(*,16), t_avg(1,1,:,:,1)
-!    write(*,*)
-!    else
-!    write(*,*), "   FMFD"
-!    do xx = 1, nfm(1)
-!    do yy = 1, nfm(2)
-!    do ii = 1, n_batch
-!    do jj = 1, n_act
-!        t_avg(ii,jj,xx,yy,1) = AVG(p_fmfd(ii,jj,xx,yy,1:nfm(3)))
-!    end do
-!        t_avg(ii,1,xx,yy,1) = AVG(t_avg(ii,1:n_act,xx,yy,1))
-!    end do
-!        t_avg(1,1,xx,yy,1) = STD_S(t_avg(1:n_batch,1,xx,yy,1))
-!    end do
-!    end do
-!    write(*,16), t_avg(1,1,:,:,1)
-!    end if
 
     10 format(4X,I4,F10.2)
     12 format(4X,I4,ES15.7)

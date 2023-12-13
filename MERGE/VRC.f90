@@ -12,7 +12,7 @@ module VRC
 	use tally, 				only: mesh_distance
 	use ace_xs,				only: getMicroXS, getierg, get_otf_db_mic, get_sab_mic
 	use ace_header, 		only: ace 
-	use ace_reactions, 		only: elastic_CE, inElastic_CE, WHAT_TEMPERATURE, SAB_CE, fission_E
+	use ace_reactions
 	
 	implicit none 
 	
@@ -208,7 +208,7 @@ module VRC
 		real(8) :: ipfac
 		integer :: n_iso
 		real(8) :: dtemp
-		integer :: iso
+		integer :: iso, isab
 		real(8) :: val, beta, pdf, nu_del 
 		integer :: pt1, pt2, pt3
 		integer :: ng, NE
@@ -239,6 +239,7 @@ module VRC
 				temp = temp + micro_xs(1)*materials(p_psudo%material)%numden(i)*barn
 				if ( rn < temp/macro_xs(1) ) then
 					iso = materials(p_psudo%material)%ace_idx(i)
+                    isab = materials(p%material) % sablist(i)
 					if ( materials(p_psudo%material)%sab .and. ace(iso)%sab_iso /= 0 &
 						.and. p_psudo%E < 4D-6 ) then
 						p_psudo%yes_sab = .true.
@@ -305,12 +306,13 @@ module VRC
 			val = (1.0-beta)*micro_xs(5) + el + noel 
 			r = rang()
 			if( ace(iso)%nxs(5) == 0 .or. r < (el)/val ) then ! elastic scattering
-				if ( p_psudo%yes_sab ) then
-					call SAB_CE(p_psudo,iso,micro_xs(2),micro_xs(6))
-				else
-					call elastic_CE (p_psudo, iso)
-				end if
-				
+                if ( p_psudo%yes_sab .and. isab > 0 ) then
+                    call SAB_CE(p_psudo, iso,isab,micro_xs(2),micro_xs(6))
+                elseif( p_psudo % yes_sab .and. isab < 0) then
+                    call SAB_THERM_CE(p_psudo, iso, abs(isab), micro_xs(2), micro_xs(6))
+                else
+                    call elastic_CE (p_psudo, iso)
+                end if
 			elseif (r < (el+noel)/val) then ! inelastic scattering
 				call inElastic_CE (p_psudo,iso,xn)
 				p_psudo%wgt = p_psudo%wgt * dble(xn)

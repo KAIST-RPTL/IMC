@@ -416,7 +416,7 @@ contains
 	! ====================================================================== !
 	subroutine collision_dynamic_CE (p) 
 		type(particle), intent(inout) :: p
-		integer :: iso, i, i_iso, xn
+		integer :: iso, i, i_iso, xn, isab
 		real(8) :: rn, el, inel, r, sigt_sum, temp, sum1, sum2
 		real(8) :: micro_xs(6), macro_xs(5)
 		! * microscopic cross section
@@ -457,6 +457,7 @@ contains
 		rn = rang(); temp = 0 
 		n_iso = materials(p%material)%n_iso
 		iso = materials(p%material)%ace_idx(n_iso)
+        isab = materials(p%material) % sablist(i)
 		do i = 1, n_iso
 			micro_xs = getMicroXS( materials(p%material)%ace_idx(i), p%E)
 			! S(a,b)
@@ -576,11 +577,13 @@ contains
 		val = (1.0-beta)*micro_xs(5) + el + inel 
 		r = rang()
 		if( r < (el)/val ) then ! elastic scattering
-			if ( p%yes_sab ) then
-				call SAB_CE(p,iso,micro_xs(2),micro_xs(6))
-			else
-				call elastic_CE (p, iso)
-			end if
+            if ( p%yes_sab .and. isab > 0 ) then
+                call SAB_CE(p,iso,isab,micro_xs(2),micro_xs(6))
+            elseif( p % yes_sab .and. isab < 0) then
+                call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
+            else
+                call elastic_CE (p, iso)
+            end if
 		elseif (r < (el+inel)/val) then ! inelastic scattering
 			call inElastic_CE (p,iso,xn)
 			p%wgt = p%wgt * dble(xn)

@@ -50,10 +50,12 @@ end subroutine
 ! =============================================================================
 ! READ_GEOM reads the input about the geometry
 ! =============================================================================
-subroutine read_geom
+recursive subroutine read_geom(path, geom_nest)
     
     implicit none
     
+    character(*), intent(in) :: path
+    integer, intent(in) :: geom_nest
     integer :: i, j, k, ix, iy,iz, idx, n, level
     integer :: i_cell, i_univ, i_lat, i_surf 
     integer :: ntemp, itemp, tmpidx
@@ -62,7 +64,6 @@ subroutine read_geom
     character(200) :: line
     character(20) :: option, temp, mat_id, pnum 
     character(1)  :: opt
-    !character(20) :: title
     character(30) :: filename
     character(100) :: args(100)
     integer :: nargs
@@ -75,59 +76,37 @@ subroutine read_geom
     character(20) :: dupname
     character(5) :: char1, char2
     integer :: File_Error
-    integer :: ncell, nsurf, nlatt, nuniv, npcell, univ_id
 
-    if (icore==score) print *, "   geom.inp :: GEOMETRY CARD is being read..."
-
+    if (icore==score) print *, "   ", path, " :: GEOMETRY CARD is being read..., LOOP #:", geom_nest
+    if( geom_nest == 0 ) then ! Mother file
     
-    !Read geom.inp
-    open(rd_geom, file=trim(trim(directory)//"geom.inp"),action="read", status="old")
-
-
-    ! Count number of universes/surfaces/cells
-    ncell = 0; nsurf = 0; nlatt = 0; nuniv = 0;
-    GEOM_COUNT: do
-        read(rd_geom, *, iostat=File_Error) option
-        if(File_Error/=0) exit GEOM_COUNT
-        call Small_to_Capital(option)
-        select case(adjustL(trim(option)))
-        case("SURF")
-            nsurf = nsurf + 1
-        case("CELL")
-            ncell = ncell + 1
-        case("PIN")
-            nuniv = nuniv + 1
-            backspace(rd_geom)
-            read(rd_geom, *, iostat=File_Error) option, univ_id, npcell
-            ncell = ncell + npcell
-            nsurf = nsurf + npcell - 1
-        case("LAT")
-            nlatt = nlatt + 1
-        end select
-    enddo GEOM_COUNT
-    rewind(rd_geom)
-
-    allocate(surfaces(1:nsurf))
-    allocate(cells(1:ncell))
-    allocate(universes(0:nuniv))
-    universes(0)%univ_type = 0
-    universes(0)%univ_id   = 0
-    universes(0)%xyz(:)    = 0
-    universes(0)%ncell     = 0
-    allocate(lattices(1:nlatt))
-    if(icore==score) then
-        print *, 'Surf #:', nsurf
-        print *, 'Cell #:', ncell
-        print *, 'Univ #:', nuniv
-        print *, 'Latt #:', nlatt
+        ncell = 0; nsurf = 0; nlatt = 0; nuniv = 0;
+        call count_geom('geom.inp', rd_geom+geom_nest)
+    
+        allocate(surfaces(1:nsurf))
+        allocate(cells(1:ncell))
+        allocate(universes(0:nuniv))
+        universes(0)%univ_type = 0
+        universes(0)%univ_id   = 0
+        universes(0)%xyz(:)    = 0
+        universes(0)%ncell     = 0
+        allocate(lattices(1:nlatt))
+        if(icore==score) then
+            print *, 'Surf #:', nsurf
+            print *, 'Cell #:', ncell
+            print *, 'Univ #:', nuniv
+            print *, 'Latt #:', nlatt
+        endif
     endif
-        
-    
-    ncell = 0; nsurf = 0; nlatt = 0; nuniv = 0;
 
+    !Read geom.inp
+    open(rd_geom+geom_nest, file=trim(trim(directory)//adjustl(trim(path))),action="read", status="old")
+    rewind(rd_geom+geom_nest)
+        
+    ncell = 0; nsurf = 0; nlatt = 0; nuniv = 0;
     ierr = 0; curr_line = 0 
     do while (ierr.eq.0)
-		call readandparse(rd_geom, args, nargs, ierr, curr_line)
+		call readandparse(rd_geom+geom_nest, args, nargs, ierr, curr_line)
 		
         if (ierr /= 0) exit
 		option = args(1)
@@ -162,15 +141,6 @@ subroutine read_geom
 			
 			
         case ("SURF")
-!            isize = 0
-!            if (allocated(surfaces)) isize = size(surfaces) 
-!            isize = isize+1
-!            allocate(surfaces_temp(1:isize))
-!            if ( isize > 1 ) surfaces_temp(1:isize-1) = surfaces(:) 
-!            call read_surf(surfaces_temp(isize), args, nargs)
-!			call EMSG_surf(surfaces_temp(isize)%surf_type, nargs, curr_line)
-!            if(allocated(surfaces)) deallocate(surfaces)
-!           call move_alloc(surfaces_temp, surfaces)
             nsurf = nsurf + 1
             call read_surf(surfaces(nsurf), args, nargs)
 			call EMSG_surf(surfaces(nsurf)%surf_type, nargs, curr_line)
@@ -202,7 +172,7 @@ subroutine read_geom
             do i = 1, univptr%ncell-1
                 j = ncell-univptr%ncell+i
                 univptr%cell(i) = j
-				call readandparse(rd_geom, args, nargs, ierr, curr_line)
+				call readandparse(rd_geom+geom_nest, args, nargs, ierr, curr_line)
 				
                 read(args(1),*) mat_id
                 read(args(2),*) univptr%r(i)
@@ -249,7 +219,7 @@ subroutine read_geom
             enddo
             j = ncell
             univptr%cell(i) = j
-			call readandparse(rd_geom, args, nargs, ierr, curr_line)
+			call readandparse(rd_geom+geom_nest, args, nargs, ierr, curr_line)
             read(args(1),*) mat_id
             
             if (E_mode == 0) cells(j)%mat_idx = find_mat_idx(XS_MG,mat_id)
@@ -286,7 +256,7 @@ subroutine read_geom
             if(lat_ptr % lat_type /= 9) then ! non vertical stack
     			do iz = 1, lat_ptr%n_xyz(3)
     			do iy = 1, lat_ptr%n_xyz(2)
-    				call readandparse(rd_geom, args, nargs, ierr, curr_line)
+    				call readandparse(rd_geom+geom_nest, args, nargs, ierr, curr_line)
     				if (nargs /= lat_ptr%n_xyz(1)) then
     					write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice element number"
     					stop
@@ -298,7 +268,7 @@ subroutine read_geom
                 enddo
             else ! Vertical stack: Z and Mat
                 do iz = 1, lat_ptr % n_xyz(3)
-                    call readandparse(rd_geom, args, nargs, ierr, curr_line)
+                    call readandparse(rd_geom+geom_nest, args, nargs, ierr, curr_line)
                     if(nargs /= 2) then
                         stop
                     endif
@@ -312,6 +282,12 @@ subroutine read_geom
         case ('SGRID') 
             allocate(sgrid(1:6))
             call read_sgrid (args, nargs)
+        case("INCLUDE")
+            if(nargs /= 2) then
+                write(*,*) "    Include statement requries only one daughter file"
+                stop
+            endif
+            call read_geom(adjustl(trim(args(2))), geom_nest+1)
 		
         case default 
             print *, 'NO SUCH OPTION ::', option 
@@ -320,7 +296,10 @@ subroutine read_geom
         
     enddo
     
-    
+    if(geom_nest > 0) then
+        close(rd_geom+geom_nest)
+        return
+    endif
     ! ===================================================================================== !
     !> add pure universes from cells(:)
     do i = 1, size(cells)
@@ -339,6 +318,7 @@ subroutine read_geom
             if ( .not. found ) then 
                 isize = size(universes(1:))
                 allocate(universes_temp(0:isize+1))
+                universes_temp(0) = universes(0)
                 do j = 1, isize 
                     universes_temp(j) = universes(j)
                 enddo
@@ -448,6 +428,12 @@ subroutine read_geom
                     cells(i)%translation(2) = surfaces(idx)%parmtrs(2)
                     cells(i)%translation(3) = surfaces(idx)%parmtrs(3)
                 endif
+                if (surfaces(idx)%surf_type == hexxc) then
+                    allocate(cells(i)%translation(3))
+                    cells(i)%translation(1) = surfaces(idx)%parmtrs(1)
+                    cells(i)%translation(2) = surfaces(idx)%parmtrs(2)
+                    cells(i)%translation(3) = 0
+                endif
                 
             endif
         endif 
@@ -460,6 +446,7 @@ subroutine read_geom
         if (.not.allocated(universes(i)%cell)) allocate(universes(i)%cell(universes(i)%ncell))
         do k = 1, size(cells)
             if (cells(k)%univ_id == universes(i)%univ_id) then 
+                if(universes(i)%ncell < idx) print *, 'HMM?', idx, universes(i)%ncell, universes(i)%univ_id
                 universes(i)%cell(idx) = k
                 idx = idx+1
             endif 
@@ -508,7 +495,7 @@ subroutine read_geom
     !call check_input_result(universes,lattices, cells,surfaces)
             
     !> READ DONE
-    close(rd_geom)
+    close(rd_geom+geom_nest)
 
     if(icore==score) then
         print *, 'TST'
@@ -520,6 +507,47 @@ subroutine read_geom
     if(icore==score) print '(A25)', '    GEOM  READ COMPLETE...' 
     
 end subroutine
+
+recursive subroutine count_geom(path, cnt)
+    implicit none
+    character(*), intent(in) :: path
+    integer, intent(in) :: cnt
+    character(20) :: option
+    integer :: File_Error
+    character(50) :: nested_file
+    integer :: univ_id
+
+    open(cnt, file=trim(trim(directory))//adjustl(trim(path)), &
+        action = 'read', status = 'old')
+    GEOM_COUNT: do
+        read(cnt, *, iostat=File_Error) option
+        if(File_Error/=0) return
+        call Small_to_Capital(option)
+        select case(adjustl(trim(option)))
+        case("SURF")
+            nsurf = nsurf + 1
+        case("CELL")
+            ncell = ncell + 1
+        case("PIN")
+            nuniv = nuniv + 1
+            backspace(cnt)
+            read(cnt, *, iostat=File_Error) option, univ_id, npcell
+            ncell = ncell + npcell
+            nsurf = nsurf + npcell - 1
+        case("LAT")
+            nlatt = nlatt + 1
+        case("INCLUDE")
+            backspace(cnt)
+            read(cnt, *, iostat=File_Error) option, nested_file
+            if(icore==score) print *, 'Including geom file: ', trim(nested_file)
+            call count_geom(adjustl(trim(nested_file)),cnt+1)
+        end select
+    enddo GEOM_COUNT
+    close(cnt)
+
+
+end subroutine
+
 
 ! =============================================================================
 ! READ_PIN processes the input for the pin geometry
@@ -549,7 +577,6 @@ subroutine read_cell (Cellobj, args, nargs)
 	integer :: nargs
     character(50):: temp, option, flag, mat_id
     integer :: i, nsurf, n 
-	
 	
 	
 	read(args(2), *) Cellobj%cell_id
@@ -705,7 +732,7 @@ subroutine read_lat (Latobj, args, nargs)
     	read(args( 8), *) Latobj%pitch(1)	
 
         Latobj%xyz(3)   = 0d0
-        Latobj%n_xyz(3) = 0
+        Latobj%n_xyz(3) = 1
         Latobj%pitch(2) = Latobj%pitch(1)
         Latobj%pitch(3) = 0d0
         type8 = (/1, 2, 3/)
@@ -976,8 +1003,21 @@ end subroutine READ_CTRL
         
         character(10) :: v_type
 
-		
-		
+        ! For SAB
+        logical :: issab 
+        integer :: link, nt = 0 !> # of THERM
+        integer :: n_sab
+        integer :: sablist(100) !> Assume that S(a,b) or thermal-linked nuc < 100
+        integer :: sabidx
+        integer :: linklist(100)!> Link for THERM
+        character(20) :: tchar1, tchar2, tchar3
+        logical :: issab_low, issab_high
+        real(8) :: tt, t1, t2, tmp
+
+        ! Restart
+        integer :: n_restart, n_full_iso
+        integer, allocatable :: restart(:)
+
         File_Error=0
         n = 0 
         select case(Card_Type)
@@ -1046,29 +1086,9 @@ end subroutine READ_CTRL
 						print*, "   no. of new fake cycles = ", n_fake
                 case("DBRC")
                     backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, switch
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, DBRC_E_MIN, DBRC_E_MAX, lib1
+                    call find_ACE(lib1, iso_, issab)
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                case("DBRC_E_MIN")
-                    backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, DBRC_E_MIN
-                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                case("DBRC_E_MAX")
-                    backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, DBRC_E_MAX
-                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                case("N_ISO0K")
-                    backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_iso0K
-                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                    allocate(ace0K(n_iso0K))
-                case("DBRC_LIB") 
-                    backspace(File_Number)
-                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, ace0K(1)%library
-                    do i = 2, n_iso0K
-                        read(File_Number,*,iostat=File_Error) ace0K(i)%library
-                    enddo
-
                 case("URES")
                     backspace(File_Number)
                     read(File_Number, *, iostat=File_Error) Char_Temp, Equal, do_ures
@@ -1500,9 +1520,10 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal
                     read(File_Number,'(A)',iostat=File_Error) acelib
-                    !allocate(ace(1:500))
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
                     allocate(ace(1:2000))
+                    allocate(sab(1:1000))
+                    allocate(ace0K(1:300))
                     call read_xslib
 
                 case('UEGRID')
@@ -1684,8 +1705,11 @@ end subroutine READ_CTRL
                 if(Char_Temp=="ENDD") Exit MAT_COUNT
                 call Small_to_Capital(Char_Temp)
                 if(Char_Temp(1:7)=='END_MAT') nmat = nmat + 1
+                if(Char_Temp(1:5)=='THERM') therm_iso = therm_iso + 1
             enddo MAT_COUNT
-            allocate(materials(nmat))
+            if(nmat > 0) allocate(materials(nmat))
+            if(therm_iso > 0) allocate(therm(therm_iso))
+            therm_iso = 0
             if(icore==score) print *, '   Number of Defined MAT:', nmat
             rewind(File_Number)
             Read_Card_D : do
@@ -1699,6 +1723,8 @@ end subroutine READ_CTRL
 !                    if (n > 1) materials_temp(1:n-1) = materials(:) 
 !                    CE_mat_ptr => materials_temp(n)
                     n = n + 1
+                    n_sab = 0
+                    sablist = 0; linklist = 0
                     CE_mat_ptr => materials(n)
 
                     CE_mat_ptr % rgb = -1
@@ -1734,15 +1760,38 @@ end subroutine READ_CTRL
                             if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
                         case("SAB")
                             backspace(File_Number)
-                            read(File_Number,*,iostat=File_Error) Char_Temp, Equal, CE_mat_ptr%sab
+                            CE_mat_ptr % sab = .true.
+                            read(File_Number,*,iostat=File_Error) Char_Temp, Equal, lib1, link
                             if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                            if (CE_mat_ptr%sab) then 
-                                backspace(File_Number)
-                                read(File_Number,*,iostat=File_Error) & 
-                                    Char_Temp, Equal, line, lib1,lib2
-                                call READ_SAB_MAT(j,lib1,lib2)
+                            call find_ACE(lib1, iso_, issab)
+                            if(.not. issab) then
+                                if(icore==score) print *, trim(lib1), ' is not S(a,b) lib.'
+                            else
+                                n_sab = n_sab + 1
+                                sablist(n_sab) = iso_
+                                linklist(n_sab)= link
                             endif
                             
+                        case("MODER")
+                            backspace(File_Number)
+                            CE_mat_ptr % therm = .true.
+                            read(File_Number, *, iostat=File_Error) Char_Temp, Equal, lib1, link
+                            if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
+                            ii = 0
+                            do i = 1, therm_iso
+                                if(trim(therm(i)%tag)==trim(lib1)) then
+                                    ii = i
+                                    exit
+                                endif
+                            enddo
+                            if(ii==0) then
+                                if(icore==score) print *, 'WTF??', trim(lib1)
+                                stop
+                            else
+                                n_sab = n_sab + 1
+                                sablist(n_sab) = -ii
+                                linklist(n_sab)= link ! In ZAID
+                            endif
                         case("N_ISO")
                             backspace(File_Number)
                             read(File_Number,*,iostat=File_Error) Char_Temp, Equal, CE_mat_ptr%n_iso
@@ -1757,12 +1806,12 @@ end subroutine READ_CTRL
 
                             ! Store ACE Data path
                             read(File_Number,*,iostat=File_Error) Char_Temp, Equal, line, CE_mat_ptr%numden(1)
-                            call find_ACE(ace, line, iso_)
+                            call find_ACE(line, iso_, issab)
                             CE_mat_ptr % ace_idx(1) = iso_
                             
                             do i = 2, CE_mat_ptr%n_iso
                                 read(File_Number,*,iostat=File_Error) line, CE_mat_ptr%numden(i)
-                                call find_ACE(ace, line, iso_)
+                                call find_ACE(line, iso_, issab)
                                 CE_mat_ptr % ace_idx(i) = iso_
                             enddo 
 							if (CE_mat_ptr%density_gpcc < 0 .and. CE_mat_ptr%numden(1) < 0) then 
@@ -1815,8 +1864,8 @@ end subroutine READ_CTRL
 					
 						case("TEMPERATURE")
 							if ( .not. CE_mat_ptr%db ) then
-							call MSG1(CE_mat_ptr%ace_idx(1),trim(CE_mat_ptr%mat_name))
-							cycle
+    							call MSG1(CE_mat_ptr%ace_idx(1),trim(CE_mat_ptr%mat_name))
+    							cycle
 							end if
 							backspace(File_Number)
 							read(File_Number,*,iostat=File_Error) Char_Temp, Equal, CE_mat_ptr%temp
@@ -1839,6 +1888,18 @@ end subroutine READ_CTRL
                                 call Card_Error(Card_Type, Char_Temp)
                             CE_mat_ptr % rgb(1:3) = rgb(1:3)
 
+                        
+                        case("N_FULL_ISO")
+                        backspace(File_Number)
+                        read(File_Number, *, iostat=File_Error) Char_Temp, Equal, n_full_iso
+                        if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
+                        allocate(CE_mat_ptr % zaid(1:n_full_iso))
+                        allocate(CE_mat_ptr % full_numden(1:n_full_iso))
+
+                        case("FULL_NUMDEN")
+                        backspace(File_Number)
+                        read(File_Number, *, iostat=File_Error) Char_Temp, Equal, CE_mat_ptr % zaid(1), CE_mat_ptr % full_numden(1)
+
 						end select Card_D_Inp
                     
                         if (Char_Temp(1:7)=="END_MAT") Exit Read_Mat
@@ -1854,10 +1915,83 @@ end subroutine READ_CTRL
                         enddo
 				    endif	
 					if (CE_mat_ptr%temp == 0) CE_mat_ptr%temp = ace(CE_mat_ptr%ace_idx(1))%temp
-                    !if(allocated(materials)) deallocate(materials)
-                    !call move_alloc(materials_temp, materials)
-                    
-					
+                    ! 23/11/27: Assign Array SABLIST for S(a,b) and THERM
+                    allocate( CE_mat_ptr % sablist ( CE_mat_ptr % n_iso ) ) 
+                    CE_mat_ptr % sablist = 0
+                    if( n_sab > 0 ) then
+                        do i = 1, CE_mat_ptr % n_iso
+                            SABLOOP: do j = 1, n_sab
+                                if(linklist(j)==ace(CE_mat_ptr % ace_idx(i)) % zaid) then
+                                    sabidx = sablist(j)
+                                    if(sabidx < 0) then
+                                        if (therm(-sabidx)%temp==0d0) then
+                                            therm_iso = therm_iso + 1
+                                            therm(therm_iso)%temp = CE_mat_ptr % temp
+                                            therm(therm_iso)%tag  = therm(-sablist(j)) % tag
+                                            therm(therm_iso)%iso_low = therm(-sablist(j))%iso_low
+                                            therm(therm_iso)%iso_high= therm(-sablist(j))%iso_high
+                                            therm(therm_iso)%issab = therm(-sablist(j))%issab
+                                            sabidx = -therm_iso
+                                        endif
+                                            
+                                        if( therm(-sabidx) % issab ) then ! S(a,b)
+                                            t1 = sab(therm(-sabidx)%iso_low) % temp
+                                            t2 = sab(therm(-sabidx)%iso_high)% temp
+                                        else
+                                            t1 = ace(therm(-sabidx)%iso_low) % temp
+                                            t2 = ace(therm(-sabidx)%iso_high)% temp
+                                        endif
+                                        tt = therm(-sabidx) % temp
+                                        if( t1 >= t2 ) then
+                                            if(icore==score) print *, 'Earlier T should be smaller than later one'
+                                            stop
+                                        elseif ( tt < t1 .or. tt > t2 ) then
+                                            if(icore==score) print *, 'Invalid Temperature for ', therm(therm_iso) % tag
+                                            if(icore==score) print *, t1, '<=', tt, '<=', t2
+                                            stop
+                                        endif
+                                        therm(-sabidx) % f = (tt - t1) / (t2 - t1)
+                                    endif
+                                    CE_mat_ptr % sablist(i) = sabidx
+                                    exit SABLOOP
+                                endif
+                            enddo SABLOOP
+                            ! if(icore==score) print *, '    MAT', ace(CE_mat_ptr % ace_idx(i)) % zaid, CE_mat_ptr % sablist(i)
+                        enddo
+                    endif
+
+                elseif(Char_Temp(1:5)=='THERM') then ! Therm option in Serp.
+                    backspace(File_Number)
+                    therm_iso = therm_iso + 1
+                    read(File_Number, *, iostat=File_Error) Char_Temp, &
+                        tchar1, & !> TAG
+                        tmp, & !> Temp.
+                        tchar2, tchar3
+
+                    therm(therm_iso) % tag      = trim(tchar1)
+                    therm(therm_iso) % lib_low  = trim(tchar2)
+                    therm(therm_iso) % lib_high = trim(tchar3)
+                    therm(therm_iso) % temp = tmp * K_B 
+                    call find_ACE(therm(therm_iso) % lib_low, therm(therm_iso) % iso_low, issab_low) 
+                    call find_ACE(therm(therm_iso) % lib_high,therm(therm_iso) % iso_high,issab_high)
+                    therm(therm_iso) % issab    = issab_low
+                    if( therm(therm_iso) % issab ) then ! S(a,b)
+                        t1 = sab(therm(therm_iso)%iso_low) % temp
+                        t2 = sab(therm(therm_iso)%iso_high)% temp
+                    else
+                        t1 = ace(therm(therm_iso)%iso_low) % temp
+                        t2 = ace(therm(therm_iso)%iso_high)% temp
+                    endif
+                    tt = therm(therm_iso) % temp
+                    if( t1 >= t2 ) then
+                        if(icore==score) print *, 'Earlier T should be smaller than later one'
+                        stop
+                    elseif ( tt/=0 .and. tt < t1 .or. tt > t2 ) then
+                        if(icore==score) print *, 'Invalid Temperature for ', therm(therm_iso) % tag
+                        stop
+                    endif
+                    therm(therm_iso) % f = (tt - t1) / (t2 - t1)
+                    if(icore==score) print *, therm(therm_iso)%tag, ' Fraction: ', therm(therm_iso) % f
                 end if
                 
                 if (Char_Temp=="ENDD") Exit Read_Card_D
@@ -1904,6 +2038,46 @@ end subroutine READ_CTRL
                     burn_step(0) = 0.0d0
                     burn_step = burn_step * 86400.d0 !Unit in [sec]      
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+
+                case("RESTART")
+                    allocate(burnup_restart(0:nstep_burnup))
+                    burnup_restart = .false. ! Logical Array
+                    n_restart = 0
+                    do
+                    n_restart = n_restart + 1
+                    allocate(restart(n_restart))
+                    backspace(File_Number)
+                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, restart(1:n_restart)
+                    deallocate(restart)
+                    if ( File_Error /= 0 ) then
+                        n_restart = n_restart - 1
+                        allocate(restart(n_restart))
+                        rewind(File_Number)
+                        do
+                            read(File_Number, *, iostat=File_Error) Char_Temp
+                            call Small_to_Capital(Char_Temp)
+                            if(Char_Temp == 'RESTART') exit
+                        enddo
+                        backspace(File_Number)
+                        read(File_Number, *, iostat=File_Error) Char_Temp, Equal, restart(1:n_restart)
+                        if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
+                        exit
+                    endif
+                    enddo
+                    
+                    do i = 1, n_restart
+                        if ( restart(i) < 0 .or. restart(i) > nstep_burnup ) then
+                            if(icore==score) then
+                                print *, '    Check RESTART option: variables should be within 0<=X<=nstep_burnup'
+                            endif
+                            call Card_Error(Card_Type, Char_Temp)
+                        endif
+                        burnup_restart(restart(i)) = .true.
+                        if(icore==score) then
+                            print '(A,F5.1,A)', '    Restart at ', burn_step(restart(i)), 'days'
+                        endif
+                    enddo
+
                 case("LIBRARY_PATH")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal
@@ -2975,8 +3149,10 @@ end function
     subroutine read_xslib
         integer :: ierr, nargs, idx
         character(200) :: args(100)
+        character(10) :: tmp_temp
         open(rd_xslib, file=trim(acelib), action='read', status='old')  
         allocate(libname(1:8000))
+        allocate(libtemp(1:8000))
         allocate(libpath(1:8000))
         allocate(acerecord(1:8000))
         ierr = 0; curr_line = 0; idx = 0;
@@ -2988,10 +3164,13 @@ end function
             if(ierr/=0) exit
             idx = idx + 1
             libname(idx) = trim(args(1))
+            tmp_temp = trim(args(7))
+            read(tmp_temp,'(F4.0)') libtemp(idx)
             libpath(idx) = trim(args(nargs))
         enddo
         acerecord = .true.
         libname = libname(1:idx)
+        libtemp = libtemp(1:idx)
         libpath = libpath(1:idx)
         acerecord = acerecord(1:idx)
         close(rd_xslib)
@@ -3187,10 +3366,8 @@ end function
     core_radius = active_r(nr+1)
     velocity_r = velocity_r * 1d2; velocity_z = velocity_z * 1d2
     close(rd_rz)
-    
-
-
     end subroutine
+
 	
 	
 end module

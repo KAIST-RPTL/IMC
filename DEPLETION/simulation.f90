@@ -305,8 +305,8 @@ subroutine simulate_history(bat,cyc)
         alphaarr(curr_cyc-n_inact-latent) = &
                 -betaarr(curr_cyc-n_inact-latent,0)/genarr(curr_cyc-n_inact-latent)
         !alphaarr(curr_cyc-n_inact-latent)= -sum(betaarr(curr_cyc-n_inact-latent,1:8))/gen_prompt*denom_prompt
-        write(prt_adjoint,*) 'GENAlpha', genarr(curr_cyc-n_inact-latent), alphaarr(curr_cyc-n_inact-latent)
-        write(prt_adjoint,*) 'TOTAL', (betaarr(curr_cyc-n_inact-latent,0)), (lamarr(curr_cyc-n_inact-latent,0))
+        !write(prt_adjoint,*) 'GENAlpha', genarr(curr_cyc-n_inact-latent), alphaarr(curr_cyc-n_inact-latent)
+        !write(prt_adjoint,*) 'TOTAL', (betaarr(curr_cyc-n_inact-latent,0)), (lamarr(curr_cyc-n_inact-latent,0))
         do i = 1,8
             write(prt_adjoint,*) i,betaarr(curr_cyc-n_inact-latent,i), lamarr(curr_cyc-n_inact-latent,i)
         enddo

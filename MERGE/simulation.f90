@@ -1467,9 +1467,10 @@ end subroutine
 		!call system("python /home/guest/HyeonTae/src_temp/15_Test/src_merge2/convert_ppm_to_jpg.py")
 		!call system("mv fig.jpg "//trim(plotlist(i_plot))//".jpg") 
 		write(*,*) " - ", trim(plotlist(i_plot)), ".jpg"
+		call system("python /home/guest/Inyup/convert_ppm_to_jpg.py "//trim(plottitle))
 
 		enddo 
-		call system("python /home/guest/Inyup/convert_ppm_to_jpg.py")
+		!call system("python /home/guest/Inyup/convert_ppm_to_jpg.py")
 		
 		deallocate(plt_x0, plt_y0, plt_z0, plt_x1, plt_y1, plt_z1, &
 					plt_dx, plt_dy, plt_dz, plt_nx, plt_ny, plt_nz, &

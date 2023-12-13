@@ -35,6 +35,7 @@ module constants
     integer, parameter :: bumat_test      = 21    
     integer, parameter :: prt_adjoint     = 22
     integer, parameter :: prt_fuel_mv     = 23
+    integer, parameter :: prt_restart     = 30  !I/O unit for CE_mat restart
     !integer, parameter :: prt_assflux      = 10 !I/O unit for flux
     !integer, parameter :: prt_asspowr      = 11 !I/O unit for power
     !integer, parameter :: prt_3Dflux      = 12 !I/O unit for flux
@@ -103,7 +104,9 @@ module constants
                 sph  = 10, & 
 				!hexz = 11, &
                 hexxc = 11, &
-                hexyc = 12
+                hexyc = 12, &
+                rect = 13, &
+                cuboid = 14
     !==============================================================================
     
   ! Maximum number of collisions/crossings
@@ -154,7 +157,8 @@ module constants
        AMU              = 1.660539040e-27_8, & ! 1 amu in kg
        C_LIGHT          = 2.99792458e8_8,    & ! speed of light in m/s
        N_AVOGADRO       = 0.60220434469282e24_8, & !  0.6022140857e24_8,    & ! Avogadro's number in 1/mol
-       K_B              = 8.6173303e-11_8,    & ! Boltzmann constant in MeV/K
+       K_B              = 8.617333262e-11_8,    & ! Boltzmann constant in MeV/K
+       ! 23/11/29 Modified value: according to CODATA
        INFINITY         = huge(0.0_8),       & ! positive infinity
        TOOLONG          = 1.0e6_8,           & ! too long distance limit
        ZERO             = 0.0_8,             &

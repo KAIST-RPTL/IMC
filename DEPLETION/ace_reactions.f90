@@ -806,8 +806,8 @@ subroutine fissionSite_CE (p, iso, micro_xs)
             if(do_fuel_mv) then
                 lambda = ace(iso)%prcr(iMT)%decay_const
                 thread_bank(bank_idx)%time= -log(rang())/lambda
-                !call MSR_treatment(thread_bank(bank_idx)%xyz, thread_bank(bank_idx)%time,alive)
-                call prec_rz(thread_bank(bank_idx) % xyz, thread_bank(bank_idx) % time, alive)
+                call MSR_treatment(thread_bank(bank_idx)%xyz, thread_bank(bank_idx)%time,alive)
+                !call prec_rz(thread_bank(bank_idx) % xyz, thread_bank(bank_idx) % time, alive)
                 ! Dead neutron cannot affect reactor performance.
                 ! Thus, impact from the delayed should be neglected
                 if(.not. alive) then

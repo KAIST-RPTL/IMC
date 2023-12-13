@@ -1,6 +1,7 @@
 module ace_module
 
 use variables
+use constants, only: K_B
 use ace_header
 use strings, only : parse
 
@@ -62,13 +63,8 @@ if(E_mode==0) return
     if(tmparg(length-2:length) == lib(liblen-2:liblen)) exit
   enddo
   backspace(ace_read_handler)
-
-
-  
   !1st line
   read(ace_read_handler,'(i6, 4X, f12.6, es12.4)') ace(iso)%ZAID, ace(iso)%atn, ace(iso)%temp
-  
-
   i = mod(ace(iso)%ZAID,1000)
   if (i > 300) then
       ace(iso)%excited = .true.
@@ -163,13 +159,7 @@ if(E_mode==0) return
   deallocate( XSS )
   !Close file handler for current isotope
   close(ace_read_handler)
-
-  !open(ace_read_handler, file="../ACE_293K/94236.70c_0293", action="read")
-  !close(ace_read_handler)
-  
-
 10 format(8i9/8i9/8i9/8i9/8i9/8i9)
-
 
 end subroutine set_ace_iso
 
@@ -189,7 +179,7 @@ subroutine set_sab_iso(iso)
   integer :: min_egrid, max_egrid, num_egrid, loc1, loc2, loc3, max_len
 
   !Open ace format library
-  if(icore==score) print *, iso, trim(sab(iso)%library)
+  if(icore==score) print *, '    S(a,b) lib: ', iso, trim(sab(iso)%library)
 
   open(ace_read_handler, file=trim(sab(iso)%library), action="read", iostat= ierr)
   
@@ -229,6 +219,67 @@ subroutine set_sab_iso(iso)
 10 format(8i9/8i9/8i9/8i9/8i9/8i9)
 
 end subroutine set_sab_iso
+
+subroutine set_ace0K_iso(iso0K)
+!==============================================================================
+implicit none
+integer, intent(in) :: iso0K
+integer :: i, j, k
+integer :: line
+integer :: pt1, pt2
+integer :: anum, mnum
+integer :: ix, lmt 
+integer, parameter :: ace_read_handler = 20171116
+!real :: val
+integer :: val
+integer :: ierr
+
+integer :: min_egrid, max_egrid, num_egrid, loc1, loc2, loc3, max_len
+ 
+if(E_mode==0) return
+
+  !Open ace format library
+  if(icore==score) print *, n_iso0K, trim(ace0K(iso0K)%library)
+  open(ace_read_handler, file=trim(ace0K(iso0K)%library), action="read")
+  
+  ! 1st line
+  read(ace_read_handler,11) ace0K(iso0K)%ZAID, ace0K(iso0K)%atn, ace0K(iso0K)%temp
+  11 format(i6,4x,f12.6,es12.4)
+
+  ! 2~6 line
+  do line = 2, 6
+    read(ace_read_handler,*)  
+  enddo
+  
+  ! 7~12 line
+  read(ace_read_handler,10) ace0K(iso0K)%NXS(1:16), ace0K(iso0K)%JXS(1:32)
+  !Allocate XSS array 
+  if( allocated ( XSS ) ) deallocate ( XSS )
+  allocate( XSS(1:ace0K(iso0K)%NXS(1)) )
+
+  
+  !Set energy and elastic scattering cross section
+  pt1 = 1
+  pt2 = 4
+  do
+    if( pt2 > ace0K(iso0K)%NXS(3)*4 ) then
+      read(ace_read_handler,*) XSS(pt1:ace0K(iso0K)%NXS(3)*4)
+      exit
+    end if
+    read(ace_read_handler,*) XSS( pt1 : pt2 )
+    pt1 = pt1 + 4
+    pt2 = pt2 + 4
+  end do
+
+  call set_ESZ0K( iso0K, ace0K(iso0K)%NXS, ace0K(iso0K)%JXS )
+
+  deallocate( XSS )
+  close(ace_read_handler)
+
+10 format(8i9/8i9/8i9/8i9/8i9/8i9)
+
+
+end subroutine set_ace0K_iso
 
 subroutine set_ace
 
@@ -362,6 +413,10 @@ READ_ACE_ISO:Do iso = 1, num_iso
     if(icore==score) print *, ace(iso)%ZAID, "(n,g) cross section is not found" 
   end if 
 
+  ! Create new absorption XS
+  ace(iso) % siga(:) = ace(iso) % sigd(:)
+  if(allocated(ace(iso) % sigf)) ace(iso) % siga(:) = ace(iso) % siga(:) +  ace(iso) % sigf(:)
+
   !Deallocate XSS array for current isotope
   deallocate( XSS )
   !Close file handler for current isotope
@@ -494,6 +549,7 @@ allocate( ac % sigt( 1 : NXS(3) ) )
 allocate( ac % sigd( 1 : NXS(3) ) )
 allocate( ac % sigel( 1 : NXS(3) ) )
 allocate( ac % H( 1 : NXS(3) ) )
+allocate( ac % siga( 1 : NXS(3) ) )
 
 !Energies
 pt1 = JXS(1)
@@ -519,14 +575,6 @@ ac % sigel( 1 : NXS(3) ) = XSS( pt1 : pt2 )
 pt1 = pt2 + 1
 pt2 = pt1 + NXS(3) - 1
 ac % H( 1 : NXS(3) ) = XSS( pt1 : pt2 )
-
-!if (ac%library(1:5) == '92235') then 
-!    do pt1 = 1, NXS(3) 
-!        print *, ac%sigt(pt1), ac%sigd(pt1), ac%sigel(pt1)
-!    enddo 
-!    stop
-!endif 
-
 
 
 end subroutine set_ESZ
@@ -595,7 +643,6 @@ subroutine GET_IERG_DBRC(iso_,ierg_,erg)
     integer:: low, mid, high
     integer:: ne
 
-    if ( associated(ac) ) nullify(ac)
     ac => ace0K(iso_)
 
 !    ! beyond the energy boundary
@@ -626,7 +673,7 @@ subroutine GET_IERG_DBRC(iso_,ierg_,erg)
     ierg_ = low
     end if
 
-    nullify(ac)
+    if ( associated(ac) ) nullify(ac)
 
 end subroutine
 
@@ -1750,6 +1797,7 @@ if ( jxs(4) == 0 ) return
 
 ! set pointer
 ab => sab(iso)%itce
+print *, 'ACCESSED: ', iso
 
 ! allocate arrays 
 ab % ne = xss(jxs(4))
@@ -1860,35 +1908,59 @@ end subroutine
 !  call set_YP(iso, ace(iso)%NXS, ace(iso)%JXS )
 
 
-subroutine find_ACE(this,line, iso_)
-    use variables, only: libpath, libname
-    type(AceFormat) :: this(:) 
+subroutine find_ACE(line, iso_, issab)
+    use variables, only: libpath, libname, libtemp
     character(*), intent(in) :: line
     integer, intent(out) :: iso_
+    logical, intent(out) :: issab
     integer :: i , j, length
     iso_ = 0
+    issab= .false.
     do i = 1, num_iso
         if(trim(line) == trim(ace(i) % xslib)) then
             iso_ = i
             return
         endif
     enddo
-    
+
+    do i = 1, sab_iso
+        if(trim(line) == trim(sab(i) % xslib)) then
+            iso_ = i
+            issab= .true.
+        endif
+    enddo
+
     ! libname: list of .80c, .81c, ...
     ! libpath: list of .711nc, .710nc, ...
     if(iso_ == 0) then
         do j = 1, size(libname)
             if(trim(line) == trim(libname(j))) then
                 length = len_trim(line)
-                select case(line(length:length))
-                case('c') ! XS
-                num_iso = num_iso + 1
-                ace(num_iso) % xslib   = trim(line)
-                ace(num_iso) % library = trim(libpath(j))
-                iso_ = num_iso
-                call set_ace_iso(iso_, trim(line))
-                acerecord(j) = .false.
-               end select
+                if(libtemp(j) == 0d0) then
+                    n_iso0K = n_iso0K + 1
+                    ace0K(n_iso0K) % xslib   = trim(line)
+                    ace0K(n_iso0K) % library = trim(libpath(j))
+                    iso_ = n_iso0K
+                    call set_ace0K_iso(iso_)
+                else
+                    select case(line(length:length))
+                    case('c') ! XS
+                        num_iso = num_iso + 1
+                        ace(num_iso) % xslib   = trim(line)
+                        ace(num_iso) % library = trim(libpath(j))
+                        iso_ = num_iso
+                        call set_ace_iso(iso_, trim(line))
+                        acerecord(j) = .false.
+                    case('t') ! SAB
+                        sab_iso = sab_iso + 1
+                        sab(sab_iso) % xslib   = trim(line)
+                        sab(sab_iso) % library = trim(libpath(j))
+                        sab(sab_iso) % temp    = libtemp(j) * K_B
+                        iso_ = sab_iso
+                        issab= .true.
+                        call set_sab_iso(iso_)
+                    end select
+                endif
                 return
             endif
         enddo

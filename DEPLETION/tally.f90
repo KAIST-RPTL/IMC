@@ -456,10 +456,10 @@ function E2G(ee)
     real(8), intent(in):: ee
     integer:: ii
 
-    E2G = 1
-    do ii = 1, n_tgroup-1, 1
-    if ( ee < tgroup(ii) ) then
-        E2G = n_tgroup-ii+1
+    E2G = n_tgroup 
+    do ii = 1, n_tgroup-1
+    if ( ee > tgroup(ii) ) then
+        E2G = ii
         return
     end if
     end do

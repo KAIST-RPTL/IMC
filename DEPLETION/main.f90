@@ -702,7 +702,7 @@ if ( icore == score ) then
     write(*,*)
     
     if(do_ifp) then
-    write(prt_adjoint,*)
+    write(prt_adjoint,*), 'BURNUP STEP:', istep_burnup
     ! ADJOINT
     write(prt_adjoint,13), '    GENT',AVG(genarr)*1E9,'+/-',STD_M(genarr)*1E9,' scale:1E-9'
     write(prt_adjoint,22), ' BETASUM',PCM(AVG(betaarr(1:n_act-latent,0))),'+/-',PCM(STD_M(betaarr(1:n_act-latent,0))),' scale:1E-5'
@@ -712,16 +712,16 @@ if ( icore == score ) then
         write(prt_adjoint,12), 'BETAOG',i,PCM(AVG(betad(i,1:n_act))),'+/-',PCM(STD_M(betad(i,1:n_act))),' scale:1E-5'
     enddo
 
-    print *, 'GEN', genarr, size(genarr)
-    print *, 'BET', betaarr(1:n_act-latent,0)
+    !print *, 'GEN', genarr, size(genarr)
+    !print *, 'BET', betaarr(1:n_act-latent,0)
 endif
     10 format(A,F10.3,A4,F8.2,A4)
     11 format(A,F10.6,A4,F8.3)
 
-    12 format(A,i1,F10.3,A4,F8.5,A) !GROUPWISE BETA
+    12 format(A,i1,F10.3,A4,F10.5,A) !GROUPWISE BETA
     15 format(A,i1,F10.5,A4,F8.5,A) !GROUPWISE LAMBDA
 
-    22 format(A,F10.3,A4,F8.5,A) !
+    22 format(A,F10.3,A4,F10.5,A) !
     13 format(A,F12.3,A4,F10.5,A) !Generation time
     14 format(A,F10.5,A4,F8.5,A) !Rossi-Alpha
 end if
@@ -733,13 +733,14 @@ end subroutine
 ! CYCLE_TALLY_MSG
 ! =============================================================================
 subroutine CYCLE_TALLY_MSG(bat)
-    use tally, only: MC_tally
+    use tally, only: MC_tally, n_tgroup, n_type
     use TH_HEADER, only: th_on, t_fuel, t_bulk
     implicit none
     integer, intent(in):: bat
     real(8):: ttemp(nfm(1),nfm(2),nfm(3))
     real(8):: ttemp_sd(nfm(1),nfm(2),nfm(3))
-    character(3) :: fileid
+    integer :: ng, ttype
+    character(3) :: fileid, tallytype
 
     if ( icore /= score ) return
 	! if (do_burn) return 
@@ -759,7 +760,7 @@ subroutine CYCLE_TALLY_MSG(bat)
 
     if ( bat == n_batch .and. tallyon) then
     ! power distribution normalization
-    call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
+    !call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
     if(fmfdon) call NORM_DIST(p_fmfd(1:n_batch,1:n_act,:,:,:))
 
     !! computing time
@@ -778,26 +779,35 @@ subroutine CYCLE_TALLY_MSG(bat)
     if ( .not. fmfdon ) then
     if ( tallyon ) then
 
+    write(*,*), "   Printing Tally Distribution "
+    do ttype = 1, n_type
+        !call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
 
-    write(fileid, '(i3)') istep_burnup
-
-	open(9999,file="mean_tally2_"//trim(adjustl(fileid))//".out",action="write",status="replace")
-	open(99999,file="sd_tally2_"//trim(adjustl(fileid))//".out",action="write",status="replace")
-
-
-    do ii = 1, nfm(1)
-    do jj = 1, nfm(2)
-    do kk = 1, nfm(3)
-        ttemp(ii,jj,kk) = AVG(MC_tally(bat,:,1,1,ii,jj,kk))
-        ttemp_sd(ii,jj,kk) = STD_M(MC_tally(bat,:,1,1,ii,jj,kk))
-    end do
-    end do
-    end do
-    write(*,*), "   Printing MC power distribution"
-    write( 9999,14), ttemp(:,:,:)
-    write(99999,14), ttemp_sd(:,:,:)
-	close(9999)
-	close(99999)
+        write(fileid, '(i3)') istep_burnup
+        write(tallytype, '(i3)') ttype
+    
+    	open(9999,file="mean_tally2_step"//trim(adjustl(fileid))//"_type"//trim(adjustl(tallytype))//".out",action="write",status="replace")
+    	open(99999,file="sd_tally2_step"//trim(adjustl(fileid))//"_type"//trim(adjustl(tallytype))//".out",action="write",status="replace")
+    
+        do ng = 1, n_tgroup
+            ttemp = 0d0
+            ttemp_sd = 0d0
+    
+            do ii = 1, nfm(1)
+            do jj = 1, nfm(2)
+            do kk = 1, nfm(3)
+                ttemp(ii,jj,kk) = AVG(MC_tally(bat,:,ttype,ng,ii,jj,kk))
+                ttemp_sd(ii,jj,kk) = STD_M(MC_tally(bat,:,ttype,ng,ii,jj,kk))
+            end do
+            end do
+            end do
+            write( 9999,14), ttemp(:,:,:)
+            write(99999,14), ttemp_sd(:,:,:)
+    
+        enddo
+    	close(9999)
+    	close(99999)
+    enddo
     !! INITIALIZE after Printing
     MC_tally = 0d0
     end if

@@ -1714,7 +1714,7 @@ module depletion_module
                 deallocate(nucexist)
                 !Calculate real flux (volume-averaged)
                 real_flux = ULnorm*mat%flux
-                print *, 'RF', real_flux, ULnorm, mat%flux, mat%mat_name
+                !print *, 'RF', real_flux, ULnorm, mat%flux, mat%mat_name
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
                 toteflux = sum(mat%eflux(0:nueg))

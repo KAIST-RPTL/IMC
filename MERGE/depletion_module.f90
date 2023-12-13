@@ -4,7 +4,7 @@ include 'mkl_pardiso.f90'
 module depletion_module 
     use variables
     use constants
-    use ace_header, only: ace, find_ACE_iso_idx_zaid, num_iso, Emin, Emax, nueg, ueggrid
+    use ace_header, only: ace, find_ACE_iso_idx_zaid, num_iso, Emin, Emax, nueg, ueggrid, therm
     use ace_module, only: set_ace_iso
     use ace_xs,     only: getxs, getierg, getiueg, setueg
     use material_header
@@ -193,6 +193,8 @@ module depletion_module
     integer :: preco = 0    ! PREC. or not
     integer :: porc  = 0    ! Flag for Predictor/Corrector
     real(8) :: stepsize0
+
+    logical, allocatable :: burnup_restart(:)
 
     contains 
 
@@ -506,9 +508,6 @@ module depletion_module
         fssn_anum = anum; fssn_nnum = nnum; fssn_inum = inum
         nuclide(inum,nnum,anum)%fy_idx = fid
         fssn_zai(fid) = nuclid*10+inum
-!        if(find_ACE_iso_idx_zaid(nuclid*10)>0) then
-!            ace_fssn(find_ACE_iso_idx_zaid(nuclid*10+inum)) = fid
-!        endif
         if(nuclide(inum,nnum,anum)%amu==0.d0) then
             read(line0(12:22),'(f)') nuclide(inum,nnum,anum)%amu
         endif
@@ -903,7 +902,7 @@ module depletion_module
                         83 continue
 
                         ! Regarding their reactions
-                        iso = find_ACE_iso_idx_zaid(decay(i)) 
+                        iso = find_ACE_iso_idx_zaid(zaid=decay(i))
                         if(iso==0) cycle
                         do j = 1,ace(iso)%NXS(4)
                                     mt = ace(iso) % MT(j)
@@ -984,8 +983,8 @@ module depletion_module
                 enddo
 
                 do i = 1,nfssn
-                    if(find_ACE_iso_idx_zaid(fssn_zai(i))>0) &
-                        ace_fssn(find_ACE_iso_idx_zaid(fssn_zai(i))) = i
+                    if(find_ACE_iso_idx_zaid(zaid=fssn_zai(i))>0) &
+                        ace_fssn(find_ACE_iso_idx_zaid(zaid=fssn_zai(i))) = i
                 enddo
                 ace_fssn = ace_fssn(1:num_iso)
 
@@ -1373,6 +1372,8 @@ module depletion_module
             ! PRECO
             real(8) :: weight
 
+            character(3) :: depidx
+
             if(do_burn==.false.) return
             avg_power = avg_power / dble(n_act)
             tot_flux = 0.d0
@@ -1544,7 +1545,7 @@ module depletion_module
                     zai = fssn_zai(i)
                     anum = zai/10000; mnum = (zai-10000*anum)/10; nnum = mnum-anum
                     inum = zai-anum*10000-mnum*10
-                    aceval = find_ACE_iso_idx_zaid(zai)
+                    aceval = find_ACE_iso_idx_zaid(zaid=zai, temp=mat % temp)
                     mt_iso = 0
                     do j = 1, mat % n_iso
                         if(mat % ace_idx(j) == aceval) then
@@ -1594,7 +1595,7 @@ module depletion_module
                     zai = fssn_zai(i)
                     anum = zai/10000; mnum = (zai-10000*anum)/10; nnum = mnum-anum
                     inum = zai-anum*10000-mnum*10
-                    aceval = find_ACE_iso_idx_zaid(zai)
+                    aceval = find_ACE_iso_idx_zaid(zaid=zai,temp=mat%temp)
                     mt_iso = 0
                     do j = 1, mat % n_iso
                         if(mat % ace_idx(j) == aceval) then
@@ -1645,10 +1646,10 @@ module depletion_module
                         yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
                     else
                         if(nE==1) then
-                            aceval = find_ACE_iso_idx_zaid(zai)
+                            aceval = find_ACE_iso_idx_zaid(zaid=zai,temp=mat%temp)
                             mat%fratio(i,1) = 1.d0
                         else
-                            aceval = find_ACE_iso_idx_zaid(zai)
+                            aceval = find_ACE_iso_idx_zaid(zaid=zai,temp=mat%temp)
                             if(aceval==0) cycle
                             if(.not. allocated(ace(aceval) % UEG % sigf)) cycle
                             do j = 1,nueg
@@ -2004,7 +2005,7 @@ module depletion_module
         do jnuc=1, nnuc
             ! write(*,*) imat, icore, zai_idx(jnuc), mat%full_numden(jnuc)
 
-            tmp = find_ACE_iso_idx_zaid(zai_idx(jnuc))
+            tmp = find_ACE_iso_idx_zaid(zaid=zai_idx(jnuc), temp=mat%temp)
             if(mat%full_numden(jnuc)>1.d0 .and. tmp > 0) then 
                 knuc = knuc + 1
                 mat % iso_idx(knuc) = jnuc
@@ -2022,7 +2023,7 @@ module depletion_module
         i = 0 
         do mt_iso=1, mat % n_iso
             ! find ace_idx
-            tmp = find_ACE_iso_idx_zaid(zai_idx(mat % iso_idx(mt_iso)))
+            tmp = find_ACE_iso_idx_zaid(zaid = zai_idx(mat % iso_idx(mt_iso)), temp=mat%temp)
             if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>1d0) then 
                 i = i + 1
                 mat%ace_idx(mt_iso) = tmp
@@ -2083,6 +2084,58 @@ module depletion_module
             write(prt_bumat, *) 'Num isotope', i
             write(prt_bumat, *) ''
         enddo
+    endif
+
+    if(icore==score .and. allocated(burnup_restart)) then
+        write(depidx, '(i3)') istep_burnup
+        open(prt_restart, file=adjustl(trim(directory))//'CE_mat_'//adjustl(trim(depidx))//'.inp', action = 'write', status='replace')
+        write(prt_restart, *) 'CARD D'
+        if( allocated(therm) ) then
+            do iso = 1, size(therm) 
+                write(prt_restart, *) 'THERM ', adjustl(trim(therm(iso)%tag)),&
+                    therm(iso)%temp, therm(iso)%lib_low, ' ', therm(iso)%lib_high
+            enddo
+        endif
+
+        do imat = 1, n_materials
+            write(prt_restart, *) 'MAT'
+            !mat_name
+            write(prt_restart, *) 'mat_name = ', trim(materials(imat) % mat_name)
+            !density_gpcc: Use data from ISOTOPES
+            write(prt_restart, *) 'density_gpcc = 0'
+            !fissionable
+            if(materials(imat) % fissionable) &
+                write(prt_restart, *) 'fissionable = T'
+            !depletable
+            if(materials(imat) % depletable) &
+                write(prt_restart, *) 'depletable = T'
+            !doppler
+            if(materials(imat) % db) then
+                write(prt_restart, *) 'doppler = T'
+                write(prt_restart, *) 'temperature = ', materials(imat) % temp/K_B
+            endif
+            !n_iso
+            write(prt_restart, *) 'n_iso = ', materials(imat) % n_iso
+            !isotopes
+            write(prt_restart, *) 'isotopes = ', &
+                ace(materials(imat)%ace_idx(1))%xslib, materials(imat)%numden(1)
+            if( materials(imat) % n_iso > 1 ) then
+                do iso = 2, materials(imat) % n_iso
+                    write(prt_restart, *) ace(materials(imat)%ace_idx(iso))%xslib, materials(imat)%numden(iso)
+                enddo
+            endif
+            !n_full_iso
+            write(prt_restart, *) 'n_full_iso = ', count(materials(imat)%full_numden > 0d0) 
+            !full_numden
+            write(prt_restart, *) 'full_numden = ', zai_idx(1), materials(imat)%full_numden(1)
+            do iso = 2, nnuc
+                if(materials(imat) % full_numden(iso) > 0d0) &
+                    write(prt_restart, *) zai_idx(iso), materials(imat)%full_numden(iso)
+            enddo
+            write(prt_restart, *) 'END_MAT'
+        enddo
+        write(prt_restart, *) 'ENDD'
+        close(prt_restart)
     endif
 
     ! PRECO ROUTINE
@@ -2370,6 +2423,7 @@ module depletion_module
     subroutine setmat
         integer :: i, imat, iso, mt_iso
         integer :: anum, mnum, inum, nnum 
+        logical :: restart
         !atomic number, mass number, isomer state, neutron number of nuclide
         
         if (.not. do_burn) return 
@@ -2385,13 +2439,16 @@ module depletion_module
             allocate(materials(imat)%e2flux(0:nueg))
             materials(imat)%eflux(:) = 0.d0
             materials(imat)%e2flux(:)= 0d0
+
+            if(allocated(materials(imat)%full_numden)) restart = .true.
             
-            if (materials(imat)%depletable) then
+            if (materials(imat)%depletable .and. .not. restart) then
                 allocate(materials(imat)%full_numden(1:nnuc))
                 if ( preco == 1 ) allocate(materials(imat)%full_numden1(1:nnuc))
                 materials(imat)%full_numden = 0.d0     !Initialize number density
             endif
             
+            if( .not. restart ) then
             do mt_iso = 1, materials(imat)%n_iso
                 iso = materials(imat)%ace_idx(mt_iso)
                 inum = 0
@@ -2406,10 +2463,11 @@ module depletion_module
                 endif
                 nnum = mnum - anum
 
-                if(materials(imat)%depletable .and. do_burn .and. nuclide(inum,nnum,anum)%idx>0) then 
+                if(nuclide(inum,nnum,anum)%idx>0) then 
                     materials(imat)%full_numden(nuclide(inum,nnum,anum)%idx) = materials(imat)%numden(mt_iso)
                 endif 
             end do
+            endif
             materials(imat)%fratio = 0.d0
         enddo 
         istep_burnup = 0 
@@ -2442,8 +2500,8 @@ module depletion_module
         allocate(I_numden(1:n_materials))
         allocate(I135_mt_iso(1:n_materials))
         
-        Xe135_iso = find_ACE_iso_idx_zaid(541350) 
-        I135_iso = find_ACE_iso_idx_zaid(531350)
+        Xe135_iso = find_ACE_iso_idx_zaid(zaid=541350) 
+        I135_iso = find_ACE_iso_idx_zaid(zaid=531350)
 
         if (Xe135_iso == 0 .and. icore==score ) then 
             print *, "setmat() - WARNING :: NO Xe-135 LIBRARY IN THE INVENTORY"

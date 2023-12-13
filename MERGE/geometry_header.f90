@@ -955,10 +955,12 @@ module geometry_header
             n =size(c%neg_surf_idx)
             do i = 1, n
                 if (surf_neg_or_pos(surfaces(c%neg_surf_idx(i)),xyz) == .false.) in_cell = .false.
+                !print *, 'NEG: ', i, trim(surfaces(c%neg_surf_idx(i))%surf_id), in_cell
             enddo
             n = size(c%pos_surf_idx)
             do i = 1, n
                 if (surf_neg_or_pos(surfaces(c%pos_surf_idx(i)), xyz) == .true.) in_cell = .false.
+                !print *, 'POS: ', i, trim(surfaces(c%pos_surf_idx(i))%surf_id), in_cell
             enddo
         else !> or
             in_cell = .false.

@@ -47,15 +47,18 @@ module geometry
         logical :: in_cell
         integer :: i, j, n 
         
+        ! print *, 'CXYZ: ', c%cell_id, xyz(1:3)
         if (c%operand_flag >= 0) then   !> and 
             in_cell = .true.
             n = size(c%neg_surf_idx)
             do i = 1, n
                 if (surf_neg_or_pos(surfaces(c%neg_surf_idx(i)),xyz) == .false.) in_cell = .false.
+                !print *, 'NEG: ', i, surfaces(c%neg_surf_idx(i))%surf_id, in_cell
             enddo
             n = size(c%pos_surf_idx)
             do i = 1, n
                 if (surf_neg_or_pos(surfaces(c%pos_surf_idx(i)), xyz) == .true.) in_cell = .false.
+                !print *, 'POS: ', i, surfaces(c%pos_surf_idx(i))%surf_id, in_cell
             enddo
         else     !> or
             in_cell = .false.
@@ -389,7 +392,7 @@ module geometry
     subroutine reflective_bc (uvw, xyz, surface_crossed)
         real(8), intent(inout) :: uvw(3)
         real(8), intent(in)       :: xyz(3)
-        real(8) :: xyz_(3), r, a, tmp
+        real(8) :: xyz_(3), r, a, tmp, d(4), mind, dd(6)
         integer :: surface_crossed
         integer :: surf_type
         integer :: flag
@@ -502,6 +505,32 @@ module geometry
                 print *, 'tolerance',400*TINY_BIT
                 stop
             endif
+        case(13) !> RECT
+            d(1) = abs(xyz(1)-surfaces(surface_crossed)%parmtrs(1))
+            d(2) = abs(xyz(1)-surfaces(surface_crossed)%parmtrs(2))
+            d(3) = abs(xyz(2)-surfaces(surface_crossed)%parmtrs(3))
+            d(4) = abs(xyz(2)-surfaces(surface_crossed)%parmtrs(4))
+            mind = minval(d(:))
+            if(d(1)==mind .or. d(2)==mind) then
+                uvw(1) = -uvw(1)
+            else
+                uvw(2) = -uvw(2)
+            endif
+        case(16) !> cuboid
+            dd(1) = abs(xyz(1)-surfaces(surface_crossed)%parmtrs(1))
+            dd(2) = abs(xyz(1)-surfaces(surface_crossed)%parmtrs(2))
+            dd(3) = abs(xyz(2)-surfaces(surface_crossed)%parmtrs(3))
+            dd(4) = abs(xyz(2)-surfaces(surface_crossed)%parmtrs(4))
+            dd(5) = abs(xyz(3)-surfaces(surface_crossed)%parmtrs(5))
+            dd(6) = abs(xyz(3)-surfaces(surface_crossed)%parmtrs(6))
+            mind = minval(dd(:))
+            if(dd(1)==mind .or. dd(2)==mind) then
+                uvw(1) = -uvw(1)
+            elseif(dd(3)==mind .or. dd(4)==mind) then
+                uvw(2) = -uvw(2)
+            else
+                uvw(3) = -uvw(3)
+            endif
         end select 
         
         
@@ -551,7 +580,7 @@ module geometry
                 CELL_TYPE: if (c % filltype == FILL_MATERIAL) then
                     ! ======================================================================
                     ! AT LOWEST UNIVERSE, TERMINATE SEARCH
-                    !print *, 'FILL_MATERIAL : ', c%cell_id,  c%mat_idx
+                    !print *, 'FILL_MATERIAL : ', trim(c%cell_id), xyz(:)
                     
                     if (present(cell_idx)) then 
                         cell_idx = i_cell
@@ -560,7 +589,6 @@ module geometry
                 elseif (c % filltype == FILL_UNIVERSE) then CELL_TYPE
                     ! ======================================================================
                     ! CELL CONTAINS LOWER UNIVERSE, RECURSIVELY FIND CELL
-                    !print *, 'FILL_UNIVERSE : ', universes(universes%find_idx(c % fill))%univ_id
                     !print *, 'cell translation', c % translation
                     ! Store lower level coordinates
                     !p % coord(j + 1) % xyz = p % coord(j) % xyz
@@ -573,6 +601,7 @@ module geometry
                     if (allocated(c % translation)) then
                         xyz = xyz - c % translation
                     end if
+                    !print *, 'FILL_UNIVERSE : ', universes(idx_univ)%univ_id, xyz(:)
 
                     call find_cell_xyz(xyz, idx_univ, cell_idx)
             
@@ -580,7 +609,6 @@ module geometry
                 elseif (c % filltype == FILL_LATTICE) then CELL_TYPE
                     ! ======================================================================
                     ! CELL CONTAINS LATTICE, RECURSIVELY FIND CELL
-                    !print *, 'FILL_LATTICE : ', lattices(lattices%find_idx(c % fill))%lat_id 
                     
                     associate (latptr => lattices(find_lat_idx(lattices,c % fill)))
                         ! Determine lattice indices
@@ -594,6 +622,7 @@ module geometry
                         !print *, idx_univ
                         idx_univ = latptr % lat(i_xyz(1),i_xyz(2),i_xyz(3))
                          
+                        !print *, 'FILL_LATTICE : ', latptr%lat_id, xyz(:)
                     end associate
                     
                     ! Move particle to next level and search for the lower cells.                    
@@ -604,8 +633,8 @@ module geometry
             end associate
             
         else 
-            print *, 'cell not found'
-			print *, xyz 
+            print *, 'cell not found from find_cell_xyz'
+			print *, xyz
             stop
         end if        
         

@@ -88,12 +88,6 @@ function getMacroXS_UEG(mat, erg, kT, urn) result (macro_xs)
 
     enddo
 
-!    tmp = getMacroXS(mat, erg, kT, urn)
-!    if(abs(tmp(1)-macro_xs(1))>1E-9 .or. abs(tmp(4)-macro_xs(4)) > 1E-9) then
-!    print *, 'XX', tmp(1:5)
-!    print *, 'YY', macro_xs(1:5)
-!    print *, 'ZZ', sum(tmp-macro_xs)
-!    endif
     ! TODO: SAB, OTFDB, URES
 
 end function
@@ -114,9 +108,10 @@ function getMacroXS (mat, erg,kT, urn) result (macro_xs)
     real(8) :: micro_t, micro_d, micro_f, micro_nuf, micro_a, micro_el, micro_xn
     real(8) :: macro_t, macro_f, macro_nuf, macro_a, macro_qf
     real(8) :: xn_xs(4)
-    real(8) :: xs(5)
+    real(8) :: xs(5), xs_tmp
     integer :: isab, iff
     real(8) :: dtemp    ! temperautre difference | library - material |
+    integer :: isab_l, isab_h
     macro_t   = 0.0d0
     macro_a   = 0.0d0
     macro_f   = 0.0d0
@@ -125,30 +120,55 @@ function getMacroXS (mat, erg,kT, urn) result (macro_xs)
     xn_xs(:)  = 0.0d0
 
     !print *, mat%mat_name, mat%n_iso
-    do i_iso = 1, mat%n_iso     ! isotope number in the material
+    MAT_ISO_LOOP: do i_iso = 1, mat%n_iso     ! isotope number in the material
     
         iso_ = mat%ace_idx(i_iso)   ! isotope number in the inputfile
 
         ! =====================================================================
         ! S(a,b) treatment
-        isab = ace(iso_)%sab_iso    ! isotope number for S(a,b)
-        if ( mat%sab .and. isab /= 0 .and. erg < 4D-6 ) then
-            call GET_SAB_MAC(mat%numden(i_iso),iso_,isab,erg,macro_t,macro_a)
-            cycle
+        ! isab = ace(iso_)%sab_iso    ! isotope number for S(a,b)
+        isab = mat % sablist(i_iso)
+        if ( isab /= 0 .and. erg < 4D-6 ) then
+            if(isab > 0) then
+                call GET_SAB_MAC(mat%numden(i_iso),iso_,isab,erg,macro_t,macro_a)
+                cycle
+            else ! MODER
+                isab_l = therm(-isab) % iso_low
+                isab_h = therm(-isab) % iso_high
+                call GET_SAB_MAC(mat % numden(i_iso) * (1d0-therm(-isab) % f), &
+                   iso_, isab_l, erg, macro_t, macro_a)
+                call GET_SAB_MAC(mat % numden(i_iso) * (therm(-isab) % f), &
+                   iso_, isab_h, erg, macro_t, macro_a)
+                cycle MAT_ISO_LOOP
+            endif
         end if
 
         ! =====================================================================
         ! On-the-fly Doppler broadening
         dtemp = abs(ace(iso_)%temp-kT)
+        !@print *, 'TEMP:', iso_, trim(mat%mat_name), trim(ace(iso_)%xslib), ace(iso_)%temp/K_B, mat%temp/K_B
         !print *,  dtemp, K_B, kT, ace(iso_)%temp, ace(iso_)%zaid
         if ( mat%db .and. ( dtemp > K_B .and. erg < 1d0 ) ) then
-            call GET_OTF_DB_MAC(mat%numden(i_iso),i_iso,iso_,erg,xs,dtemp)
-            macro_t   = macro_t   + xs(1)
-            macro_a   = macro_a   + xs(2)
+            call GET_OTF_DB_MAC(mat%numden(i_iso), i_iso,iso_,erg,xs,dtemp)
+
+            call getierg(iso_,ierg_,erg)
+            
+            ipfac = max(0.d0, min(1.d0,(erg-ace(iso_)%E(ierg_))/(ace(iso_)%E(ierg_+1)-ace(iso_)%E(ierg_))))
+            
+            !==============================================================
+            ! Microscopic XS
+            micro_t   = ace(iso_)%sigt(ierg_) + ipfac*(ace(iso_)%sigt(ierg_+1)-ace(iso_)%sigt(ierg_))
+            micro_d   = ace(iso_)%sigd(ierg_) + ipfac*(ace(iso_)%sigd(ierg_+1)-ace(iso_)%sigd(ierg_))
+
+!            print *, 'COMPARISON:'
+!            print *, 'TOT', xs(1), micro_t * mat % numden(i_iso) * barn  
+!            print *, 'GAM', xs(2), micro_d * mat % numden(i_iso) * barn
+            macro_t   = macro_t   + xs(1) 
+            macro_a   = macro_a   + xs(2) 
             macro_f   = macro_f   + xs(3)
             macro_nuf = macro_nuf + xs(4)
             macro_qf  = macro_qf  + xs(5)
-            cycle
+            cycle MAT_ISO_LOOP
         end if
 
         call getierg(iso_,ierg_,erg)
@@ -209,7 +229,7 @@ function getMacroXS (mat, erg,kT, urn) result (macro_xs)
             endif
         enddo
 
-    enddo 
+    enddo MAT_ISO_LOOP 
 
     do i = 2, 4 
         macro_a = macro_a - (dble(i)-1.0d0)*xn_xs(i)
@@ -630,7 +650,7 @@ subroutine setuegrid
             idx = idx + 1
         enddo
 22      unigrid(i) = idx - 1
-        if(icore==score) print *, 'hash', i, unigrid(i), Etmp
+        ! if(icore==score) print *, 'hash', i, unigrid(i), Etmp
     enddo
     unigrid(nuni) = Emax
 
@@ -772,13 +792,13 @@ subroutine GET_SAB_MAC(nd,iiso,isab,erg,xs_t,xs_a)
     if ( sab(isab)%nxs(5) == 4 ) micro_e = micro_e / abe%erg(ierg)
     end if
 
+    if ( associated(abi) ) nullify(abi)
+    if ( associated(abe) ) nullify(abe)
+
     micro_t = micro_i + micro_e + micro_a
 
     xs_t = xs_t + nd * micro_t * barn
     xs_a = xs_a + nd * micro_a * barn
-
-    if ( associated(abi) ) nullify(abi)
-    if ( associated(abe) ) nullify(abe)
 
 end subroutine
 
@@ -793,17 +813,15 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs)
     real(8), intent(inout):: xs(:)
     type(SAB_INEL_XS), pointer:: abi
     type(SAB_EL_XS), pointer:: abe
-    integer:: iiso, isab, ierg
+    integer:: iiso, isab, ierg, isab_l, isab_h
+    real(8) :: f
     real(8):: ipfac
+    real(8) :: xs2l, xs2h, xs6l, xs6h
 
-    if ( .not. mat%sab .or. erg > 4E-6 ) return
+    if ( erg > 4E-6 ) return
     iiso = mat%ace_idx(imat)
-    isab = ace(iiso)%sab_iso
+    isab = mat%sablist(imat)
     if ( isab == 0 ) return
-
-    abi => sab(isab)%itie
-    abe => sab(isab)%itce
-
     ! total / elastic / absorption
     call getierg(iiso,ierg,erg)
     ipfac = max(0D0,min(1D0,(erg-ace(iiso)%e(ierg)) &
@@ -818,27 +836,86 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs)
 
     xs(1) = xs(1) - xs(2)
 
-    ! thermal inelastic
-    call GET_IERG_SABI(isab,ierg,erg)
-    ipfac = max(0D0,min(1D0,(erg-abi%erg(ierg)) &
-        /(abi%erg(ierg+1)-abi%erg(ierg))))
-    xs(2) = abi%xs(ierg) + ipfac*(abi%xs(ierg+1)-abi%xs(ierg))
+    if( isab > 0 ) then ! S(a,b)
+        abi => sab(isab)%itie
+        abe => sab(isab)%itce
+    
+        ! thermal inelastic
+        call GET_IERG_SABI(isab,ierg,erg)
+        ipfac = max(0D0,min(1D0,(erg-abi%erg(ierg)) &
+            /(abi%erg(ierg+1)-abi%erg(ierg))))
+        xs(2) = abi%xs(ierg) + ipfac*(abi%xs(ierg+1)-abi%xs(ierg))
+    
+        ! thermal elastic
+        xs(6) = 0D0
+        if ( sab(isab)%jxs(4) /= 0 ) then
+        call GET_IERG_SABE(isab,ierg,erg)
+        ipfac = max(0D0,min(1D0,(erg-abe%erg(ierg)) &
+            /(abe%erg(ierg+1)-abe%erg(ierg))))
+        xs(6) = abe%xs(ierg) + ipfac*(abe%xs(ierg+1)-abe%xs(ierg))
+        if ( sab(isab)%nxs(5) == 4 ) xs(6) = xs(6) / abe%erg(ierg)
+        end if
+    
+        xs(2) = xs(2) + xs(6)  ! thermal scattering = inelastic + elastic
+        xs(1) = xs(1) + xs(2)  ! total += thermal scattering
+    
+        if ( associated(abi) ) nullify(abi)
+        if ( associated(abe) ) nullify(abe)
+    else ! MODER
+        isab_l = therm(-isab) % iso_low
+        isab_h = therm(-isab) % iso_high
+        f      = therm(-isab) % f
 
-    ! thermal elastic
-    xs(6) = 0D0
-    if ( sab(isab)%jxs(4) /= 0 ) then
-    call GET_IERG_SABE(isab,ierg,erg)
-    ipfac = max(0D0,min(1D0,(erg-abe%erg(ierg)) &
-        /(abe%erg(ierg+1)-abe%erg(ierg))))
-    xs(6) = abe%xs(ierg) + ipfac*(abe%xs(ierg+1)-abe%xs(ierg))
-    if ( sab(isab)%nxs(5) == 4 ) xs(6) = xs(6) / abe%erg(ierg)
-    end if
+        abi => sab(isab_l)%itie
+        abe => sab(isab_l)%itce
 
-    xs(2) = xs(2) + xs(6)  ! thermal scattering = inelastic + elastic
-    xs(1) = xs(1) + xs(2)  ! total += thermal scattering
+        ! LOW TEMP:
+        ! thermal inelastic
+        call GET_IERG_SABI(isab_l,ierg,erg)
+        ipfac = max(0D0,min(1D0,(erg-abi%erg(ierg)) &
+            /(abi%erg(ierg+1)-abi%erg(ierg))))
+        xs2l = abi%xs(ierg) + ipfac*(abi%xs(ierg+1)-abi%xs(ierg))
+    
+        ! thermal elastic
+        xs6l = 0D0
+        if ( sab(isab_l)%jxs(4) /= 0 ) then
+            call GET_IERG_SABE(isab_l,ierg,erg)
+            ipfac = max(0D0,min(1D0,(erg-abe%erg(ierg)) &
+                /(abe%erg(ierg+1)-abe%erg(ierg))))
+            xs6l = abe%xs(ierg) + ipfac*(abe%xs(ierg+1)-abe%xs(ierg))
+            if ( sab(isab_l)%nxs(5) == 4 ) xs6l = xs6l / abe%erg(ierg)
+        end if
+        if ( associated(abi) ) nullify(abi)
+        if ( associated(abe) ) nullify(abe)
+    
+        abi => sab(isab_h)%itie
+        abe => sab(isab_h)%itce
+    
+        ! HIGH TEMP:
+        ! thermal inelastic
+        call GET_IERG_SABI(isab_h,ierg,erg)
+        ipfac = max(0D0,min(1D0,(erg-abi%erg(ierg)) &
+            /(abi%erg(ierg+1)-abi%erg(ierg))))
+        xs2h = abi%xs(ierg) + ipfac*(abi%xs(ierg+1)-abi%xs(ierg))
+    
+        ! thermal elastic
+        xs6h = 0D0
+        if ( sab(isab_h)%jxs(4) /= 0 ) then
+            call GET_IERG_SABE(isab_h,ierg,erg)
+            ipfac = max(0D0,min(1D0,(erg-abe%erg(ierg)) &
+                /(abe%erg(ierg+1)-abe%erg(ierg))))
+            xs6h = abe%xs(ierg) + ipfac*(abe%xs(ierg+1)-abe%xs(ierg))
+            if ( sab(isab_h)%nxs(5) == 4 ) xs6h = xs6h / abe%erg(ierg)
+        end if
 
-    if ( associated(abi) ) nullify(abi)
-    if ( associated(abe) ) nullify(abe)
+        xs(2) = (1d0-f) * xs2l + f * xs2h
+        xs(6) = (1d0-f) * xs6l + f * xs6h
+        xs(2) = xs(2) + xs(6)  ! thermal scattering = inelastic + elastic
+        xs(1) = xs(1) + xs(2)  ! total += thermal scattering
+    
+        if ( associated(abi) ) nullify(abi)
+        if ( associated(abe) ) nullify(abe)
+    endif
 
 end subroutine
 
@@ -901,6 +978,7 @@ subroutine GET_IERG_SABE(iso_,ierg_,erg)
     integer:: low, mid, high
 
     ab => sab(iso_)%itce
+    print *, 'ALLOC? ', allocated(ab%erg)
 
     ! binary search
     low = 1
@@ -927,7 +1005,7 @@ end subroutine
 ! =============================================================================
 ! GET_OTF_DB
 ! =============================================================================
-subroutine GET_OTF_DB_MAC(nd,i_iso,iso,E0,xs1,dtemp)
+subroutine GET_OTF_DB_MAC(nd, i_iso,iso,E0,xs1,dtemp)
     use ACE_HEADER, only: ace, ghq, wghq, ghq2, xghq2, wghq2
     use FMFD_HEADER, only: fmfdon
     use constants, only: k_b
@@ -957,6 +1035,7 @@ subroutine GET_OTF_DB_MAC(nd,i_iso,iso,E0,xs1,dtemp)
     xs1(:) = 0D0
 
     if ( yy > ghq(16) ) then
+        ! print *, 'CASE 1:', E0*1E6, bb
         erg_l = (yy+ghq(1))*(yy+ghq(1))*inv_b
         erg_u = (yy+ghq(16))*(yy+ghq(16))*inv_b
         call getierg(iso,ierg0,erg_l)
@@ -969,7 +1048,7 @@ subroutine GET_OTF_DB_MAC(nd,i_iso,iso,E0,xs1,dtemp)
             ierg0 = EFF_IERG(E1,iso,ierg0,ierg1+1)
             call GET_MIC_DB1(iso,ierg0,E1,xs0,xn(2:4))
             wx2 = wghq(ii) * x2
-            xs1(:) = xs1(:) + wx2 * xs0(:)
+            xs1(:) = xs1(:) + wx2 * xs0(:) * (1d0-exp(-4d0*yy*xx))
         end do
         p1 = inv_sqrt_pi*inv_y2
         xs1(:) = xs1(:) * p1
@@ -980,6 +1059,7 @@ subroutine GET_OTF_DB_MAC(nd,i_iso,iso,E0,xs1,dtemp)
         call getierg(iso,ierg0,erg_l)
         call getierg(iso,ierg1,erg_u)
 
+        ! print *, 'CASE 2:', inv_b, erg_l, erg_u
         do ii = 1, 16
             E1 = xghq2(ii)*inv_b
             ierg0 = EFF_IERG(E1,iso,ierg0,ierg1+1)
@@ -1000,6 +1080,78 @@ subroutine GET_OTF_DB_MAC(nd,i_iso,iso,E0,xs1,dtemp)
     end if
 
     xs1(:) = xs1(:) * nd * barn
+end subroutine
+
+! =============================================================================
+! GET_OTF_DB_MT: MT-based OTF DB
+! =============================================================================
+subroutine GET_OTF_DB_MT(temp1,iso,E0,mt,xs1)
+    use ACE_HEADER, only: ace, ghq, wghq, ghq2, xghq2, wghq2
+    use CONSTANTS, only: k_b
+    implicit none
+    real(8), intent(in)   :: temp1  ! material tempearture where particle is
+    integer, intent(in)   :: iso    ! index for MAT and ACE library
+    real(8), intent(in)   :: E0
+    integer, intent(in)   :: mt
+    real(8), intent(inout):: xs1
+    real(8):: xs0
+    real(8):: erg_l, erg_u, E1
+    integer:: ierg0, ierg1
+    real(8):: bb, yy, inv_b, inv_y, inv_y2  ! parameters 1
+    real(8):: xx, x2, wx2  ! parameters 2
+    real(8):: p1, p2       ! parameters 3
+    real(8):: nd
+    integer:: ii
+	
+	
+    ! parameters
+    bb    = ace(iso)%atn/abs(temp1-ace(iso)%temp)
+    yy    = sqrt(bb*E0)
+    inv_b = 1D0/bb
+    inv_y = 1D0/yy
+    inv_y2 = inv_y*inv_y
+
+    ! initialization
+    xs1 = 0D0
+
+    if ( yy > ghq(16) ) then
+        erg_l = (yy+ghq(1))*(yy+ghq(1))*inv_b
+        erg_u = (yy+ghq(16))*(yy+ghq(16))*inv_b
+        call getierg(iso,ierg0,erg_l)
+        call getierg(iso,ierg1,erg_u)
+
+        do ii = 1, 16
+            xx = ghq(ii) + yy
+            x2 = xx*xx
+            E1 = x2*inv_b
+            ierg0 = EFF_IERG(E1,iso,ierg0,ierg1+1)
+            call GET_MIC_DB3(iso,ierg0,E1,mt,xs0)
+            wx2 = wghq(ii) * x2
+            xs1 = xs1 + wx2 * xs0 * (1d0-exp(-4d0*yy*xx))
+        end do
+
+        p1 = inv_sqrt_pi*inv_y2
+        xs1 = xs1 * p1
+
+    else
+        erg_l = xghq2(1)*inv_b
+        erg_u = xghq2(16)*inv_b
+        call getierg(iso,ierg0,erg_l)
+        call getierg(iso,ierg1,erg_u)
+
+        do ii = 1, 16
+            E1 = xghq2(ii)*inv_b
+            ierg0 = EFF_IERG(E1,iso,ierg0,ierg1+1)
+            call GET_MIC_DB3(iso,ierg0,E1,mt,xs0)
+            p1 = exp(2D0*ghq2(ii)*yy)
+            p2 = wghq2(ii)*(p1-1D0/p1)
+            xs1 = xs1 + p2 * xs0
+        end do
+
+        p1 = inv_sqrt_pi*inv_y2*exp(-yy*yy)
+        xs1 = xs1 * p1
+
+    end if
 
 end subroutine
 
@@ -1022,7 +1174,6 @@ subroutine GET_OTF_DB_MIC(temp1,iso,E0,xs1)
     real(8):: p1, p2       ! parameters 3
     real(8):: nd
     integer:: ii
-!    real(8):: ee0(16), ee1(16), ee2(16)
 	
 	
     ! parameters
@@ -1043,15 +1194,12 @@ subroutine GET_OTF_DB_MIC(temp1,iso,E0,xs1)
 
         do ii = 1, 16
             xx = ghq(ii) + yy
-!            ee0(ii) = xx
             x2 = xx*xx
             E1 = x2*inv_b
-!            ee1(ii) = E1
             ierg0 = EFF_IERG(E1,iso,ierg0,ierg1+1)
             call GET_MIC_DB2(iso,ierg0,E1,xs0)
             wx2 = wghq(ii) * x2
-            xs1(1:6) = xs1(1:6) + wx2 * xs0(1:6)
-!            ee2(ii) = xs0(1)
+            xs1(1:6) = xs1(1:6) + wx2 * xs0(1:6) * (1d0-exp(-4d0*yy*xx))
         end do
 
         p1 = inv_sqrt_pi*inv_y2
@@ -1065,23 +1213,17 @@ subroutine GET_OTF_DB_MIC(temp1,iso,E0,xs1)
 
         do ii = 1, 16
             E1 = xghq2(ii)*inv_b
-!            ee0(ii) = sqrt(xghq2(ii))
-!            ee1(ii) = E1
             ierg0 = EFF_IERG(E1,iso,ierg0,ierg1+1)
             call GET_MIC_DB2(iso,ierg0,E1,xs0)
             p1 = exp(2D0*ghq2(ii)*yy)
             p2 = wghq2(ii)*(p1-1D0/p1)
             xs1(1:6) = xs1(1:6) + p2 * xs0(1:6)
-!            ee2(ii) = xs0(1)
         end do
 
         p1 = inv_sqrt_pi*inv_y2*exp(-yy*yy)
         xs1(:) = xs1(:) * p1
 
     end if
-!    write(8,1), E0, (ee0(ii), ii = 1, 16), yy, (ee1(ii), ii = 1, 16), &
-!                (ee2(ii), ii = 1, 16)
-!    1 format(100es15.7)
 
 end subroutine
 
@@ -1219,6 +1361,25 @@ subroutine GET_MIC_DB2(iso,ierg,E1,xs)
     xs(5) = xs(4)*getnu(iso,E1)
     xs(3) = xs(3) + xs(4)
     end if
+
+end subroutine
+! =============================================================================
+!
+! =============================================================================
+subroutine GET_MIC_DB3(iso,ierg,E1,mt,xs)
+    use FMFD_HEADER, only: fmfdon
+    implicit none
+    integer, intent(in):: iso, ierg, mt
+    real(8), intent(in):: E1
+    real(8):: xs
+    real(8):: slope
+
+    slope = max(0D0,min(1D0,(E1-ace(iso)%E(ierg)) &
+        /(ace(iso)%E(ierg+1)-ace(iso)%E(ierg))))
+
+    xs = ace(iso) % sig_MT(mt) % cx(ierg) + &
+        slope * (ace(iso) % sig_MT(mt) % cx(ierg+1) - &
+        ace(iso) % sig_MT(mt) % cx(ierg))
 
 end subroutine
 

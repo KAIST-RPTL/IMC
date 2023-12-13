@@ -39,8 +39,9 @@ subroutine collision_CE (p)
     real(8) :: dtemp
     integer :: ii, jj, kk, mm, column 
     real(8) :: xs_t(5)
-	real(8) :: E_prev, tmp
+	real(8) :: E_prev, tmp, xs_noel
 	logical :: elastic = .true. 
+    integer :: isab
 	
 	E_prev = p%E 
     p%n_collision = p%n_collision + 1
@@ -58,31 +59,31 @@ subroutine collision_CE (p)
     if(do_ueg) then
         macro_xs = getMacroXS_UEG(materials(p%material), p%E,p%kT, p%urn)
     else
-        macro_xs= getMacroXS(materials(p%material), p%E,p%kT, p%urn)
+        macro_xs = getMacroXS(materials(p%material), p%E,p%kT, p%urn)
     endif
-    !write(*,*) 'COMP', macro_xs(1), tmp, p%E
     rn = rang(); temp = 0; iso = materials(p%material)%n_iso
     do i = 1, materials(p%material)%n_iso
         dtemp = abs(p%kT-ace(materials(p%material)%ace_idx(i))%temp) 
 		
-        if ( materials(p%material)%db .and. dtemp > K_B .and. p%E < 1D0 ) then
-        ! On-the-fly Doppler broadening
-        call GET_OTF_DB_MIC(p%kT,materials(p%material)%ace_idx(i),p%E,micro_xs)
-        !if (  micro_xs(1) > 1E+30 ) stop
+        if ( materials(p%material)%db .and. dtemp > K_B .and. p%E < 1d0 ) then
+            ! On-the-fly Doppler broadening
+            call GET_OTF_DB_MIC(p%kT,materials(p%material)%ace_idx(i),p%E,micro_xs)
         else
-        ! point-wise data at the given temperature
-        micro_xs = getMicroXS( materials(p%material)%ace_idx(i), p%E)
-        ! URR Region
-        if(materials(p%material)%numden(i) > ures_cut) &
-            call GET_URR_MICRO(materials(p%material)%ace_idx(i), p%E, micro_xs, p%urn)  
+            ! point-wise data at the given temperature
+            micro_xs = getMicroXS( materials(p%material)%ace_idx(i), p%E)
+            ! URR Region
+            if(materials(p%material)%numden(i) > ures_cut) &
+                call GET_URR_MICRO(materials(p%material)%ace_idx(i), p%E, micro_xs, p%urn)  
         end if
         ! S(a,b)
         call GET_SAB_MIC(materials(p%material),i,p%E,micro_xs)
         temp = temp + micro_xs(1)*materials(p%material)%numden(i)*barn
+        ! print *, 'TST: ', trim( materials(p%material)%mat_name ), i, temp, macro_xs(1)
         if ( rn < temp/macro_xs(1) ) then
             iso = materials(p%material)%ace_idx(i)
+            isab = materials(p%material) % sablist(i)
             i_iso = i
-            if ( materials(p%material)%sab .and. ace(iso)%sab_iso /= 0 &
+            if( materials(p%material)%sablist(i) /= 0 & 
                 .and. p%E < 4D-6 ) then
                 p%yes_sab = .true.
             else
@@ -108,20 +109,24 @@ subroutine collision_CE (p)
     ipfac = max(0.d0, min(1.d0,(p%E-ace(iso)%E(ierg))/(ace(iso)%E(ierg+1)-ace(iso)%E(ierg))))
     do i = 1, ace(iso)%NXS(5) !> through the reaction types...
         if (abs(ace(iso)%TY(i)) == 19) cycle 
-        noel = noel + ace(iso)%sig_MT(i)%cx(ierg) & 
-                    + ipfac*(ace(iso)%sig_MT(i)%cx(ierg+1) - ace(iso)%sig_MT(i)%cx(ierg))
+        dtemp = abs(p % kT - ace(iso) % temp)
+        if( materials(p%material) % db .and. dtemp > K_B .and. p%E < 1d0 ) then
+            call GET_OTF_DB_MT(p%kT,iso,p%E,i,xs_noel)
+            noel = noel + xs_noel
+        else
+            noel = noel + ace(iso)%sig_MT(i)%cx(ierg) & 
+                        + ipfac*(ace(iso)%sig_MT(i)%cx(ierg+1) - ace(iso)%sig_MT(i)%cx(ierg))
+        endif
     enddo 
 
     r = rang()*(noel+el)-el
     if( ace(iso)%nxs(5) == 0 .or. r <= 0.0d0 ) then 
-        if ( p%yes_sab ) then
-                !print *, materials(p%material)%mat_name , materials(p%material)%sab
-                !print *, ace(iso)%sab_iso, p%E 
-                !print *, ( materials(p%material)%sab == .true.  .and. ace(iso)%sab_iso /= 0 &
-                !.and. p%E < 4D-6 )
-        call SAB_CE(p,iso,micro_xs(2),micro_xs(6))
+        if ( p%yes_sab .and. isab > 0 ) then
+            call SAB_CE(p,iso,isab,micro_xs(2),micro_xs(6))
+        elseif( p % yes_sab .and. isab < 0) then
+            call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
         else
-        call elastic_CE (p, iso)
+            call elastic_CE (p, iso)
         end if
     else
 		elastic = .false. 
@@ -178,22 +183,208 @@ subroutine WHAT_TEMPERATURE(p)
 
 end subroutine
 
+! =============================================================================
+! SAB_THERM_CE
+! =============================================================================
+subroutine SAB_THERM_CE(p,iso,isab,th,thel)
+    type(particle), intent(inout):: p
+    integer, intent(in):: iso, isab
+    real(8), intent(in):: th
+    real(8), intent(in):: thel
+    real(8):: re
+    integer :: isab_l, isab_h
+    real(8):: f
+
+    re = rang()*th-thel
+    isab_l = therm(isab) % iso_low
+    isab_h = therm(isab) % iso_high
+    f = therm(isab) % f
+    if ( re <= 0D0 ) then
+        call SAB_THERM_EL_CE(p,iso,isab_l,isab_h,f)    ! elastic scattering
+    else
+        call SAB_THERM_IN_CE(p,iso,isab_l,isab_h,f)    ! inelastic scattering
+    end if
+    p%yes_sab = .false.
+
+end subroutine
+
+
+! =============================================================================
+! SAB_THERM_EL_CE: For THERM card
+! =============================================================================
+subroutine SAB_THERM_EL_CE(p,iso,isab_l,isab_h,f)
+    type(particle), intent(inout):: p
+    integer, intent(in):: iso, isab_l, isab_h
+    real(8), intent(in) :: f
+    type(SAB_EL_ANG), pointer:: ab1
+    type(SAB_EL_XS), pointer:: ab2
+    integer:: ierg    ! index of S(a,b) and energy
+    integer:: iang          ! index of angle
+    real(8):: ssum          ! summation (CDF)
+    real(8):: rn            ! random number
+    real(8):: mu            ! cosine angle
+    real(8):: ipfac         ! interpolation factor
+    real(8):: awr           ! atomic weight ratio
+    real(8):: aa            ! parameter
+    real(8) :: uvw_l(3), uvw_h(3)
+    real(8) :: E_l, E_h
+
+    ! LOW TEMP
+    ab1 => sab(isab_l)%itca
+    ab2 => sab(isab_l)%itce
+    
+    ! energy index
+    call GET_IERG_SABE(isab_l,ierg,p%e)
+    
+    ! angle index
+    iang = int(rang()*(sab(isab_l)%nxs(6)+1))+1
+    
+    ! interpolation factor
+    ipfac=max(0D0,min(1D0,(p%e-ab2%erg(ierg))/(ab2%erg(ierg+1)-ab2%erg(ierg))))
+
+    ! outgoing angle
+    mu = ab1%ang(ierg,iang) + ipfac*(ab1%ang(ierg+1,iang)-ab1%ang(ierg,iang))
+    
+    ! coordinate change
+    awr = ace(iso)%atn
+    aa = 1D0+awr*(awr+2D0*mu)
+    E_l = p%E * aa / ((1D0+awr)*(1D0+awr))
+    mu = (1D0+mu*awr)/sqrt(aa)
+    uvw_l = rotate_angle(p%coord(1)%uvw,mu)
+
+    if ( associated(ab1) ) nullify(ab1)
+    if ( associated(ab2) ) nullify(ab2)
+    
+    ! HIGH TEMP
+    ab1 => sab(isab_h)%itca
+    ab2 => sab(isab_h)%itce
+    
+    ! energy index
+    call GET_IERG_SABE(isab_h,ierg,p%e)
+    
+    ! angle index
+    iang = int(rang()*(sab(isab_h)%nxs(6)+1))+1
+    
+    ! interpolation factor
+    ipfac=max(0D0,min(1D0,(p%e-ab2%erg(ierg))/(ab2%erg(ierg+1)-ab2%erg(ierg))))
+
+    ! outgoing angle
+    mu = ab1%ang(ierg,iang) + ipfac*(ab1%ang(ierg+1,iang)-ab1%ang(ierg,iang))
+    
+    ! coordinate change
+    awr = ace(iso)%atn
+    aa = 1D0+awr*(awr+2D0*mu)
+    E_h = p%E * aa / ((1D0+awr)*(1D0+awr))
+    mu = (1D0+mu*awr)/sqrt(aa)
+    uvw_h = rotate_angle(p%coord(1)%uvw,mu)
+    if ( associated(ab1) ) nullify(ab1)
+    if ( associated(ab2) ) nullify(ab2)
+
+    ! According to MCS
+    p % E = 1d0/((1d0-f)/E_l+f/E_h)
+    if(rang() > f) then
+        p % coord(1) % uvw = uvw_l
+    else
+        p % coord(1) % uvw = uvw_h
+    endif
+
+
+end subroutine
+
+
+! =============================================================================
+! SAB_IN_CE
+! =============================================================================
+subroutine SAB_THERM_IN_CE(p,iso,isab_l,isab_h,f)
+    type(particle), intent(inout):: p
+    integer, intent(in):: iso, isab_l, isab_h
+    real(8), intent(in) :: f
+    type(SAB_INEL_E), pointer:: ab1
+    type(SAB_INEL_XS), pointer:: ab2
+    integer:: ierg, ierg2, iang   ! index of S(a,b), energy, angle
+    real(8):: mu    ! cosine angle
+    real(8):: Ecm   ! energy (COM)
+    real(8):: Eout  ! outgoing energy
+    real(8):: ipfac ! interpolation factor
+    real(8):: awr   ! atomic weight ratio
+    real(8) :: uvw_l(3), uvw_h(3)
+    real(8) :: E_l, E_h
+
+    ab1 => sab(isab_l)%itxe
+    ab2 => sab(isab_l)%itie
+
+    ! energy & angle indices
+    call GET_IERG_SABI(isab_l,ierg,p%e)
+    ierg2 = int(rang()*(sab(isab_l)%nxs(4)))+1
+    call SKEWED_SECOND(sab(isab_l)%nxs(4),ierg2)
+    iang = int(rang()*(sab(isab_l)%nxs(3)+1))+1
+
+    ! interpolation factor
+    ipfac=max(0D0,min(1D0,(p%e-ab2%erg(ierg))/(ab2%erg(ierg+1)-ab2%erg(ierg))))
+
+    ! outgoing energy
+    E_l = ab1%erg(ierg,ierg2)+ipfac*(ab1%erg(ierg+1,ierg2)-ab1%erg(ierg,ierg2))
+
+    ! outgoing angle
+    mu = ab1%ang(ierg,ierg2,iang) + &
+        ipfac*(ab1%ang(ierg+1,ierg2,iang)-ab1%ang(ierg,ierg2,iang))
+
+    ! coordinate change
+    uvw_l = rotate_angle(p%coord(1)%uvw,mu)
+    
+    if ( associated(ab1) ) nullify(ab1)
+    if ( associated(ab2) ) nullify(ab2)
+
+    ab1 => sab(isab_h)%itxe
+    ab2 => sab(isab_h)%itie
+
+    ! energy & angle indices
+    call GET_IERG_SABI(isab_h,ierg,p%e)
+    ierg2 = int(rang()*(sab(isab_h)%nxs(4)))+1
+    call SKEWED_SECOND(sab(isab_h)%nxs(4),ierg2)
+    iang = int(rang()*(sab(isab_h)%nxs(3)+1))+1
+
+    ! interpolation factor
+    ipfac=max(0D0,min(1D0,(p%e-ab2%erg(ierg))/(ab2%erg(ierg+1)-ab2%erg(ierg))))
+
+    ! outgoing energy
+    E_h = ab1%erg(ierg,ierg2)+ipfac*(ab1%erg(ierg+1,ierg2)-ab1%erg(ierg,ierg2))
+
+    ! outgoing angle
+    mu = ab1%ang(ierg,ierg2,iang) + &
+        ipfac*(ab1%ang(ierg+1,ierg2,iang)-ab1%ang(ierg,ierg2,iang))
+
+    ! coordinate change
+    uvw_h = rotate_angle(p%coord(1)%uvw,mu)
+    
+    if ( associated(ab1) ) nullify(ab1)
+    if ( associated(ab2) ) nullify(ab2)
+
+    ! According to MCS
+    p % E = 1d0/((1d0-f)/E_l+f/E_h)
+    if(rang() > f) then
+        p % coord(1) % uvw = uvw_l
+    else
+        p % coord(1) % uvw = uvw_h
+    endif
+end subroutine
+
 
 ! =============================================================================
 ! SAB_CE
 ! =============================================================================
-subroutine SAB_CE(p,iso,th,thel)
+subroutine SAB_CE(p,iso,isab,th,thel)
     type(particle), intent(inout):: p
-    integer, intent(in):: iso
+    integer, intent(in):: iso, isab
     real(8), intent(in):: th
     real(8), intent(in):: thel
     real(8):: re
 
     re = rang()*th-thel
     if ( re <= 0D0 ) then
-        call SAB_EL_CE(p,iso)    ! elastic scattering
+        call SAB_EL_CE(p,iso,isab)    ! elastic scattering
     else
-        call SAB_IN_CE(p,iso)    ! inelastic scattering
+        call SAB_IN_CE(p,iso,isab)    ! inelastic scattering
     end if
     p%yes_sab = .false.
 
@@ -203,12 +394,12 @@ end subroutine
 ! =============================================================================
 ! SAB_EL_CE
 ! =============================================================================
-subroutine SAB_EL_CE(p,iso)
+subroutine SAB_EL_CE(p,iso,isab)
     type(particle), intent(inout):: p
-    integer, intent(in):: iso
+    integer, intent(in):: iso, isab
     type(SAB_EL_ANG), pointer:: ab1
     type(SAB_EL_XS), pointer:: ab2
-    integer:: isab, ierg    ! index of S(a,b) and energy
+    integer:: ierg    ! index of S(a,b) and energy
     integer:: iang          ! index of angle
     real(8):: ssum          ! summation (CDF)
     real(8):: rn            ! random number
@@ -217,7 +408,8 @@ subroutine SAB_EL_CE(p,iso)
     real(8):: awr           ! atomic weight ratio
     real(8):: aa            ! parameter
 
-    isab = ace(iso)%sab_iso
+    ! isab = ace(iso)%sab_iso
+
     ab1 => sab(isab)%itca
     ab2 => sab(isab)%itce
     
@@ -249,19 +441,18 @@ end subroutine
 ! =============================================================================
 ! SAB_IN_CE
 ! =============================================================================
-subroutine SAB_IN_CE(p,iso)
+subroutine SAB_IN_CE(p,iso,isab)
     type(particle), intent(inout):: p
-    integer, intent(in):: iso
+    integer, intent(in):: iso, isab
     type(SAB_INEL_E), pointer:: ab1
     type(SAB_INEL_XS), pointer:: ab2
-    integer:: isab, ierg, ierg2, iang   ! index of S(a,b), energy, angle
+    integer:: ierg, ierg2, iang   ! index of S(a,b), energy, angle
     real(8):: mu    ! cosine angle
     real(8):: Ecm   ! energy (COM)
     real(8):: Eout  ! outgoing energy
     real(8):: ipfac ! interpolation factor
     real(8):: awr   ! atomic weight ratio
 
-    isab = ace(iso)%sab_iso
     ab1 => sab(isab)%itxe
     ab2 => sab(isab)%itie
 
@@ -504,20 +695,14 @@ subroutine notElastic_CE (p,iso,xn)
     sig_arr(:) = 0
     do i = 1, ace(iso)%NXS(5) !> through the reaction types...
     !> Determine reaction type number from 1 to NXS(5)
-        !print *, int(ace(iso)%MT(i)), int(ace(iso)%ty(i)), ace(iso)%sig_MT(i)%cx(ierg), ipfac
-    
         if (int(ace(iso)%ty(i))==19) cycle
         !> 1. locate energy grid in SIG(i) block 
         sigmt => ace(iso)%sig_MT(i)
         ! if p%E is outside the energy grid :: cycle
-        !print *, sigmt%IE, ierg, (sigmt%IE+sigmt%NE-1)
         if (ierg >= (sigmt%IE+sigmt%NE-1) .or. ierg < sigmt%IE  ) cycle 
         
         !> 2. calculate XS for the reaction type
         sig_arr(i) = sigmt%cx(ierg) + ipfac*(sigmt%cx(ierg+1)-sigmt%cx(ierg))
-        
-        !print *, i, sigmt%cx(ierg), ipfac
-        !print *, i, int(ace(iso)%MT(i)), sig_arr(i) 
     enddo 
     
     
@@ -935,24 +1120,11 @@ subroutine absorption_CE (p)
     type(particle), intent(inout) :: p
     real(8) :: wgt_s
     
-    !if (p%n_collision > 1000) then 
-    !    p%wgt = 0 
-    !    p%alive = .false.
-    !    print *, 'killed for too many collisions'
-    !endif
-    
-    !if (p%E < 1.0d-11) then 
-    !    p%wgt = 0 
-    !    p%alive = .false.
-    !    !print *, 'killed for too small energy'
-    !endif 
     if (p%wgt < wgt_min) THEN !call Russian_Roulette(p)
         wgt_s = 2*wgt_min
         if ((p%wgt/wgt_s).ge.rang()) then
             p%wgt = wgt_s
         else
-            !p%wgt = 0 
-			!print *, 'killed for small weight'
             p%alive = .false.
         endif
     endif
@@ -1050,6 +1222,7 @@ subroutine TWO_BODY_COLLISION(p,mu,kT,A,iso0K)
     real(8):: v_r2                      ! square of relative speed
     real(8):: mu_cm                     ! cosine angle
     real(8):: bb                        ! beta parameter
+    real(8):: v_tmp(3)
 
     real(8), parameter:: m_u = 1.660540D-27 ! amu to Kg
     real(8), parameter:: m_n = 1.008664     ! neutron mass (amu)
@@ -1066,6 +1239,7 @@ subroutine TWO_BODY_COLLISION(p,mu,kT,A,iso0K)
     ! - target velocity
     !   - DBRC
     if ( iso0K /= 0 ) then
+        call TARGETV(p%E, uvw, A, kT, v_tmp, v_r2)
         if ( DBRC_E_min > p%E ) then
             call TARGETV(p%E,uvw,A,kT,v_t,v_r2)
         elseif ( DBRC_E_max < p%E ) then
@@ -1225,7 +1399,6 @@ subroutine REJECTION_CORRECTION(iso0K,E0,uvw,a,kT,v_t)
     real(8):: bb
     real(8):: ipfac
 
-    if ( associated(a0) ) nullify(a0)
     a0 => ace0K(iso0K)
 
     ! parameters
@@ -1265,6 +1438,7 @@ subroutine REJECTION_CORRECTION(iso0K,E0,uvw,a,kT,v_t)
         if ( rang() < xs_0K / xs_max ) exit
 
     end do
+    if ( associated(a0) ) nullify(a0)
 
 end subroutine
 
@@ -1280,12 +1454,12 @@ function GET_ELASTIC0K(iso0K,E_rel) result(xs)
     integer:: ie
     real(8):: ip
 
-    if ( associated(a0) ) nullify(a0)
     a0 => ace0K(iso0K)
 
     call GET_IERG_DBRC(iso0K,ie,E_rel)
     ip = max(0D0,min(1D0,(E_rel-a0%erg(ie))/(a0%erg(ie+1)-a0%erg(ie))))
     xs = a0%xs0(ie) + ip*(a0%xs0(ie+1)-a0%xs0(ie))
+    if ( associated(a0) ) nullify(a0)
 
 end function
 

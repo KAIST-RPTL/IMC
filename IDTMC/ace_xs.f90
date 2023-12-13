@@ -729,8 +729,7 @@ subroutine GET_OTF_DB_MIC(temp1,iso,E0,xs1)
             ierg0 = EFF_IERG(E1,iso,ierg0,ierg1+1)
             call GET_MIC_DB2(iso,ierg0,E1,xs0)
             wx2 = wghq(ii) * x2
-            xs1(1:6) = xs1(1:6) + wx2 * xs0(1:6)
-!            ee2(ii) = xs0(1)
+            xs1(1:6) = xs1(1:6) + wx2 * xs0(1:6) * (1d0-exp(-4d0*xx*yy))
         end do
 
         p1 = inv_sqrt_pi*inv_y2

@@ -14,7 +14,7 @@ module surface_header
                                             !> 1 : vacuum
                                             !> 2 : reflective
         
-        real(8), dimension(5) :: parmtrs    !> p   : 
+        real(8), dimension(10) :: parmtrs    !> p   : 
                                             !> sqr : 
                                             !> cyl : 
                                             !> sph : 
@@ -67,6 +67,10 @@ module surface_header
 			n = 7 
 		case(11:12) 
 			n = 6
+        case(13)
+            n = 7
+        case(14)
+            n = 9
 		case default 
 			n = 0 
 		end select
@@ -97,6 +101,8 @@ module surface_header
         if (surf_type.eq.'sph')  output = 10
 		if (surf_type.eq.'hexxc') output = 11
         if (surf_type.eq.'hexyc') output = 12
+        if (surf_type.eq.'rect')  output = 13
+        if (surf_type.eq.'cuboid') output = 14
         
         if (output == 0) then 
             print *, '******************************************'
@@ -251,6 +257,18 @@ module surface_header
             val = xyz_tr(1)*tmp+xyz_tr(2)*0.5d0
             if(val>=r .or. val<=-r) return
             neg = .true.
+        case(13) !> Rect
+            if( xyz(1)>this%parmtrs(1) .and. &
+                xyz(1)<this%parmtrs(2) .and. &
+                xyz(2)>this%parmtrs(3) .and. &
+                xyz(2)<this%parmtrs(4) ) neg = .true.
+        case(14) !> cuboid
+            if( xyz(1)>this%parmtrs(1) .and. &
+                xyz(1)<this%parmtrs(2) .and. &
+                xyz(2)>this%parmtrs(3) .and. &
+                xyz(2)<this%parmtrs(4) .and. &
+                xyz(3)>this%parmtrs(5) .and. &
+                xyz(3)<this%parmtrs(6)) neg = .true.
         end select
         
         
@@ -592,6 +610,97 @@ module surface_header
         dist = minval(d(:))
     end function
 
+    function surf_rect(surf, xyz, uvw) result(dist)
+        type(surface) :: surf
+        real(8), intent(in) :: xyz(3), uvw(3)
+        real(8) :: xyz_(2), x0, x1, y0, y1
+        integer :: i
+        real(8) :: dist, d(4), temp
+
+        if(surf % surf_type /= rect) print *, 'ERROR: WRONG SURF.'
+
+        x0 = surf % parmtrs(1); x1 = surf % parmtrs(2)
+        y0 = surf % parmtrs(3); y1 = surf % parmtrs(4)
+
+        xyz_(:) = xyz(1:2)
+
+        d(1) = (x0 - xyz_(1))/uvw(1)
+        d(2) = (x1 - xyz_(1))/uvw(1)
+        d(3) = (y0 - xyz_(2))/uvw(2)
+        d(4) = (y1 - xyz_(2))/uvw(2)
+
+        temp = xyz_(2) + d(1) * uvw(2)
+        if((temp < -y0) .or. (temp > y1)) d(1) = INFINITY
+        temp = xyz_(2) + d(2) * uvw(2)
+        if((temp < -y0) .or. (temp > y1)) d(2) = INFINITY
+        temp = xyz_(1) + d(3) * uvw(1)
+        if((temp < -x0) .or. (temp > x1)) d(3) = INFINITY
+        temp = xyz_(1) + d(4) * uvw(1)
+        if((temp < -x0) .or. (temp > x1)) d(4) = INFINITY
+
+        do i = 1, 4
+            if(d(i) < 0) d(i) = INFINITY
+        enddo
+
+        dist = minval(d(:))
+    end function
+
+    function surf_cuboid(surf, xyz, uvw) result(dist)
+        type(surface) :: surf
+        real(8), intent(in) :: xyz(3), uvw(3)
+        real(8) :: xyz_(3), x0, x1, y0, y1, z0, z1
+        integer :: i
+        real(8) :: dist, d(6), temp1, temp2
+
+        if(surf % surf_type /= CUBOID) print *, 'ERROR: WRONG SURF.'
+
+        x0 = surf % parmtrs(1); x1 = surf % parmtrs(2)
+        y0 = surf % parmtrs(3); y1 = surf % parmtrs(4)
+        z0 = surf % parmtrs(5); z1 = surf % parmtrs(6)
+
+        xyz_(:) = xyz(1:3)
+
+        d(1) = (x0 - xyz_(1))/uvw(1)
+        d(2) = (x1 - xyz_(1))/uvw(1)
+        d(3) = (y0 - xyz_(2))/uvw(2)
+        d(4) = (y1 - xyz_(2))/uvw(2)
+        d(5) = (z0 - xyz_(3))/uvw(3)
+        d(6) = (z1 - xyz_(3))/uvw(3)
+
+        temp1 = xyz_(2) + d(1) * uvw(2)
+        temp2 = xyz_(3) + d(1) * uvw(3)
+        if((temp1 < -y0) .or. (temp1 > y1) .or. &
+           (temp2 < -z0) .or. (temp2 > z1)) d(1) = INFINITY
+        temp1 = xyz_(2) + d(2) * uvw(2)
+        temp2 = xyz_(3) + d(2) * uvw(3)
+        if((temp1 < -y0) .or. (temp1 > y1) .or. &
+           (temp2 < -z0) .or. (temp2 > z1)) d(2) = INFINITY
+        temp1 = xyz_(1) + d(3) * uvw(1)
+        temp2 = xyz_(3) + d(3) * uvw(3)
+        if((temp1 < -x0) .or. (temp1 > x1) .or. &
+           (temp2 < -z0) .or. (temp2 > z1)) d(3) = INFINITY
+        temp1 = xyz_(1) + d(4) * uvw(1)
+        temp2 = xyz_(3) + d(4) * uvw(3)
+        if((temp1 < -x0) .or. (temp1 > x1) .or. &
+           (temp2 < -z0) .or. (temp2 > z1)) d(4) = INFINITY
+        temp1 = xyz_(1) + d(5) * uvw(1)
+        temp2 = xyz_(2) + d(5) * uvw(2)
+        if((temp1 < -x0) .or. (temp1 > x1) .or. &
+           (temp2 < -y0) .or. (temp2 > y1)) d(5) = INFINITY
+        temp1 = xyz_(1) + d(6) * uvw(1)
+        temp2 = xyz_(2) + d(6) * uvw(2)
+        if((temp1 < -x0) .or. (temp1 > x1) .or. &
+           (temp2 < -y0) .or. (temp2 > y1)) d(6) = INFINITY
+        
+
+        do i = 1, 6
+            if(d(i) < 0) d(i) = INFINITY
+        enddo
+
+        dist = minval(d(:))
+    end function
+
+
     subroutine surf_select(surf,xyz,uvw, dist) 
         type(surface) :: surf
         real(8), intent(in) :: xyz(3), uvw(3)
@@ -606,6 +715,8 @@ module surface_header
         if (surf%surf_type == sph)  dist = surf_sph(surf,xyz,uvw)
         if (surf%surf_type == hexxc) dist = surf_hexxc(surf,xyz,uvw)
         if (surf%surf_type == hexyc) dist = surf_hexyc(surf,xyz,uvw)
+        if (surf%surf_type == rect)  dist = surf_rect(surf, xyz,uvw)
+        if (surf%surf_type == cuboid) dist = surf_cuboid(surf,xyz,uvw)
         !if (dist<TINY_BIT*10) print *, 'STUCK?',xyz(1:2),dist,surf%surf_type
     end subroutine
     
