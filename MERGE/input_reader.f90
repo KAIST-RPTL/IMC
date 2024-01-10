@@ -62,7 +62,7 @@ recursive subroutine read_geom(path, geom_nest)
     integer :: ierr
     real(8) :: dtemp, xyz(3)
     character(200) :: line
-    character(20) :: option, temp, mat_id, pnum 
+    character(50) :: option, temp, mat_id, pnum 
     character(1)  :: opt
     character(30) :: filename
     character(100) :: args(100)
@@ -290,7 +290,7 @@ recursive subroutine read_geom(path, geom_nest)
             call read_geom(adjustl(trim(args(2))), geom_nest+1)
 		
         case default 
-            print *, 'NO SUCH OPTION ::', option 
+            print *, 'NO SUCH OPTION ::', option, args(1), args(2), nargs
             stop
         end select
         
@@ -434,6 +434,12 @@ recursive subroutine read_geom(path, geom_nest)
                     cells(i)%translation(2) = surfaces(idx)%parmtrs(2)
                     cells(i)%translation(3) = 0
                 endif
+                if (surfaces(idx)%surf_type == hexyc) then
+                    allocate(cells(i)%translation(3))
+                    cells(i)%translation(1) = surfaces(idx)%parmtrs(1)
+                    cells(i)%translation(2) = surfaces(idx)%parmtrs(2)
+                    cells(i)%translation(3) = 0
+                endif
                 
             endif
         endif 
@@ -475,7 +481,7 @@ recursive subroutine read_geom(path, geom_nest)
             elseif (in_the_list_lat(lattices, this%fill)) then
                 this%filltype = FILL_LATTICE
             else 
-                print *, 'ERROR : WRONG SHIT FILLING THIS CELL', cells(i)%cell_id
+                print *, 'ERROR : WRONG SHIT FILLING THIS CELL', cells(i)%cell_id, this % fill
                 stop
             endif
         end associate
@@ -1017,6 +1023,8 @@ end subroutine READ_CTRL
         ! Restart
         integer :: n_restart, n_full_iso
         integer, allocatable :: restart(:)
+        real(8) :: restart_from
+        real(8), allocatable :: tmp_burn_step(:)
 
         File_Error=0
         n = 0 
@@ -1899,6 +1907,11 @@ end subroutine READ_CTRL
                         case("FULL_NUMDEN")
                         backspace(File_Number)
                         read(File_Number, *, iostat=File_Error) Char_Temp, Equal, CE_mat_ptr % zaid(1), CE_mat_ptr % full_numden(1)
+                        if(n_full_iso > 1) then
+                            do i = 2, n_full_iso
+                                read(File_Number, *, iostat=File_Error) CE_mat_ptr % zaid(i), CE_mat_ptr % full_numden(i)
+                            enddo
+                        endif
 
 						end select Card_D_Inp
                     
@@ -2074,9 +2087,26 @@ end subroutine READ_CTRL
                         endif
                         burnup_restart(restart(i)) = .true.
                         if(icore==score) then
-                            print '(A,F5.1,A)', '    Restart at ', burn_step(restart(i)), 'days'
+                            print '(A,F5.1,A)', '    Restart at ', burn_step(restart(i))/86400.0, 'days'
                         endif
                     enddo
+                case("RESTART_FROM")
+                    backspace(File_Number)
+                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, restart_from
+                    restart_from = restart_from * 86400.0
+                    call move_alloc(burn_step, tmp_burn_step)
+                    if(.not. ANY(tmp_burn_step>restart_from)) print *, 'Restarting from wrong day: maximum', burn_step(nstep_burnup)
+                    do i = 1, nstep_burnup
+                        if( tmp_burn_step(i) > restart_from+1.d0 ) then
+                            allocate(burn_step(0:nstep_burnup + 1 - i))
+                            burn_step(0) = restart_from
+                            burn_step(1:nstep_burnup+1-i)  = tmp_burn_step(i:nstep_burnup)
+                            nstep_burnup = nstep_burnup + 1 - i
+                            exit
+                        endif
+                    enddo
+                    if(icore==score) print *, 'BURN STEP ADJUSTED:', nstep_burnup, burn_step(:)/86400.d0
+                    if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
 
                 case("LIBRARY_PATH")
                     backspace(File_Number)

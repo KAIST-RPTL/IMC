@@ -132,7 +132,8 @@ function getMacroXS (mat, erg,kT, urn) result (macro_xs)
             if(isab > 0) then
                 call GET_SAB_MAC(mat%numden(i_iso),iso_,isab,erg,macro_t,macro_a)
                 cycle MAT_ISO_LOOP
-            else ! MODER
+            elseif(isab < 0) then ! MODER
+                if(.not.allocated(therm)) print *, 'NOTHERM XS'
                 isab_l = therm(-isab) % iso_low
                 isab_h = therm(-isab) % iso_high
                 call GET_SAB_MAC(mat % numden(i_iso) * (1d0-therm(-isab) % f), &
@@ -862,6 +863,7 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs)
         if ( associated(abi) ) nullify(abi)
         if ( associated(abe) ) nullify(abe)
     else ! MODER
+        if(.not.allocated(therm)) print *, 'NOTHERM XS2', isab
         isab_l = therm(-isab) % iso_low
         isab_h = therm(-isab) % iso_high
         f      = therm(-isab) % f

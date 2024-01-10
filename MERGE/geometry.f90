@@ -151,6 +151,7 @@ module geometry
                     
                     p % coord(j) % cell = i_cell      ! index in cells(:) array
                     p % material = c%mat_idx
+                    ! if( p % material == 0 ) print *, '0MAT', trim(c % cell_id), c % univ_id
                     
                     if ( p%material == 0 ) then 
                         p%alive = .false. 
@@ -323,7 +324,7 @@ module geometry
                 surface_crossed = idx_surf
             elseif ((p%coord(j)%dist < p%coord(j_idx)%dist+TINY_BIT).and.&
                     (p%coord(j)%dist > p%coord(j_idx)%dist-TINY_BIT)) then  !> similar 
-                if (surfaces(j)%bc == 2)  then 
+                if (surfaces(idx_surf)%bc == 2)  then 
                     surface_crossed = idx_surf
                     j_idx = j
                 endif 
@@ -331,23 +332,9 @@ module geometry
                 surface_crossed = idx_surf
                 j_idx = j
             endif 
-            
             if (j >= p%n_coord ) exit
         enddo LEVEL_LOOP
-        
         dist = p%coord(j_idx)%dist
-        
-        !dist = p%coord(1)%dist; level(1) = p%coord(1)
-        !do i = 1, p%n_coord 
-        !    if (dist > p%coord(i)%dist) then 
-        !        dist = p%coord(i)%dist
-        !        level(1:i) =p%coord(1:i) 
-        !    enddo
-        !enddo
-        
-        !dist = minval(p%coord(:)%dist)
-        
-        
     end subroutine
     
     
@@ -359,7 +346,7 @@ module geometry
     subroutine cross_surface(p, surface_crossed)
         type(Particle), intent(inout) :: p
         
-        integer :: surface_crossed
+        integer, intent(in) :: surface_crossed
         real(8) :: xyz(3)     ! Saved global coordinate
         real(8) :: uvw(3)     ! Saved global coordinate
         integer :: i_surface  ! index in surfaces
@@ -422,21 +409,32 @@ module geometry
             elseif ((xyz_(1) >= r-1.1*TINY_BIT).and.(xyz_(1) <= r + 1.1*TINY_BIT)) then 
                 uvw(1) = -uvw(1) 
             else 
-                print *, 'particle is not on the surface'
-                print *, 'xyz', xyz
-				print *, 'Surface ID : ', surfaces(surface_crossed)%surf_id
+                print *, 'particle is not on the surface' &
+                , 'xyz', xyz &
+				, 'Surface ID : ', surfaces(surface_crossed)%surf_id, &
+                'PARMTR', surfaces(surface_crossed) % parmtrs(:)
                 stop 
             end if
             
         case (9) !> cylz
-            xyz_(3)   = xyz(3) 
+            if( surfaces(surface_crossed) % parmtrs(4) < surfaces(surface_crossed) % parmtrs(5) ) then !> CYLZ Finite
+                if( abs(surfaces(surface_crossed) % parmtrs(4) - xyz(3)) < TINY_BIT ) then
+                    uvw(3) = -uvw(3)
+                elseif( abs(surfaces(surface_crossed) % parmtrs(5) - xyz(3)) < TINY_BIT ) then
+                    uvw(3) = -uvw(3)
+                else
+                    uvw(3) =  uvw(3)
+                endif
+            else ! Inifinite CYLZ
+                uvw(3) = uvw(3)
+            endif 
+
             xyz_(1:2) = xyz(1:2) - surfaces(surface_crossed)%parmtrs(1:2) 
             
             uvw(1) = uvw(1) - 2*(xyz_(1)*uvw(1) + xyz_(2)*uvw(2))*xyz_(1)&
                         /(surfaces(surface_crossed)%parmtrs(3))**2
             uvw(2) = uvw(2) - 2*(xyz_(1)*uvw(1) + xyz_(2)*uvw(2))*xyz_(2)&
                         /(surfaces(surface_crossed)%parmtrs(3))**2
-            uvw(3) = uvw(3) 
             
         case (10) !> sph
             xyz_(1:3) = xyz(1:3) - surfaces(surface_crossed)%parmtrs(1:3) 

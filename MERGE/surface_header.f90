@@ -14,7 +14,7 @@ module surface_header
                                             !> 1 : vacuum
                                             !> 2 : reflective
         
-        real(8), dimension(10) :: parmtrs    !> p   : 
+        real(8), dimension(10) :: parmtrs = 0d0 !> p   : 
                                             !> sqr : 
                                             !> cyl : 
                                             !> sph : 
@@ -322,11 +322,11 @@ module surface_header
         
         if (surf%surf_type /= pz) print *, "ERROR : WRONG SURFACE" 
         
-        if (uvw(3) == 0) then 
-            dist = INFINITY
-        else 
+        !if (uvw(3) == 0) then 
+        !    dist = INFINITY
+        !else 
             dist = (surf%parmtrs(1)-xyz(3))/uvw(3)
-        endif
+        !endif
         
         if (dist<0) dist = INFINITY
         
@@ -337,30 +337,39 @@ module surface_header
     function surf_cylz(surf,xyz,uvw) result(dist)
         type(surface) :: surf
         real(8), intent(in) :: xyz(3), uvw(3)
-        real(8) :: dist 
+        real(8) :: dist, dist_z0, dist_z1
         real(8) :: a, k, c, xyz_(3), val 
         integer :: i 
         
         if (surf%surf_type /= cylz) print *, "ERROR : WRONG SURFACE" 
 		dist = INFINITY
-		
-        xyz_(1:2) = xyz(1:2) - surf%parmtrs(1:2)
         
-        a = uvw(1)**2 + uvw(2)**2
-        c = xyz_(1)**2 + xyz_(2)**2 - surf%parmtrs(3)**2
-        k = xyz_(1)*uvw(1) + xyz_(2)*uvw(2)
-        val = k**2 - a*c
-        
-        if ((a == 0).or.(val < 0)) then 
-            dist = INFINITY
-        elseif (c < 0) then
-            dist = (-k + sqrt(val))/a
+        if ( surf % parmtrs(4) >=  surf % parmtrs(5) ) then
+            xyz_(1:2) = xyz(1:2) - surf%parmtrs(1:2)
             
-        elseif (c > 0) then
-            dist = (-k - sqrt(val))/a
+            a = uvw(1)**2 + uvw(2)**2
+            c = xyz_(1)**2 + xyz_(2)**2 - surf%parmtrs(3)**2
+            k = xyz_(1)*uvw(1) + xyz_(2)*uvw(2)
+            val = k**2 - a*c
+            
+            if ((a == 0).or.(val < 0)) then 
+                dist = INFINITY
+            elseif (c < 0) then
+                dist = (-k + sqrt(val))/a
+                
+            elseif (c > 0) then
+                dist = (-k - sqrt(val))/a
+            endif
+            
+            if (dist<0) dist = INFINITY
+        else ! Finite
+            ! If particle is inside 
         endif
-        
-        if (dist<0) dist = INFINITY
+
+
+        ! Finite
+
+
         
     end function
     

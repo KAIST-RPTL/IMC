@@ -80,6 +80,7 @@ subroutine transport(p)
     found_cell = .false.
     if (p%n_coord == 1) call find_cell(p, found_cell, i_cell)
 	if (p%material < 1 .or. p%material > n_materials) then 
+        ! print *, 'WTF happen? mat:', p%material
         p%alive = .false.
         return
 	endif 
@@ -285,10 +286,27 @@ subroutine transport(p)
     elseif  ( distance == d_mesh ) then 
         call FMFD_SURF(inside_mesh, income_mesh,i_surf, i_xyz, &
                         p%coord(1)%uvw, p%wgt, surfaces(surface_crossed)%bc)
-        call cross_surface(p, surface_crossed)
+!         if(surfaces(surface_crossed) % bc == 2) then
+!             if((abs(p%coord(1)%xyz(1)-surfaces(surface_crossed)%parmtrs(3))>TINY_BIT) .and. (abs(p%coord(1)%xyz(2)-surfaces(surface_crossed)%parmtrs(3))>TINY_BIT) ) then
+!                 print *, 'WTF22?', p % coord(1) % xyz(:)
+!             endif
+!         endif
+!         call cross_surface(p, surface_crossed)
+        if ( fm_crossed ) then
+            call cross_surface(p, surface_crossed)
+        else
+            p%coord(1)%xyz = p%coord(1)%xyz + TINY_BIT * p%coord(1)%uvw
+        end if
 		
     elseif (abs(distance - d_boundary) < TINY_BIT) then
         p%n_cross = p%n_cross + 1 
+!         if(surfaces(surface_crossed) % bc == 2) then
+!             if((abs(p%coord(1)%xyz(1)-surfaces(surface_crossed)%parmtrs(3))>TINY_BIT) .and. (abs(p%coord(1)%xyz(2)-surfaces(surface_crossed)%parmtrs(3))>TINY_BIT) ) then
+!                 print *, 'WTF?', p % coord(1) % xyz(:)
+!             endif
+!         endif
+! 
+
         if (surface_crossed > 0) call cross_surface(p, surface_crossed)
         if(p%alive == .false.) then 
             !$omp atomic

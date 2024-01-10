@@ -4,7 +4,7 @@ include 'mkl_pardiso.f90'
 module depletion_module 
     use variables
     use constants
-    use ace_header, only: ace, find_ACE_iso_idx_zaid, num_iso, Emin, Emax, nueg, ueggrid, therm
+    use ace_header, only: ace, find_ACE_iso_idx_zaid, num_iso, Emin, Emax, nueg, ueggrid, therm, sab
     use ace_module, only: set_ace_iso
     use ace_xs,     only: getxs, getierg, getiueg, setueg
     use material_header
@@ -1373,6 +1373,7 @@ module depletion_module
             real(8) :: weight
 
             character(3) :: depidx
+            integer :: isab
 
             if(do_burn==.false.) return
             avg_power = avg_power / dble(n_act)
@@ -1966,6 +1967,7 @@ module depletion_module
         !Solve the burnup matrix equation 
         select case(matrix_exponential_solver)
         case(0)
+            if(icore==score) print *, 'NUMDEN', trim(materials(imat)%mat_name), materials(imat)%flux
             call cram(bMat, materials(imat)%full_numden(:), nxt_full_numden(:)) 
             !allocate(bMat_tmp(1:nnuc,1:nnuc)) 
             !call r8mat_expm1 ( nnuc, bMat, bMat_tmp )
@@ -2020,6 +2022,9 @@ module depletion_module
         deallocate(mat%numden); allocate(mat%numden(1:knuc));      mat%numden = 0D0
         deallocate(mat%ogxs);   allocate(mat%ogxs(1:num_iso,1:7)); mat%ogxs   = 0d0
 
+        deallocate(mat % sablist)
+        allocate(mat % sablist(1:knuc)); mat % sablist = 0
+
         i = 0 
         do mt_iso=1, mat % n_iso
             ! find ace_idx
@@ -2047,7 +2052,7 @@ module depletion_module
 
 
     ! data sharing
-    if(icore==score) print *, '   Broadcasting Number densities to MPI nodes...'
+    if(icore==score .and. ncore > 1) print *, '   Broadcasting Number densities to MPI nodes...'
     do ii = 0, ncore-1
     do jj = 1, ngeom
         imat = mpigeom(jj,ii)
@@ -2059,6 +2064,7 @@ module depletion_module
         if ( icore /= ii ) then
            deallocate(mat%ace_idx); allocate(mat%ace_idx(niso)); mat%ace_idx(:) = 0
            deallocate(mat%numden);  allocate(mat%numden(niso));  mat%numden(:)  = 0
+           deallocate(mat%sablist); allocate(mat%sablist(niso)); mat%sablist(:) = 0
            if(.not. allocated(mat%iso_idx)) allocate(mat%iso_idx(nnuc))
            mat%iso_idx(:) = 0
        end if
@@ -2087,8 +2093,8 @@ module depletion_module
     endif
 
     if(icore==score .and. allocated(burnup_restart)) then
-        write(depidx, '(i3)') istep_burnup
-        open(prt_restart, file=adjustl(trim(directory))//'CE_mat_'//adjustl(trim(depidx))//'.inp', action = 'write', status='replace')
+        write(depidx, '(i3)') istep_burnup + 1
+        open(prt_restart, file='./CE_mat_'//trim(adjustl(trim(depidx)))//'.inp', action = 'write', status='replace')
         write(prt_restart, *) 'CARD D'
         if( allocated(therm) ) then
             do iso = 1, size(therm) 
@@ -2102,7 +2108,7 @@ module depletion_module
             !mat_name
             write(prt_restart, *) 'mat_name = ', trim(materials(imat) % mat_name)
             !density_gpcc: Use data from ISOTOPES
-            write(prt_restart, *) 'density_gpcc = 0'
+            write(prt_restart, *) 'density_gpcc =', sum(materials(imat)%numden)
             !fissionable
             if(materials(imat) % fissionable) &
                 write(prt_restart, *) 'fissionable = T'
@@ -2114,6 +2120,18 @@ module depletion_module
                 write(prt_restart, *) 'doppler = T'
                 write(prt_restart, *) 'temperature = ', materials(imat) % temp/K_B
             endif
+            if(ANY(materials(imat) % sablist/=0)) then ! If any is sablist
+                do iso = 1, materials(imat) % n_iso
+                    isab = materials(imat) % sablist(iso)
+                    if( isab > 0 ) then ! S(a,b)
+                        write(prt_restart, *) 'sab = ',trim(sab(isab)%xslib), ace(materials(imat)%ace_idx(iso)) % zaid
+                    elseif (isab < 0) then ! Therm
+                        write(prt_restart, *) 'moder = ',trim(therm(-isab)%tag), ace(materials(imat)%ace_idx(iso)) % zaid
+                    endif
+                enddo
+            endif
+            !vol
+            if( materials(imat) % vol > 0 ) write(prt_restart, *) 'vol = ', materials(imat) % vol
             !n_iso
             write(prt_restart, *) 'n_iso = ', materials(imat) % n_iso
             !isotopes
@@ -2124,14 +2142,16 @@ module depletion_module
                     write(prt_restart, *) ace(materials(imat)%ace_idx(iso))%xslib, materials(imat)%numden(iso)
                 enddo
             endif
-            !n_full_iso
-            write(prt_restart, *) 'n_full_iso = ', count(materials(imat)%full_numden > 0d0) 
-            !full_numden
-            write(prt_restart, *) 'full_numden = ', zai_idx(1), materials(imat)%full_numden(1)
-            do iso = 2, nnuc
-                if(materials(imat) % full_numden(iso) > 0d0) &
-                    write(prt_restart, *) zai_idx(iso), materials(imat)%full_numden(iso)
-            enddo
+            if( allocated(materials(imat) % full_numden) ) then
+                !n_full_iso
+                write(prt_restart, *) 'n_full_iso = ', count(materials(imat)%full_numden > 0d0) 
+                !full_numden
+                write(prt_restart, *) 'full_numden = ', zai_idx(1), materials(imat)%full_numden(1)
+                do iso = 2, nnuc
+                    if(materials(imat) % full_numden(iso) > 0d0) &
+                        write(prt_restart, *) zai_idx(iso), materials(imat)%full_numden(iso)
+                enddo
+            endif
             write(prt_restart, *) 'END_MAT'
         enddo
         write(prt_restart, *) 'ENDD'
@@ -2423,7 +2443,8 @@ module depletion_module
     subroutine setmat
         integer :: i, imat, iso, mt_iso
         integer :: anum, mnum, inum, nnum 
-        logical :: restart
+        logical :: restart = .false.
+        real(8), allocatable :: tmpfull(:)
         !atomic number, mass number, isomer state, neutron number of nuclide
         
         if (.not. do_burn) return 
@@ -2446,27 +2467,41 @@ module depletion_module
                 allocate(materials(imat)%full_numden(1:nnuc))
                 if ( preco == 1 ) allocate(materials(imat)%full_numden1(1:nnuc))
                 materials(imat)%full_numden = 0.d0     !Initialize number density
-            endif
             
-            if( .not. restart ) then
-            do mt_iso = 1, materials(imat)%n_iso
-                iso = materials(imat)%ace_idx(mt_iso)
-                inum = 0
-                anum = ace(iso)%zaid/1000
-                mnum = ace(iso)%zaid - anum*1000
-                if(mnum>300) then
-                    inum = 1
-                    mnum = mnum - 200
-                    if(anum>88) mnum = mnum + 100
-                elseif(mnum==0) then
-                    cycle
-                endif
-                nnum = mnum - anum
-
-                if(nuclide(inum,nnum,anum)%idx>0) then 
-                    materials(imat)%full_numden(nuclide(inum,nnum,anum)%idx) = materials(imat)%numden(mt_iso)
-                endif 
-            end do
+                do mt_iso = 1, materials(imat)%n_iso
+                    iso = materials(imat)%ace_idx(mt_iso)
+                    inum = 0
+                    anum = ace(iso)%zaid/1000
+                    mnum = ace(iso)%zaid - anum*1000
+                    if(mnum>300) then
+                        inum = 1
+                        mnum = mnum - 200
+                        if(anum>88) mnum = mnum + 100
+                    elseif(mnum==0) then
+                        cycle
+                    endif
+                    nnum = mnum - anum
+    
+                    if(nuclide(inum,nnum,anum)%idx>0) then 
+                        materials(imat)%full_numden(nuclide(inum,nnum,anum)%idx) &
+                            = materials(imat)%numden(mt_iso)
+                    endif 
+                end do
+            elseif ( restart .and. materials(imat) % depletable ) then
+                call move_alloc(materials(imat) % full_numden, tmpfull)
+                allocate(materials(imat) % full_numden(1:nnuc))
+                materials(imat) % full_numden = 0d0
+                do mt_iso = 1, size(tmpfull)
+                    anum = materials(imat) % zaid(mt_iso) / 10000
+                    mnum = (materials(imat) % zaid(mt_iso) - anum * 10000)/10
+                    nnum = mnum - anum
+                    inum = (materials(imat) % zaid(mt_iso) - anum * 10000 - mnum * 10)
+                    if(nuclide(inum,nnum,anum)%idx>0) then 
+                        materials(imat)%full_numden(nuclide(inum,nnum,anum)%idx) &
+                            = tmpfull(mt_iso)
+                    endif 
+                end do
+                deallocate(materials(imat) % zaid, tmpfull)
             endif
             materials(imat)%fratio = 0.d0
         enddo 

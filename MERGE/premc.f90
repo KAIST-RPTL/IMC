@@ -102,7 +102,6 @@ subroutine premc
            !     print *, mm, mpigeom(1:ngeom,mm)
             enddo
         endif
-
     endif 
 
 
@@ -110,7 +109,7 @@ subroutine premc
     do i = 1, n_materials
         if ( .not. materials(i) % db ) cycle
         do iso = 1, materials(i) % n_iso
-            if( materials(i) % temp > ace(materials(i)%ace_idx(iso)) % temp ) then 
+            if( abs(materials(i) % temp - ace(materials(i)%ace_idx(iso)) % temp) > 1E-3*K_B ) then 
                 found = .false.
                 ISO_LOOP: do iso_ = 1, num_iso
                     if( abs(materials(i) % temp - ace(iso_) % temp) < 1E-3 * K_B .and. &
@@ -144,8 +143,8 @@ subroutine premc
                 else
                     if(icore==score) print *, trim(materials(i)%mat_name), ': Linked XS to ', trim(ace(materials(i)%ace_idx(iso)) % xslib), ' with T:', ace(materials(i)%ace_idx(iso)) % temp / K_B
                 endif
-            elseif( materials(i) % temp < ace(materials(i)% ace_idx(iso)) % temp ) then
-                if(icore==score) print *, 'WARNING: Invalid Temperature for ', trim(materials(i)%mat_name)
+            elseif( abs(materials(i) % temp - ace(materials(i)% ace_idx(iso)) % temp) < 1E-3 * K_B) then
+                if(icore==score) print *, 'WARNING: Invalid Temperature for ', trim(materials(i)%mat_name), materials(i)%temp/K_B, ace(materials(i)%ace_idx(iso))%temp/K_B
             else
                 if(icore==score) print *, trim(materials(i)%mat_name), ': no adjust required for ', trim(ace(materials(i)%ace_idx(iso))%xslib)
             endif

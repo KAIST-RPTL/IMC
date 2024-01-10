@@ -525,6 +525,7 @@ module geometry_header
                 idx_surf = this%neg_surf_idx(i)
             endif
         enddo 
+        ! if(d_surf < INFINITY .and. surfaces(idx_surf)%bc == 2) print *, 'IDX:', surfaces(idx_surf)%surf_id, 'XYZ:', xyz(1:3) + d_surf * uvw(1:3)
     end subroutine 
     
     subroutine lat_distance (this,surflist, xyz, uvw,i_xyz, d_surf, idx_surf)

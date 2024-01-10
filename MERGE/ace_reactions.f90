@@ -125,6 +125,7 @@ subroutine collision_CE (p)
             call SAB_CE(p,iso,isab,micro_xs(2),micro_xs(6))
         elseif( p % yes_sab .and. isab < 0) then
             !call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
+            if(.not.allocated(therm)) print *, 'NOTHERM RX'
             if( rang() > therm(-isab) % f ) then
                 call SAB_CE(p, iso, therm(-isab) % iso_low, micro_xs(2), micro_xs(6))
             else
@@ -1417,7 +1418,6 @@ subroutine REJECTION_CORRECTION(iso0K,E0,uvw,a,kT,v_t)
     E_min = 5D-1*(m_n*m_u)*E_min*E_min/mevj
     ! - maximum energy
     E_max = speedn+4D0/bb
-    E_min = 5D-1*(m_n*m_u)*E_min*E_min/mevj
     E_max = 5D-1*(m_n*m_u)*E_max*E_max/mevj
 
     ! energy indices
