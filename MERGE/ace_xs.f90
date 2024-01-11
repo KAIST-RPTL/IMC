@@ -1767,4 +1767,57 @@ subroutine setMacroXS(BU)
 
 end subroutine
 
+subroutine setDBPP
+implicit none
+integer :: i, j, iso, iso_, rx
+real(8) :: xs1(6), urn(n_unr), xs2
+type(AceFormat), pointer :: ac
+logical :: found
+! 23/12/04 : Preprocessor
+do i = 1, n_materials
+    if ( .not. materials(i) % db ) cycle
+    do iso = 1, materials(i) % n_iso
+        if( abs(materials(i) % temp - ace(materials(i)%ace_idx(iso)) % temp) > 1E-3*K_B ) then 
+            found = .false.
+            ISO_LOOP: do iso_ = 1, num_iso
+                if( abs(materials(i) % temp - ace(iso_) % temp) < 1E-3 * K_B .and. &
+                    ace(materials(i)%ace_idx(iso)) % zaid == ace(iso_) % zaid) then
+                    materials(i) % ace_idx(iso) = iso_
+                    found = .true.
+                exit ISO_LOOP
+                endif
+            enddo ISO_LOOP
+                
+            if( .not. found ) then
+                num_iso = num_iso + 1
+                ace(num_iso) = ace(materials(i)%ace_idx(iso))
+                ac => ace(num_iso)
+                ac % temp = materials(i) % temp
+                do j = 1, ac % NXS(3)
+                    if ( ac % E(j) < 1d0 ) exit
+                    call GET_OTF_DB_MIC(materials(i)%temp, materials(i)%ace_idx(iso), ac % E(j), xs1)
+                    ac % sigt(j) = xs1(1)
+                    ac % sigel(j) = xs1(2)
+                    ac % sigd(j) = xs1(3)-xs1(4)
+                    ac % sigf(j) = xs1(4)
+                    do rx = 1, ac % NXS(5)
+                        call GET_OTF_DB_MT(materials(i)%temp, materials(i)%ace_idx(iso), ac % E(j), rx, xs2)
+                        ac % sig_MT(rx) % cx(j) = xs2
+                    enddo
+                end do
+                nullify(ac)
+                materials(i) % ace_idx(iso) = num_iso
+                if(icore==score) print *, trim(materials(i)%mat_name), ': Adjusted XS for ', trim(ace(num_iso) % xslib), ' to', ace(num_iso) % temp/K_B
+            else
+                if(icore==score) print *, trim(materials(i)%mat_name), ': Linked XS to ', trim(ace(materials(i)%ace_idx(iso)) % xslib), ' with T:', ace(materials(i)%ace_idx(iso)) % temp / K_B
+            endif
+        elseif( abs(materials(i) % temp - ace(materials(i)% ace_idx(iso)) % temp) < 1E-3 * K_B) then
+            if(icore==score) print *, 'WARNING: Invalid Temperature for ', trim(materials(i)%mat_name), materials(i)%temp/K_B, ace(materials(i)%ace_idx(iso))%temp/K_B
+        else
+            if(icore==score) print *, trim(materials(i)%mat_name), ': no adjust required for ', trim(ace(materials(i)%ace_idx(iso))%xslib)
+        endif
+    enddo
+enddo
+end subroutine
+
 end module

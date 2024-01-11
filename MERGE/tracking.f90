@@ -168,7 +168,7 @@ subroutine transport(p)
 		endif
 	endif
     distance = min(d_boundary, d_collision, d_mesh, d_gmsh)
-    ! print *, 'TST',p%n_cross,p%coord(1)%xyz, distance, d_boundary, d_collision, d_mesh
+    print *, 'TST', icore, p%n_cross,p%coord(1)%xyz, distance, d_boundary, d_collision, d_mesh
     p % trvltime = p % trvltime + distance / speedn 
     if(distance>TOOLONG) then
         print *, 'ESCAPED',distance,p%coord(1)%xyz(1:2),p%coord(1)%uvw(1:2)

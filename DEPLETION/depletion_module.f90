@@ -1974,7 +1974,7 @@ module depletion_module
             !write(*,*) imat, icore, zai_idx(jnuc), mat%full_numden(jnuc)
             tmp = find_ACE_iso_idx_zaid(zai_idx(jnuc))
             !if(mat%full_numden(jnuc)>0.d0 .and. tmp > 0) then 
-            if(tmp>0 .and. mat%full_numden(jnuc)>1d0) then
+            if(tmp>0 .and. mat%full_numden(jnuc)>=0d0) then
                 knuc = knuc + 1
                 iso_idx(knuc) = jnuc
             elseif(mat%full_numden(jnuc)>0.d0) then
@@ -1994,7 +1994,7 @@ module depletion_module
         do mt_iso=1, mat % n_iso
             ! find ace_idx
             tmp = find_ACE_iso_idx_zaid(zai_idx(iso_idx(mt_iso)))
-            if (tmp /= 0 .and. mat%full_numden(iso_idx(mt_iso))>1d0) then 
+            if (tmp /= 0 .and. mat%full_numden(iso_idx(mt_iso))>=0d0) then 
                 i = i + 1
                 mat%ace_idx(mt_iso) = tmp
                 mat%numden(mt_iso)  = mat%full_numden(iso_idx(mt_iso))
@@ -2075,15 +2075,13 @@ module depletion_module
         mat => materials(i)
         do mt_iso = 1,mat%n_iso
             if(icore==score) then
-            zai = zai_idx(iso_idx(mt_iso))
-            if (zai>0) then
-                anum = zai/10000; mnum = (zai-anum*10000)/10
-                nnum = mnum-anum; inum = zai-anum*10000-mnum*10
+            if (mat%numden(mt_iso) > 0 .and. mat % ace_idx(mt_iso) > 0) then
                 !$omp atomic
                 tot_mass = tot_mass + &
                 ace(mat%ace_idx(mt_iso))%atn*mat%numden(mt_iso)*mat%vol/N_AVOGADRO*m_n
                 iso = mat%ace_idx(mt_iso)
                 if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then
+                    !$omp atomic
                     tot_fmass = tot_fmass + &
                     ace(mat%ace_idx(mt_iso))%atn*mat%numden(mt_iso)*mat%vol/N_AVOGADRO*m_n
                 endif

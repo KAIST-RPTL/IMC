@@ -300,6 +300,13 @@ recursive subroutine read_geom(path, geom_nest)
         close(rd_geom+geom_nest)
         return
     endif
+    if(icore==score) then
+        print *, 'Reading is done...'
+        print *, 'Surf #:', nsurf
+        print *, 'Cell #:', ncell
+        print *, 'Univ #:', nuniv
+        print *, 'Latt #:', nlatt
+    endif
     ! ===================================================================================== !
     !> add pure universes from cells(:)
     do i = 1, size(cells)
@@ -334,6 +341,13 @@ recursive subroutine read_geom(path, geom_nest)
         endif
     enddo         
     
+    if(icore==score) then
+        print *, 'Step2 is done...'
+        print *, 'Surf #:', nsurf
+        print *, 'Cell #:', ncell
+        print *, 'Univ #:', nuniv
+        print *, 'Latt #:', nlatt
+    endif
     
     !> 3. Update surface info to subpin cells 
     do i = 1, size(cells)
@@ -444,6 +458,13 @@ recursive subroutine read_geom(path, geom_nest)
             endif
         endif 
     enddo 
+    if(icore==score) then
+        print *, 'Step3 is done...'
+        print *, 'Surf #:', nsurf
+        print *, 'Cell #:', ncell
+        print *, 'Univ #:', nuniv
+        print *, 'Latt #:', nlatt
+    endif
     
     !> 4. Add cells to pin universe
     !> Add the cells to the universe cell list   
@@ -458,6 +479,13 @@ recursive subroutine read_geom(path, geom_nest)
             endif 
         enddo 
     enddo
+    if(icore==score) then
+        print *, 'Step4 is done...'
+        print *, 'Surf #:', nsurf
+        print *, 'Cell #:', ncell
+        print *, 'Univ #:', nuniv
+        print *, 'Latt #:', nlatt
+    endif
 	
     !> 5. Change lattice universe name to universe index
     do i = 1, size(lattices) 
@@ -470,6 +498,13 @@ recursive subroutine read_geom(path, geom_nest)
             enddo 
         enddo 
     enddo 
+    if(icore==score) then
+        print *, 'Step5 is done...'
+        print *, 'Surf #:', nsurf
+        print *, 'Cell #:', ncell
+        print *, 'Univ #:', nuniv
+        print *, 'Latt #:', nlatt
+    endif
     
     
     do i = 1, size(cells) 
@@ -504,7 +539,7 @@ recursive subroutine read_geom(path, geom_nest)
     close(rd_geom+geom_nest)
 
     if(icore==score) then
-        print *, 'TST'
+        print *, 'TST2'
         print *, 'Surf #:', nsurf
         print *, 'Cell #:', ncell
         print *, 'Univ #:', nuniv
