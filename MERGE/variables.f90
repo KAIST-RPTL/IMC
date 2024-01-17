@@ -71,6 +71,7 @@ implicit none
 
     ! UNIONIZED GRID
     logical :: do_ueg = .false.
+    logical :: do_iso_ueg = .false.
 
     ! OGXS DIRECT TALLY
     logical :: do_rx_tally = .false.

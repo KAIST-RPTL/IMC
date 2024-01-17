@@ -19,6 +19,7 @@ subroutine premc
     
     implicit none
     integer :: iwork1, iwork2, mm, i, j, zaid, iso, iso_, rx
+    real(8) :: ttt0, ttt1
     real(8) :: xs1(6), urn(n_unr), xs2
     type(AceFormat), pointer :: ac
     logical :: found
@@ -32,9 +33,15 @@ subroutine premc
         call read_MG_XS
     elseif (E_mode == 1) then 
         if(icore==score) print '(A29)', '    Continuous Energy Mode...' 
+        ttt0 = omp_get_wtime() 
         call read_CE_mat
+        ttt1 = omp_get_wtime()
+        if(icore == score) print *, '    Time to read CE_mat [s]:', ttt1-ttt0
     endif
+    ttt0 = omp_get_wtime() 
     call read_geom('geom.inp', 0)
+    ttt1 = omp_get_wtime()
+    if(icore == score) print *, '    Time to read CE_mat [s]:', ttt1-ttt0
     if(tally_switch > 0) call read_tally
     if ( th_on ) then
         call READ_TH
@@ -112,7 +119,7 @@ subroutine premc
     call read_mgtally
     call setugrid
 
-    if ( do_ueg ) then
+    if ( do_iso_ueg .or. do_ueg) then
         call setuegrid
     endif
 

@@ -479,6 +479,7 @@ recursive subroutine read_geom(path, geom_nest)
             endif 
         enddo 
     enddo
+
     if(icore==score) then
         print *, 'Step4 is done...'
         print *, 'Surf #:', nsurf
@@ -1577,7 +1578,7 @@ end subroutine READ_CTRL
                         read(File_Number, *, iostat=File_Error) Char_Temp, Equal, do_ueg, nuni
                     endif
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-					
+
 				case("N_INTERVAL")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_interval 
@@ -2316,6 +2317,11 @@ end subroutine READ_CTRL
                         materials(mm)%dtmc(1:comp) = mid(1:comp)
                     end do
                     deallocate(mid)
+                case('ISO_UEG')
+                    ! Isotope-wise UEG
+                    backspace(File_Number)
+                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, do_iso_ueg
+                    if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
                 end select Card_E_Inp
                 if (Char_Temp=="ENDE") Exit Read_Card_E
             end do Read_Card_E
@@ -2324,8 +2330,13 @@ end subroutine READ_CTRL
             if (icore==score) print *, 'No such card type defined ::', card_type
             stop
         end select
+
+        ! If DO_UEG --> DO_ISO_UEG
+        if(do_ueg) do_iso_ueg = .true.
+
+        ! nor do_iso_ueg but do_rx_tally --> do_rx_tally
+        if(.not. (do_iso_ueg) ) do_rx_tally = .true.
         
-        if(.not. (do_ueg .or. do_rx_tally)) do_rx_tally = .true.
         RealPower = Nominal_Power
         
     end subroutine Read_Card

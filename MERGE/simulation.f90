@@ -83,7 +83,7 @@ subroutine simulate_history(bat,cyc)
         call MPRUP_DIST(isize,source_bank(:))
     if ( .not. mprupon .and. genup ) call CYCLECHANGE(cyc)
     allocate(fission_bank(0))
-    print *, 'FISSbank allocated', icore
+    !print *, 'FISSbank allocated', icore
 	
     !> Distribute source_bank to slave nodes 
     call para_range(1, isize, ncore, icore, ista, iend)        
@@ -106,7 +106,7 @@ subroutine simulate_history(bat,cyc)
 	allocate(prompt_bank(0))
 
 	
-    print *, icore, 'Beginning cycle:', curr_cyc
+    ! print *, icore, 'Beginning cycle:', curr_cyc
     !$omp parallel private(p) shared(source_bank, fission_bank, temp_bank, prec_bank, ista, iend)
       thread_bank(:)%wgt = 0; bank_idx = 0; prec_idx = 0 ; init_idx = 0
       if (tallyon .and. .not. fmfdon) call TALLY_THREAD_INITIAL(cyc)
@@ -155,6 +155,8 @@ subroutine simulate_history(bat,cyc)
             endif
         enddo
       !$omp end do
+
+      ! print *, icore, 'CYC done'
 		
 		
       !$omp critical

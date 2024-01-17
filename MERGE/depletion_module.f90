@@ -1012,6 +1012,7 @@ module depletion_module
                     write(prt_bumat, '(f14.2,a16)') burn_step(istep_burnup)/86400.d0, ' CUMULATIVE DAYS'
                     write(prt_bumat, '(a45)')         '   =========================================='
                     do i = 1,n_materials
+                    if( materials(i) % n_iso == 0 ) cycle 
                     ! Initial mass
                         do mt_iso = 1,materials(i)%n_iso
                             iso = materials(i)%ace_idx(mt_iso)
@@ -1777,7 +1778,7 @@ module depletion_module
                     if(jnuc==0) cycle
 
                     ! BUILD ISO-WISE FLUX
-                    if(do_ueg) then
+                    if(do_iso_ueg) then
                         flx  = buildflux(iso,ace(iso)%NXS(3)+1, mat %eflux(0:nueg))
                         flx2 = buildflux(iso,ace(iso)%NXS(3)+1, mat%e2flux(0:nueg))
                         flx  = flx / toteflux; flx = flx * real_flux
@@ -1789,11 +1790,11 @@ module depletion_module
                         if(abs(ace(iso)%TY(rx))==1 .and. .not.(mt==N_NA .or. mt==N_NF .or. mt==N_NA .or. mt==N_N3A .or. mt==N_NP .or. mt==N_N2A .or. mt==N_ND .or. mt==N_NT .or. mt==N_N3HE .or. mt==N_ND2A .or. mt==N_NT2A .or. mt==N_N2P .or. mt==N_NPA .or. mt==N_NDA .or. mt==N_NPD .or. mt==N_NPT .or. mt==N_NDT .or. mt==N_NP3HE .or. mt==N_ND3HE .or. mt==N_NT3HE .or. mt==N_NTA .or. mt==N_N3P)) cycle ! Maybe inelastic?
                         if(mt == 4 .or. mt > 200) cycle ! Inelastic and Damage
                         ! TALLY OGXS
-                        if(do_ueg) ogxs = buildogxs_e2(iso, rx, flx, flx2) * barn
+                        if(do_iso_ueg) ogxs = buildogxs_e2(iso, rx, flx, flx2) * barn
 
                         if(do_rx_tally) then
                             if(ANY(RXMT==mt)) then
-                                if(do_ueg) ogxs1 = ogxs
+                                if(do_iso_ueg) ogxs1 = ogxs
                                 do i_rx = 1, 7
                                     if(RXMT(i_rx)==mt) then
                                         ogxs = mat % ogxs(iso, i_rx) * real_flux
@@ -2079,7 +2080,7 @@ module depletion_module
 
     if(icore==score) then
         do imat = 1,n_materials
-        if(.not. materials(imat)%depletable) cycle
+        if(.not. materials(imat)%depletable .or. materials(imat)% n_iso == 0) cycle
             mat => materials(imat)
             write(prt_bumat,*) ''
             write(prt_bumat,*) 'mat: ', mat%mat_name
@@ -2104,6 +2105,7 @@ module depletion_module
         endif
 
         do imat = 1, n_materials
+            if ( materials(imat) % n_iso == 0 ) cycle
             write(prt_restart, *) 'MAT'
             !mat_name
             write(prt_restart, *) 'mat_name = ', trim(materials(imat) % mat_name)
@@ -2139,19 +2141,20 @@ module depletion_module
                 ace(materials(imat)%ace_idx(1))%xslib, materials(imat)%numden(1)
             if( materials(imat) % n_iso > 1 ) then
                 do iso = 2, materials(imat) % n_iso
-                    write(prt_restart, *) ace(materials(imat)%ace_idx(iso))%xslib, materials(imat)%numden(iso)
+                    if( materials(imat) % numden(iso) > 1E4 ) &
+                        write(prt_restart, *) ace(materials(imat)%ace_idx(iso))%xslib, materials(imat)%numden(iso)
                 enddo
             endif
-            if( allocated(materials(imat) % full_numden) ) then
-                !n_full_iso
-                write(prt_restart, *) 'n_full_iso = ', count(materials(imat)%full_numden > 0d0) 
-                !full_numden
-                write(prt_restart, *) 'full_numden = ', zai_idx(1), materials(imat)%full_numden(1)
-                do iso = 2, nnuc
-                    if(materials(imat) % full_numden(iso) > 0d0) &
-                        write(prt_restart, *) zai_idx(iso), materials(imat)%full_numden(iso)
-                enddo
-            endif
+!            if( allocated(materials(imat) % full_numden) ) then
+!                !n_full_iso
+!                write(prt_restart, *) 'n_full_iso = ', count(materials(imat)%full_numden > 0d0) 
+!                !full_numden
+!                write(prt_restart, *) 'full_numden = ', zai_idx(1), materials(imat)%full_numden(1)
+!                do iso = 2, nnuc
+!                    if(materials(imat) % full_numden(iso) > 0d0) &
+!                        write(prt_restart, *) zai_idx(iso), materials(imat)%full_numden(iso)
+!                enddo
+!            endif
             write(prt_restart, *) 'END_MAT'
         enddo
         write(prt_restart, *) 'ENDD'
@@ -2287,7 +2290,7 @@ module depletion_module
         
         !$omp atomic
         mat%flux = mat%flux + wgt*distance !Volume-integrated flux tally (not normalized)
-        if(do_ueg) then
+        if(do_iso_ueg) then
             if(erg > ueggrid(nueg) .or. erg < ueggrid(1)) return
             ! EFLUX TALLY
             call getiueg(erg, ierg)
@@ -2578,6 +2581,8 @@ module depletion_module
             call MPI_ALLREDUCE(materials(imat)%flux, rcvbuf, 1, MPI_DOUBLE_PRECISION, &
                             MPI_SUM, core, ierr)
             materials(imat)%flux = rcvbuf / (dble(n_act) * materials(imat)%vol)
+            if ( isnan(materials(imat)%flux) .or. materials(imat)%flux < 0) &
+                materials(imat) % flux = 0d0
 
             val = dble(n_act) * materials(imat)%flux * materials(imat)%vol
 
