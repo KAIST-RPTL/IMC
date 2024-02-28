@@ -1882,6 +1882,7 @@ integer :: pt1, pt2, pt3
 integer:: ne, na
 integer:: i, j
 
+
 if ( jxs(4) == 0 .or. nxs(6) == -1 ) return
 
 ! set pointer
@@ -1908,9 +1909,10 @@ end subroutine
 !  call set_YP(iso, ace(iso)%NXS, ace(iso)%JXS )
 
 
-subroutine find_ACE(line, iso_, issab)
+subroutine find_ACE(line, iso_, issab, dep)
     use variables, only: libpath, libname, libtemp
     character(*), intent(in) :: line
+    logical, intent(in)  :: dep
     integer, intent(out) :: iso_
     logical, intent(out) :: issab
     integer :: i , j, length
@@ -1951,6 +1953,7 @@ subroutine find_ACE(line, iso_, issab)
                         iso_ = num_iso
                         call set_ace_iso(iso_, trim(line))
                         acerecord(j) = .false.
+                        if ( dep ) ace(num_iso) % depletable = .true.
                     case('t') ! SAB
                         sab_iso = sab_iso + 1
                         sab(sab_iso) % xslib   = trim(line)

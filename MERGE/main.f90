@@ -58,6 +58,7 @@ BATCH : do
 BURNUP : do
 
     time3 = omp_get_wtime()
+    if(icore==score) print *, 'DOUEG', do_ueg, do_burn
     if (do_ueg) then
         time1 = omp_get_wtime()
         call setMacroXS(istep_burnup/=0)
@@ -287,6 +288,8 @@ end do TH
 		!> Make & Solve depletion matrix
 		call depletion
 	    time_dep_done = omp_get_wtime()
+        print *, 'DEPDONE', icore
+        if ( istep_burnup == 1 ) call setDBPP(1)
         if ( istep_burnup > nstep_burnup ) exit BURNUP
     else
         exit BURNUP
@@ -731,7 +734,7 @@ end if
 end subroutine
 
 subroutine CYCLE_TALLY_MSG(bat)
-    use tally, only: MC_tally
+    use tally, only: MC_tally, n_tgroup, n_type
     use TH_HEADER, only: th_on, t_fuel, t_bulk
     use FMFD_HEADER, only: p_dep_mc, p_dep_dt, k_real, p_dep_dt_pert
     use MATERIAL_HEADER, only: materials, n_materials
@@ -745,6 +748,10 @@ subroutine CYCLE_TALLY_MSG(bat)
     real(8):: vsum
     logical:: yes
     real(8), allocatable :: p_mc(:,:,:), s_mc(:,:,:)
+    character(3) :: fileid, tallytype
+    integer :: ng, ttype
+    real(8):: ttemp(nfm(1),nfm(2),nfm(3))
+    real(8):: ttemp_sd(nfm(1),nfm(2),nfm(3))
 
     if ( icore /= score ) return
     if ( .not. (fmfdon .or. tallyon)) return
@@ -900,82 +907,81 @@ subroutine CYCLE_TALLY_MSG(bat)
         end do
         write(46,*)
         
-        if (perton) then
-        write(*,*) 'PERTURBED SD'
-        do jj = nfm(2), 1, -1
-            write(46,1), (STD_S(p_dep_dt_pert(1,1:n_pert,ii,jj,1)) &
-                /AVG(p_dep_dt_pert(1,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
-        end do
-        write(46,*)
-        do jj = nfm(2), 1, -1
-            write(46,1), (STD_S(p_dep_dt_pert(n_act,1:n_pert,ii,jj,1)) &
-                /AVG(p_dep_dt_pert(n_act,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
-        end do
-        write(46,*)
-        endif
+            if (perton) then
+                write(*,*) 'PERTURBED SD'
+                do jj = nfm(2), 1, -1
+                    write(46,1), (STD_S(p_dep_dt_pert(1,1:n_pert,ii,jj,1)) &
+                        /AVG(p_dep_dt_pert(1,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
+                end do
+                write(46,*)
+                do jj = nfm(2), 1, -1
+                    write(46,1), (STD_S(p_dep_dt_pert(n_act,1:n_pert,ii,jj,1)) &
+                        /AVG(p_dep_dt_pert(n_act,1:n_pert,ii,jj,1)), ii = 1, nfm(1))
+                end do
+                write(46,*)
+            endif
         
         close(46)
     
-        write(*,*) 'WRITTEN DEP_DT FILE: ', trim(dfile)
-        else
-            if ( istep_burnup == 0 ) then
-                ! find if the file exists
-                nsum = 1
-                dfile = 'dep_mc1.out'
-                do
-                inquire(file=trim(dfile),exist=yes)
-                if ( yes ) then
-                    nsum = nsum + 1
-                    if ( nsum < 10 ) then
-                        write(dfile,'(a,i1,a)'), 'dep_mc',nsum,'.out'
-                    else
-                        write(dfile,'(a,i2,a)'), 'dep_mc',nsum,'.out'
-                    end if
-            
-                else
-                    exit
-                end if
-                end do
-                ! open a new file
-                open(45,file=trim(dfile))
-                close(45)
-            end if
-            ! parameter generation
-            do ii = 1, n_act
-            ! --- average
-                do jj = 1, nfm(1)
-                    do kk = 1, nfm(2)
-                        p_dep_mc(ii,jj,kk,1) = AVG(p_dep_mc(ii,jj,kk,1:nfm(3)))
-                    end do
-                end do
-            ! --- summation
-                vsum = 0; nsum = 0
-                do jj = 1, nfm(1)
-                    do kk = 1, nfm(2)
-                        if ( isnan(p_dep_mc(ii,jj,kk,1)) ) cycle
-                        nsum = nsum + 1
-                        vsum = vsum + p_dep_mc(ii,jj,kk,1)
-                    end do
-                end do
-                p_dep_mc(ii,:,:,1) = p_dep_mc(ii,:,:,1)*nsum/dble(vsum)
-            end do
-            print *, 'DFILE?: ', trim(dfile)
-            open(45,file=trim(dfile),access='append',status='old')
-            !write(45,*), " HERE : pin power", " | step : ", istep_burnup
-            do jj = nfm(2), 1, -1
-                write(45,1), (p_dep_mc(1,ii,jj,1), ii = 1, nfm(1))
-            end do
-            
-            write(45,*)
-        
-            do jj = nfm(2), 1, -1
-                write(45,1), (STD_M(p_dep_mc(1:n_act,ii,jj,1)) &
-                    /AVG(p_dep_mc(1:n_act,ii,jj,1)), ii = 1, nfm(1))
-            end do
-            write(45,*)
-
-            close(45)
-        end if
+            write(*,*) 'WRITTEN DEP_DT FILE: ', trim(dfile)
+!        else
+!            if ( istep_burnup == 0 ) then
+!                ! find if the file exists
+!                nsum = 1
+!                dfile = 'dep_mc1.out'
+!                do
+!                inquire(file=trim(dfile),exist=yes)
+!                if ( yes ) then
+!                    nsum = nsum + 1
+!                    if ( nsum < 10 ) then
+!                        write(dfile,'(a,i1,a)'), 'dep_mc',nsum,'.out'
+!                    else
+!                        write(dfile,'(a,i2,a)'), 'dep_mc',nsum,'.out'
+!                    end if
+!            
+!                else
+!                    exit
+!                end if
+!                end do
+!                ! open a new file
+!                open(45,file=trim(dfile))
+!                close(45)
+!            end if
+!            ! parameter generation
+!            do ii = 1, n_act
+!            ! --- average
+!                do jj = 1, nfm(1)
+!                    do kk = 1, nfm(2)
+!                        p_dep_mc(ii,jj,kk,1) = AVG(p_dep_mc(ii,jj,kk,1:nfm(3)))
+!                    end do
+!                end do
+!            ! --- summation
+!                vsum = 0; nsum = 0
+!                do jj = 1, nfm(1)
+!                    do kk = 1, nfm(2)
+!                        if ( isnan(p_dep_mc(ii,jj,kk,1)) ) cycle
+!                        nsum = nsum + 1
+!                        vsum = vsum + p_dep_mc(ii,jj,kk,1)
+!                    end do
+!                end do
+!                p_dep_mc(ii,:,:,1) = p_dep_mc(ii,:,:,1)*nsum/dble(vsum)
+!            end do
+!            print *, 'DFILE?: ', trim(dfile)
+!            open(45,file=trim(dfile),access='append',status='old')
+!            !write(45,*), " HERE : pin power", " | step : ", istep_burnup
+!            do jj = nfm(2), 1, -1
+!                write(45,1), (p_dep_mc(1,ii,jj,1), ii = 1, nfm(1))
+!            end do
+!            
+!            write(45,*)
+!        
+!            do jj = nfm(2), 1, -1
+!                write(45,1), (STD_M(p_dep_mc(1:n_act,ii,jj,1)) &
+!                    /AVG(p_dep_mc(1:n_act,ii,jj,1)), ii = 1, nfm(1))
+!            end do
+!            write(45,*)
+!
+!            close(45)
     elseif(fmfdon)then
         do ii = 1, nfm(3)
             do jj = 1, nfm(2)
@@ -983,33 +989,38 @@ subroutine CYCLE_TALLY_MSG(bat)
             end do
         end do
     elseif (tallyon ) then
-
-        allocate(p_mc(nfm(1), nfm(2), nfm(3)))
-        allocate(s_mc(nfm(1), nfm(2), nfm(3)))
-        do ii = 1, nfm(1)
-        do jj = 1, nfm(2)
-        do kk = 1, nfm(3)
-            p_mc(ii,jj,kk) = AVG(MC_tally(1, :, 1, 1,  ii, jj, kk))
-            s_mc(ii,jj,kk) = STD_S(MC_tally(1,:,1,1,ii,jj,kk))
+        write(*,*), "   Printing Tally Distribution "
+        do ttype = 1, n_type
+            !call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
+    
+            write(fileid, '(i3)') istep_burnup
+            write(tallytype, '(i3)') ttype
+        
+        	open(9999,file="mean_tally2_step"//trim(adjustl(fileid))//"_type"//trim(adjustl(tallytype))//".out",action="write",status="replace")
+        	open(99999,file="sd_tally2_step"//trim(adjustl(fileid))//"_type"//trim(adjustl(tallytype))//".out",action="write",status="replace")
+        
+            do ng = 1, n_tgroup
+                ttemp = 0d0
+                ttemp_sd = 0d0
+        
+                do ii = 1, nfm(1)
+                do jj = 1, nfm(2)
+                do kk = 1, nfm(3)
+                    ttemp(ii,jj,kk) = AVG(MC_tally(bat,:,ttype,ng,ii,jj,kk))
+                    ttemp_sd(ii,jj,kk) = STD_M(MC_tally(bat,:,ttype,ng,ii,jj,kk))
+                end do
+                end do
+                end do
+                write( 9999,14), ttemp(:,:,:)
+                write(99999,14), ttemp_sd(:,:,:)
+        
+            enddo
+        	close(9999)
+        	close(99999)
         enddo
-        enddo
-        enddo
-
-        write(*,*) 'AVG POWER:'
-        do kk = 1, nfm(3)
-        do jj = 1, nfm(2)
-            write(*, 21), p_mc(:, jj, kk)
-        enddo
-        enddo
-
-        write(*,*) 'STD:'
-        do kk = 1, nfm(3)
-        do jj = 1, nfm(2)
-            write(*, 21) s_mc(:, jj, kk)
-        enddo
-        enddo
-
-        deallocate(p_mc)
+        !! INITIALIZE after Printing
+        MC_tally = 0d0
+    endif
     endif
 
     1 format(1000ES15.7)
@@ -1245,16 +1256,16 @@ subroutine process_MSR_prec()
     real(8), allocatable :: MSR_prec(:,:,:,:)
 
     if(icore /= score) return
-    ! if(.not. do_fuel_mv) return
+    if(.not. do_fuel_mv) return
 
-    allocate(MSR_data(8,n_core_axial,n_core_radial,n_act))
-    allocate(MSR_prec(8,n_core_axial,n_core_radial,2))
+    allocate(MSR_data(n_core_axial,n_core_radial,n_act,8))
+    allocate(MSR_prec(n_core_axial,n_core_radial,8,2))
 
     open(prt_fuel_mv, file=trim(title)//'_MSR_prec',action='read',status='replace')
     do i = 1,n_act
         do j = 1,8
             do k = 1,n_core_radial
-            read(prt_fuel_mv,*) MSR_data(j,:,k,i)
+            read(prt_fuel_mv,*) MSR_data(:,k,i,j)
             enddo
         enddo
     enddo
@@ -1264,8 +1275,8 @@ subroutine process_MSR_prec()
     do i = 1,8
         do j = 1,n_core_axial
             do k = 1,n_core_radial
-                MSR_prec(i,j,k,1) = avg(MSR_data(i,j,k,:))
-                MSR_prec(i,j,k,2) = std_m(MSR_data(i,j,k,:))
+                MSR_prec(j,k,i,1) = avg(MSR_data(j,k,:,i))
+                MSR_prec(j,k,i,2) = std_m(MSR_data(j,k,:,i))
             enddo
         enddo
         !write (prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') MSR_prec(i,:,1)
@@ -1277,8 +1288,8 @@ subroutine process_MSR_prec()
 
     do i = 1,8
         do j = 1,n_core_radial
-            write(prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') MSR_prec(i,1:N_CORE_AXIAL,j,1)
-            write(prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') MSR_prec(i,1:N_CORE_AXIAL,j,2)
+            write(prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') MSR_prec(1:N_CORE_AXIAL,j,i,1)
+            write(prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') MSR_prec(1:N_CORE_AXIAL,j,i,2)
         enddo
     enddo
     close(prt_fuel_mv)

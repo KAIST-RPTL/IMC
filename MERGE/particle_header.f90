@@ -249,10 +249,11 @@ contains
         !if(source%delayed) print *, 'PREC', source%xyz(1:3), source%G, this%wgt
         if(do_fuel_mv .and. source % delayed .and. curr_cyc > n_inact ) then
             zidx = floor((this%coord(1)%xyz(3)-core_base)/(core_height/real(N_core_axial,8)))+1
-            !ridx = floor((this%coord(1)%xyz(1)**2+this%coord(1)%xyz(2)**2)/core_radius**2*real(n_core_radial,8))+1
             zidx = max(1,min(n_core_axial, zidx))
+            ridx = floor((this%coord(1)%xyz(1)**2+this%coord(1)%xyz(2)**2)/core_radius**2*real(n_core_radial,8))+1
+            ridx = max(1,min(n_core_radial, ridx))
             !print *, 'prec', this%coord(1)%xyz(3)-core_base, zidx, source%G
-            core_prec(source%G,zidx,1) = core_prec(source%G,zidx,1) + this % wgt
+            core_prec(zidx, ridx, source%G) = core_prec(zidx, ridx, source%G) + this % wgt
         endif
     end subroutine SET_PARTICLE
     

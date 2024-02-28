@@ -62,7 +62,8 @@ subroutine simulate_history(bat,cyc)
     real(8) :: Jtemp
     real(8), allocatable :: shape(:), rcvbuflong(:)
     integer :: id(3)
-    real(8) :: rcv_buf, rcv_buf_long(8), rcv_msh(8)
+    real(8) :: rcv_buf, rcv_buf_long(8)
+    real(8), allocatable :: rcv_msh(:)
     integer :: realex, intex, restype, ndata, idata
     integer, dimension(0:4) :: blocklength, displacement, oldtype 
     integer, allocatable :: ircnt(:), idisp(:) 
@@ -83,7 +84,6 @@ subroutine simulate_history(bat,cyc)
         call MPRUP_DIST(isize,source_bank(:))
     if ( .not. mprupon .and. genup ) call CYCLECHANGE(cyc)
     allocate(fission_bank(0))
-    !print *, 'FISSbank allocated', icore
 	
     !> Distribute source_bank to slave nodes 
     call para_range(1, isize, ncore, icore, ista, iend)        
@@ -91,7 +91,6 @@ subroutine simulate_history(bat,cyc)
     if ( fmfdon ) call FMFD_initialize()
     if ( do_burn ) MC_tally(bat,:,:,:,:,:,:) = 0
     cyc_power = 0;
-    !print *, 'CORE', icore, score, ncore
     !if(.not. allocated(cyc_p_arr)) allocate(cyc_p_arr(0:ncore-1))
     !cyc_p_arr = 0;
     
@@ -106,7 +105,6 @@ subroutine simulate_history(bat,cyc)
 	allocate(prompt_bank(0))
 
 	
-    ! print *, icore, 'Beginning cycle:', curr_cyc
     !$omp parallel private(p) shared(source_bank, fission_bank, temp_bank, prec_bank, ista, iend)
       thread_bank(:)%wgt = 0; bank_idx = 0; prec_idx = 0 ; init_idx = 0
       if (tallyon .and. .not. fmfdon) call TALLY_THREAD_INITIAL(cyc)
@@ -225,16 +223,17 @@ subroutine simulate_history(bat,cyc)
     endif
 	
     if(do_fuel_mv) then
-        do i = 1,n_core_axial
+        if( .not. allocated( rcv_msh ) ) allocate(rcv_msh(n_core_axial))
+        do k = 1,8
             do j = 1,n_core_radial
-            call MPI_REDUCE(core_prec(1:8,i,j),rcv_msh,8,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-            core_prec(1:8,i,j) = rcv_msh
+            call MPI_REDUCE(core_prec(:,j,k),rcv_msh,k,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+            core_prec(:,j,k) = rcv_msh
             enddo
         enddo
         if(curr_cyc>n_inact .and. icore==score) then
             do i = 1,8
                 do j = 1,n_core_radial
-                    write(prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') core_prec(i,1:n_core_axial,j)
+                    write(prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') core_prec(1:n_core_axial,j,i)
                 enddo
             enddo
         endif
@@ -242,7 +241,7 @@ subroutine simulate_history(bat,cyc)
         !print *, 'leak', MSR_leak
         call MPI_ALLREDUCE(MSR_leak,ndata,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
         MSR_leak = ndata
-        !print *, 'leak_red', MSR_leak
+        !if(icore==score) print *, 'leak_red', MSR_leak
     endif
         
         !if(icore == score) print *, curr_cyc, isize, n_col	

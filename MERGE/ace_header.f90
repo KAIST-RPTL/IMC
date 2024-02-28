@@ -193,8 +193,11 @@ type AceFormat
   integer :: isab
   integer :: iso0K
 
+  logical :: depletable = .false.
+
 end type
 type (AceFormat), allocatable, target :: ace(:)
+type (AceFormat), allocatable, target :: ace_base(:)
 integer :: num_iso = 0              !> total number of isotopes
 
 

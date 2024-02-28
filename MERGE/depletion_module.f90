@@ -129,7 +129,10 @@ module depletion_module
     real(8) :: total_burnup     !Total burnup [MWday/kgHM]    integer :: Matrix_Exponential_Solver
     
     !Location of depletion library 
-    character(100) :: dep_lib
+    character(200) :: dec_lib
+    character(200) :: nfy_lib
+    character(200) :: sfy_lib
+    character(200) :: isom_lib
     
     !Removal/Refueling operator
     real(8) :: eff_gas = 0.d0
@@ -273,6 +276,13 @@ module depletion_module
         character(4) :: tail
         integer :: liblen
         integer :: nn, pn, dn, tn, an, a3n
+
+        real(8), allocatable :: numden(:)
+        integer, allocatable :: aceidx(:), sablist(:)
+        real(8), allocatable :: numden_tmp(:)
+        integer, allocatable :: aceidx_tmp(:), sablist_tmp(:)
+        integer :: imat, iso_cnt
+        real(8) :: base_tmp
         !==============================================================================
         !==============================================================================
         !Initialization
@@ -291,148 +301,156 @@ module depletion_module
         rem_noble = (/34,41,42,43,44,45,46,47,51,52/)
         !==============================================================================
         !Read decay library
-        open(rd_decay,file=trim(dep_lib)//'sss_endfb71.dec',action='read')
-        10  continue
-        ! Skipping beginning
-        MT = 0
-        do while (MT /= 457)
+        !open(rd_decay,file=trim(dep_lib)//'sss_endfb71.dec',action='read')
+        inquire(file=trim(dec_lib), exist = file_exists)
+        if(file_exists) then
+            open(rd_decay,file=trim(dec_lib),action='read')
+            10  continue
+            ! Skipping beginning
+            MT = 0
+            do while (MT /= 457)
+                read(rd_decay,'(A80)',end = 100) line0
+                read(line0(73:75),'(i)') MT
+            enddo
+            ! Read 1st line: get ZAI
+            read(line0(1:11),'(f)') ZA
+            read(line0(34:44),'(i)') inum
+            if(inum>2) goto 15
+            read(line0(56:66),'(f)') real_rad
+            n_rad = int(real_rad)
+            nuclid = int(ZA)
+            anum = nuclid/1000
+            mnum = nuclid-anum*1000
+            nnum = mnum-anum
+            if (nuclide(inum,nnum,anum)%data_exist .and. nuclide(inum,nnum,anum)%iu>0) go to 15
+            nuclide(inum,nnum,anum)%data_exist = .true.
+             
+            nuclide(inum,nnum,anum)%sng = 0.d0
+            nuclide(inum,nnum,anum)%sn2n = 0.d0
+            nuclide(inum,nnum,anum)%sna = 0.d0
+            nuclide(inum,nnum,anum)%snp = 0.d0
+            nuclide(inum,nnum,anum)%sn3n = 0.d0
+            nuclide(inum,nnum,anum)%snf = 0.d0
+            nuclide(inum,nnum,anum)%sngx = 0.d0
+            nuclide(inum,nnum,anum)%sn2nx = 0.d0
+            nuclide(inum,nnum,anum)%fy_idx = 0.d0
+            read(line0(12:22),'(f)') nuclide(inum,nnum,anum)%amu
+            if (ANY(rem_gas==anum)) nuclide(inum,nnum,anum)%removal = eff_gas
+            if (ANY(rem_noble==anum)) nuclide(inum,nnum,anum)%removal = eff_noble
+            ! Initialize fractions; some requires summation
+            nuclide(inum,nnum,anum)%qrec = 0.0
+            ! Read 2nd line: get HL, determine skipping next line
             read(rd_decay,'(A80)',end = 100) line0
-            read(line0(73:75),'(i)') MT
-        enddo
-        ! Read 1st line: get ZAI
-        read(line0(1:11),'(f)') ZA
-        read(line0(34:44),'(i)') inum
-        if(inum>2) goto 15
-        read(line0(56:66),'(f)') real_rad
-        n_rad = int(real_rad)
-        nuclid = int(ZA)
-        anum = nuclid/1000
-        mnum = nuclid-anum*1000
-        nnum = mnum-anum
-        if (nuclide(inum,nnum,anum)%data_exist .and. nuclide(inum,nnum,anum)%iu>0) go to 15
-        nuclide(inum,nnum,anum)%data_exist = .true.
-         
-        nuclide(inum,nnum,anum)%sng = 0.d0
-        nuclide(inum,nnum,anum)%sn2n = 0.d0
-        nuclide(inum,nnum,anum)%sna = 0.d0
-        nuclide(inum,nnum,anum)%snp = 0.d0
-        nuclide(inum,nnum,anum)%sn3n = 0.d0
-        nuclide(inum,nnum,anum)%snf = 0.d0
-        nuclide(inum,nnum,anum)%sngx = 0.d0
-        nuclide(inum,nnum,anum)%sn2nx = 0.d0
-        nuclide(inum,nnum,anum)%fy_idx = 0.d0
-        read(line0(12:22),'(f)') nuclide(inum,nnum,anum)%amu
-        if (ANY(rem_gas==anum)) nuclide(inum,nnum,anum)%removal = eff_gas
-        if (ANY(rem_noble==anum)) nuclide(inum,nnum,anum)%removal = eff_noble
-        ! Initialize fractions; some requires summation
-        nuclide(inum,nnum,anum)%qrec = 0.0
-        ! Read 2nd line: get HL, determine skipping next line
-        read(rd_decay,'(A80)',end = 100) line0
-        read(line0(1:11),'(f)') HL !> HL [sec]
-        read(line0(45:55),'(f)') ST !> 1 if stable, 0 if radioactive
-        if (HL == 0.d0) then
-            nuclide(inum,nnum,anum)%lambda = 0.0
-            nuclide(inum,nnum,anum)%iu = 6
-        else
-            nuclide(inum,nnum,anum)%lambda = 6.931471806d-1/HL
-            nuclide(inum,nnum,anum)%iu = 1
-        endif
-        read(line0(45:55),'(f)') skip
-        nskip = ceiling(skip/6.0) ! Number of lines to skip
-        if (nskip > 0) then
-            do i = 1,nskip
-                read(rd_decay,'(A80)',end=100) line0
-                read(line0(1:11),'(f)') Etmp1
-                read(line0(23:33),'(f)') Etmp2
-                read(line0(45:55),'(f)') Etmp3
-                nuclide(inum,nnum,anum)%qrec = &
-                    nuclide(inum,nnum,anum)%qrec +&
-                    (Etmp1+Etmp2+Etmp3)/1000000
-            enddo
-        endif
-        read(rd_decay,'(A80)',end=100) line0
-        read(line0(56:66),'(i)') n_react ! Number of reactions
-        allocate(nuclide(inum,nnum,anum)%frac(n_react))
-        allocate(nuclide(inum,nnum,anum)%daughter(n_react,3))
-        nuclide(inum,nnum,anum)%daughter=0
-        nuclide(inum,nnum,anum)%n_emit = 0.d0
-        nuclide(inum,nnum,anum)%p_emit = 0.d0
-        nuclide(inum,nnum,anum)%a_emit = 0.d0
-        if (n_react==0) go to 15
-        nuclide(inum,nnum,anum)%react_num = n_react
-        do react = 1,n_react
-            if(.not.allocated(prod)) allocate(prod(3))
-            prod = (/inum,nnum,anum/)
-            flag = 4
-            read(rd_decay,'(A80)',end=100) line1
-            read(line1(1:11),'(f)') r_type
-            read(line1(12:22),'(f)') r_iso
-            read(line1(23:33),'(f)') r_q
-            read(line1(45:55),'(f)') r_ratio
-            nuclide(inum,nnum,anum)%frac(react) = r_ratio
-            rt = floor(r_type)
-            do while(rt<r_type)
-                r_type = r_type * 10.d0
+            read(line0(1:11),'(f)') HL !> HL [sec]
+            read(line0(45:55),'(f)') ST !> 1 if stable, 0 if radioactive
+            if (HL == 0.d0) then
+                nuclide(inum,nnum,anum)%lambda = 0.0
+                nuclide(inum,nnum,anum)%iu = 6
+            else
+                nuclide(inum,nnum,anum)%lambda = 6.931471806d-1/HL
+                nuclide(inum,nnum,anum)%iu = 1
+            endif
+            read(line0(45:55),'(f)') skip
+            nskip = ceiling(skip/6.0) ! Number of lines to skip
+            if (nskip > 0) then
+                do i = 1,nskip
+                    read(rd_decay,'(A80)',end=100) line0
+                    read(line0(1:11),'(f)') Etmp1
+                    read(line0(23:33),'(f)') Etmp2
+                    read(line0(45:55),'(f)') Etmp3
+                    nuclide(inum,nnum,anum)%qrec = &
+                        nuclide(inum,nnum,anum)%qrec +&
+                        (Etmp1+Etmp2+Etmp3)/1000000
+                enddo
+            endif
+            read(rd_decay,'(A80)',end=100) line0
+            read(line0(56:66),'(i)') n_react ! Number of reactions
+            allocate(nuclide(inum,nnum,anum)%frac(n_react))
+            allocate(nuclide(inum,nnum,anum)%daughter(n_react,3))
+            nuclide(inum,nnum,anum)%daughter=0
+            nuclide(inum,nnum,anum)%n_emit = 0.d0
+            nuclide(inum,nnum,anum)%p_emit = 0.d0
+            nuclide(inum,nnum,anum)%a_emit = 0.d0
+            if (n_react==0) go to 15
+            nuclide(inum,nnum,anum)%react_num = n_react
+            do react = 1,n_react
+                if(.not.allocated(prod)) allocate(prod(3))
+                prod = (/inum,nnum,anum/)
+                flag = 4
+                read(rd_decay,'(A80)',end=100) line1
+                read(line1(1:11),'(f)') r_type
+                read(line1(12:22),'(f)') r_iso
+                read(line1(23:33),'(f)') r_q
+                read(line1(45:55),'(f)') r_ratio
+                nuclide(inum,nnum,anum)%frac(react) = r_ratio
                 rt = floor(r_type)
-            enddo
-            ri = int(r_iso) 
-            14 continue
-            typedet = unitdigit(rt)
-            select case(typedet)
-            case(1) !beta- decay: n to p
-                prod(1) = ri
-                prod(2) = prod(2) - 1
-                prod(3) = prod(3) + 1
-            case(2) !electron capture: p to n
-                prod(1) = ri
-                prod(2) = prod(2) + 1
-                prod(3) = prod(3) - 1
-            case(3) !IT
-                prod(1) = ri
-            case(4) !alpha emission: emit a, a-2, n-2
-                nuclide(inum,nnum,anum)%a_emit = &
-                    nuclide(inum,nnum,anum)%a_emit + r_ratio
-                prod(1) = ri
-                prod(2) = prod(2) - 2
-                prod(3) = prod(3) - 2
-            case(5) !neutron emission: emit n, n-1
-                nuclide(inum,nnum,anum)%n_emit = &
-                    nuclide(inum,nnum,anum)%n_emit + r_ratio
-                prod(1) = ri
-                prod(2) = prod(2) - 1
-            case(6)
-                ! Spontaneous fission: prod = 0
-                nuclide(inum,nnum,anum)%sfiss = react
-                prod    = 0
-            case(7) !Proton emission
-                nuclide(inum,nnum,anum)%p_emit = &
-                    nuclide(inum,nnum,anum)%p_emit + r_ratio
-                prod(1) = ri
-                prod(3) = prod(3) - 1
-            case default
-            end select
-            if (rt>10) then !If further decay exists
-                rt = rt/10
-                go to 14
-            endif
-            if (prod(1)>=0 .and. prod(2)>=0 .and. prod(3)>=0) then
-                nuclide(inum,nnum,anum)%daughter(react,1) = prod(1)
-                nuclide(inum,nnum,anum)%daughter(react,2) = prod(2)
-                nuclide(inum,nnum,anum)%daughter(react,3) = prod(3)
-                if(.not. nuclide(prod(1),prod(2),prod(3))%data_exist) then
-                    nuclide(prod(1), prod(2), prod(3)) % data_exist = .true.
-                    nuclide(prod(1), prod(2), prod(3)) % iu = 0
+                do while(rt<r_type)
+                    r_type = r_type * 10.d0
+                    rt = floor(r_type)
+                enddo
+                ri = int(r_iso) 
+                14 continue
+                typedet = unitdigit(rt)
+                select case(typedet)
+                case(1) !beta- decay: n to p
+                    prod(1) = ri
+                    prod(2) = prod(2) - 1
+                    prod(3) = prod(3) + 1
+                case(2) !electron capture: p to n
+                    prod(1) = ri
+                    prod(2) = prod(2) + 1
+                    prod(3) = prod(3) - 1
+                case(3) !IT
+                    prod(1) = ri
+                case(4) !alpha emission: emit a, a-2, n-2
+                    nuclide(inum,nnum,anum)%a_emit = &
+                        nuclide(inum,nnum,anum)%a_emit + r_ratio
+                    prod(1) = ri
+                    prod(2) = prod(2) - 2
+                    prod(3) = prod(3) - 2
+                case(5) !neutron emission: emit n, n-1
+                    nuclide(inum,nnum,anum)%n_emit = &
+                        nuclide(inum,nnum,anum)%n_emit + r_ratio
+                    prod(1) = ri
+                    prod(2) = prod(2) - 1
+                case(6)
+                    ! Spontaneous fission: prod = 0
+                    nuclide(inum,nnum,anum)%sfiss = react
+                    prod    = 0
+                case(7) !Proton emission
+                    nuclide(inum,nnum,anum)%p_emit = &
+                        nuclide(inum,nnum,anum)%p_emit + r_ratio
+                    prod(1) = ri
+                    prod(3) = prod(3) - 1
+                case default
+                end select
+                if (rt>10) then !If further decay exists
+                    rt = rt/10
+                    go to 14
                 endif
-            endif
-        enddo
-        15  continue
-        do while (MT /= 451)
-            read(rd_decay,'(A80)',end = 100) line0 ! Skip until next isotope's description (MT=451)
-            read(line0(73:75),'(i)') MT 
-        enddo
-        read(rd_decay,*,end=100)
-        go to 10
-        100 close(rd_decay)
+                if (prod(1)>=0 .and. prod(2)>=0 .and. prod(3)>=0) then
+                    nuclide(inum,nnum,anum)%daughter(react,1) = prod(1)
+                    nuclide(inum,nnum,anum)%daughter(react,2) = prod(2)
+                    nuclide(inum,nnum,anum)%daughter(react,3) = prod(3)
+                    if(.not. nuclide(prod(1),prod(2),prod(3))%data_exist) then
+                        nuclide(prod(1), prod(2), prod(3)) % data_exist = .true.
+                        nuclide(prod(1), prod(2), prod(3)) % iu = 0
+                    endif
+                endif
+            enddo
+            15  continue
+            do while (MT /= 451)
+                read(rd_decay,'(A80)',end = 100) line0 ! Skip until next isotope's description (MT=451)
+                read(line0(73:75),'(i)') MT 
+            enddo
+            read(rd_decay,*,end=100)
+            go to 10
+            100 close(rd_decay)
+        else
+            if(icore==score) print *, '    FATAL ERROR: .dec file does not exist... terminating calculation'
+            if(icore==score) print *, trim(dec_lib)
+            stop
+        endif
         
         !==============================================================================
 !        !Read one-group transmutation cross section library
@@ -474,147 +492,155 @@ module depletion_module
 
 
         !==============================================================================
-        open(rd_yield, file = trim(dep_lib)//'sss_endfb71.nfy', action = 'read')
-        fid = 0; ifp = 0
-        allocate(tmp_yield(1:2500,1:4,1:100)); tmp_yield = 0.d0
-        allocate(ify_yield(1:2500,1:4,1:100)); ify_yield = 0.d0
-        allocate(cfy_yield(1:2500,1:4,1:100)); cfy_yield = 0.d0
-        allocate(fiss_path(1:2500,1:100));     fiss_path = 0
-        allocate(fp_zai(1:2500)) ! ZAI of fp
-        allocate(fssn_zai(1:100)) ! ZAI of fssn
-        allocate(ace_fssn(1:2000)); ace_fssn = 0.d0
-        allocate(yieldE(1:100,4)); yieldE = 0.d0
-        allocate(yieldnE(1:100)); yieldnE = 0.d0
-        if(Xe_search)then
-        allocate(Xe_cum_yield(1:100)) ! Cumulative yield of Xe135
-        allocate(I_cum_yield(1:100)) ! Cumulative yield of Iodine135
-        endif
-        n_fp_max = 0
-        30  continue
-        MT = 0
-        do while (MT /= 454)
-            read(rd_yield,'(A80)',end = 300) line0
-            read(line0(73:75),'(i)') MT
-        enddo
-        fid = fid + 1
-        read(line0(1:11),'(f)') ZA
-        nuclid = int(ZA)
-        anum = nuclid/1000
-        mnum = nuclid-anum*1000
-        nnum = mnum-anum
-        inum = 0
-        if(anum==95 .and. mnum==242) inum = 1
-        nuclide(inum,nnum,anum)%fiss = .true.
-        fssn_anum = anum; fssn_nnum = nnum; fssn_inum = inum
-        nuclide(inum,nnum,anum)%fy_idx = fid
-        fssn_zai(fid) = nuclid*10+inum
-        if(nuclide(inum,nnum,anum)%amu==0.d0) then
-            read(line0(12:22),'(f)') nuclide(inum,nnum,anum)%amu
-        endif
-        read(line0(23:33),'(i)') n_y_eg ! # of energy groups
-        allocate(Ep(n_y_eg)) ! Energy points for yield
-        !Assign boundary energy
-        allocate(nuclide(inum,nnum,anum)%yield_E(n_y_eg))
-                do eg = 1,n_y_eg
-                    read(rd_yield,'(A80)',end = 300) line0
-                    read(line0(1:11),'(f)') Ep(eg)
-                    read(line0(56:66),'(i)') n_fp ! # of fission products
-                    n_fp_max = max(n_fp_max,n_fp) ! Maximal # of FP for given fssn
-                    ! If FPY out of range: constant
-                    do fp = 1,n_fp
-                        flag = mod(fp*4-3,6)
-                        if (flag<3) read(rd_yield,'(A80)',end=300) line1
-                        read(line1(11*flag-10:11*flag),'(f)') ZA
-                        read(line1(11*flag+1:11*flag+11),'(f)') i_real ! Flag for ZA & I
-                        nuclid = int(ZA)
-                        inum = int(i_real)
-                        anum = nuclid/1000
-                        mnum = nuclid-anum*1000
-                        nnum = mnum-anum
-
-                        ! 211109 MODIFICATION: If decay chain of meta. not exists, pass to ground
-                        tmpfp = nuclide(inum,nnum,anum)%fp
-                        if (nuclide(inum,nnum,anum)%fp == 0) then !Assign ifp to nuclide
-                            if(nuclide(inum,nnum,anum)%data_exist) then
-                                ifp = ifp + 1
-                                nuclide(inum,nnum,anum)%fp = ifp
-                                fp_zai(ifp) = nuclid*10+inum
-                                tmpfp = nuclide(inum,nnum,anum)%fp
-                            else
-                                tmpfp = nuclide(0, nnum, anum) % fp
+        !open(rd_yield, file = trim(dep_lib)//'sss_endfb71.nfy', action = 'read')
+        inquire(file=trim(nfy_lib), exist = file_exists)
+        if(file_exists) then
+            open(rd_yield, file = trim(nfy_lib), action = 'read')
+            fid = 0; ifp = 0
+            allocate(tmp_yield(1:2500,1:4,1:100)); tmp_yield = 0.d0
+            allocate(ify_yield(1:2500,1:4,1:100)); ify_yield = 0.d0
+            allocate(cfy_yield(1:2500,1:4,1:100)); cfy_yield = 0.d0
+            allocate(fiss_path(1:2500,1:100));     fiss_path = 0
+            allocate(fp_zai(1:2500)) ! ZAI of fp
+            allocate(fssn_zai(1:100)) ! ZAI of fssn
+            allocate(ace_fssn(1:2000)); ace_fssn = 0.d0
+            allocate(yieldE(1:100,4)); yieldE = 0.d0
+            allocate(yieldnE(1:100)); yieldnE = 0.d0
+            if(Xe_search)then
+            allocate(Xe_cum_yield(1:100)) ! Cumulative yield of Xe135
+            allocate(I_cum_yield(1:100)) ! Cumulative yield of Iodine135
+            endif
+            n_fp_max = 0
+            30  continue
+            MT = 0
+            do while (MT /= 454)
+                read(rd_yield,'(A80)',end = 300) line0
+                read(line0(73:75),'(i)') MT
+            enddo
+            fid = fid + 1
+            read(line0(1:11),'(f)') ZA
+            nuclid = int(ZA)
+            anum = nuclid/1000
+            mnum = nuclid-anum*1000
+            nnum = mnum-anum
+            inum = 0
+            if(anum==95 .and. mnum==242) inum = 1
+            nuclide(inum,nnum,anum)%fiss = .true.
+            fssn_anum = anum; fssn_nnum = nnum; fssn_inum = inum
+            nuclide(inum,nnum,anum)%fy_idx = fid
+            fssn_zai(fid) = nuclid*10+inum
+            if(nuclide(inum,nnum,anum)%amu==0.d0) then
+                read(line0(12:22),'(f)') nuclide(inum,nnum,anum)%amu
+            endif
+            read(line0(23:33),'(i)') n_y_eg ! # of energy groups
+            allocate(Ep(n_y_eg)) ! Energy points for yield
+            !Assign boundary energy
+            allocate(nuclide(inum,nnum,anum)%yield_E(n_y_eg))
+                    do eg = 1,n_y_eg
+                        read(rd_yield,'(A80)',end = 300) line0
+                        read(line0(1:11),'(f)') Ep(eg)
+                        read(line0(56:66),'(i)') n_fp ! # of fission products
+                        n_fp_max = max(n_fp_max,n_fp) ! Maximal # of FP for given fssn
+                        ! If FPY out of range: constant
+                        do fp = 1,n_fp
+                            flag = mod(fp*4-3,6)
+                            if (flag<3) read(rd_yield,'(A80)',end=300) line1
+                            read(line1(11*flag-10:11*flag),'(f)') ZA
+                            read(line1(11*flag+1:11*flag+11),'(f)') i_real ! Flag for ZA & I
+                            nuclid = int(ZA)
+                            inum = int(i_real)
+                            anum = nuclid/1000
+                            mnum = nuclid-anum*1000
+                            nnum = mnum-anum
+    
+                            ! 211109 MODIFICATION: If decay chain of meta. not exists, pass to ground
+                            tmpfp = nuclide(inum,nnum,anum)%fp
+                            if (nuclide(inum,nnum,anum)%fp == 0) then !Assign ifp to nuclide
+                                if(nuclide(inum,nnum,anum)%data_exist) then
+                                    ifp = ifp + 1
+                                    nuclide(inum,nnum,anum)%fp = ifp
+                                    fp_zai(ifp) = nuclid*10+inum
+                                    tmpfp = nuclide(inum,nnum,anum)%fp
+                                else
+                                    tmpfp = nuclide(0, nnum, anum) % fp
+                                endif
                             endif
-                        endif
-                        flag = mod(fp*4-1,6) ! Flag for yield
-                        if (flag<3) read(rd_yield,'(A80)',end=300) line1
-                        read(line1(11*flag-10:11*flag),'(f)') ify
-                        if(ify>0.d0 .and. tmpfp>0) ify_yield(tmpfp,eg,fid) = &
-                            ify_yield(tmpfp,eg,fid) + ify
-                        
-                        ! Alternate for Meta...
-
-                        if(ify>0.d0) then
-                            if(tmpfp>0) then
-                                ify_yield(tmpfp,eg,fid) = &
+                            flag = mod(fp*4-1,6) ! Flag for yield
+                            if (flag<3) read(rd_yield,'(A80)',end=300) line1
+                            read(line1(11*flag-10:11*flag),'(f)') ify
+                            if(ify>0.d0 .and. tmpfp>0) ify_yield(tmpfp,eg,fid) = &
                                 ify_yield(tmpfp,eg,fid) + ify
+                            
+                            ! Alternate for Meta...
+    
+                            if(ify>0.d0) then
+                                if(tmpfp>0) then
+                                    ify_yield(tmpfp,eg,fid) = &
+                                    ify_yield(tmpfp,eg,fid) + ify
+                                endif
                             endif
-                        endif
+                        enddo
                     enddo
-                enddo
-                nuclide(fssn_inum,fssn_nnum,fssn_anum)%yield_E = Ep*1.d-6
-                do eg = 1,n_y_eg
-                    yieldE(fid,eg) = Ep(eg)*1.d-6
-                enddo
-                yieldnE(fid) = n_y_eg
-                deallocate(Ep)
-                do while (MT /= 0)
-                    read(line0(73:75),'(i)') MT
-                    read(rd_yield,'(A80)',end=300) line0 ! Skip until end of individ. NFY
-                enddo
-                ! ====== 211013 ==========
-                ! Cumulative NFY should be considered for fpcut operation
-                ! fpcut: Neglect cumul. fp < fpcut
-                ! May reduce computation burden
-                ! TODO
-                read(line0(23:33),'(i)') n_y_eg
-                do eg = 1,n_y_eg
-                    read(rd_yield,'(A80)',end = 300) line1
-                    read(line1(56:66),'(i)') n_fp
-                    do fp = 1,n_fp
-                        flag = mod(fp*4-3,6)
-                        if(flag<3) read(rd_yield,'(A80)',end=300) line1
-                        read(line1(11*flag-10:11*flag),'(f)') ZA
-                        read(line1(11*flag+1:11*flag+11),'(f)') i_real
-                        nuclid = int(ZA); inum = 0; inum = int(i_real)
-                        anum = nuclid/1000
-                        mnum = nuclid-anum*1000
-                        nnum = mnum-anum
-                        tmpfp = nuclide(inum,nnum,anum)%fp
-                        if(tmpfp==0 .and. nuclide(0,nnum,anum)%fp>0) tmpfp = nuclide(0,nnum,anum)%fp
-                        flag = mod(fp*4-1,6)
-                        if(flag<3) read(rd_yield,'(A80)',end=300) line1
-                        read(line1(11*flag-10:11*flag),'(f)') cfy !CUMUL. FY.
-                        if(cfy>0.d0 .and. tmpfp>0) cfy_yield(tmpfp,eg,fid) = &
-                            cfy_yield(tmpfp,eg,fid) + cfy
-                        ! === 211110 ===
-                        ! Updates on CFY and IFY -> TMP_FY
-                        tmpfp = nuclide(inum, nnum, anum) %fp
-                        if(tmpfp>0) then
-                            if(cfy_yield(tmpfp,eg,fid)>fpcut .or. ify_yield(tmpfp,eg,fid)>fpcut) then
-                                tmp_yield(tmpfp,eg,fid) = tmp_yield(tmpfp,eg,fid) + ify_yield(tmpfp,eg,fid)
-                                if(fiss_path(tmpfp,fid)==0) fiss_path(tmpfp,fid) = 1
-                                nuclide(inum,nnum,anum)%fiss = .true.
+                    nuclide(fssn_inum,fssn_nnum,fssn_anum)%yield_E = Ep*1.d-6
+                    do eg = 1,n_y_eg
+                        yieldE(fid,eg) = Ep(eg)*1.d-6
+                    enddo
+                    yieldnE(fid) = n_y_eg
+                    deallocate(Ep)
+                    do while (MT /= 0)
+                        read(line0(73:75),'(i)') MT
+                        read(rd_yield,'(A80)',end=300) line0 ! Skip until end of individ. NFY
+                    enddo
+                    ! ====== 211013 ==========
+                    ! Cumulative NFY should be considered for fpcut operation
+                    ! fpcut: Neglect cumul. fp < fpcut
+                    ! May reduce computation burden
+                    ! TODO
+                    read(line0(23:33),'(i)') n_y_eg
+                    do eg = 1,n_y_eg
+                        read(rd_yield,'(A80)',end = 300) line1
+                        read(line1(56:66),'(i)') n_fp
+                        do fp = 1,n_fp
+                            flag = mod(fp*4-3,6)
+                            if(flag<3) read(rd_yield,'(A80)',end=300) line1
+                            read(line1(11*flag-10:11*flag),'(f)') ZA
+                            read(line1(11*flag+1:11*flag+11),'(f)') i_real
+                            nuclid = int(ZA); inum = 0; inum = int(i_real)
+                            anum = nuclid/1000
+                            mnum = nuclid-anum*1000
+                            nnum = mnum-anum
+                            tmpfp = nuclide(inum,nnum,anum)%fp
+                            if(tmpfp==0 .and. nuclide(0,nnum,anum)%fp>0) tmpfp = nuclide(0,nnum,anum)%fp
+                            flag = mod(fp*4-1,6)
+                            if(flag<3) read(rd_yield,'(A80)',end=300) line1
+                            read(line1(11*flag-10:11*flag),'(f)') cfy !CUMUL. FY.
+                            if(cfy>0.d0 .and. tmpfp>0) cfy_yield(tmpfp,eg,fid) = &
+                                cfy_yield(tmpfp,eg,fid) + cfy
+                            ! === 211110 ===
+                            ! Updates on CFY and IFY -> TMP_FY
+                            tmpfp = nuclide(inum, nnum, anum) %fp
+                            if(tmpfp>0) then
+                                if(cfy_yield(tmpfp,eg,fid)>fpcut .or. ify_yield(tmpfp,eg,fid)>fpcut) then
+                                    tmp_yield(tmpfp,eg,fid) = tmp_yield(tmpfp,eg,fid) + ify_yield(tmpfp,eg,fid)
+                                    if(fiss_path(tmpfp,fid)==0) fiss_path(tmpfp,fid) = 1
+                                    nuclide(inum,nnum,anum)%fiss = .true.
+                                endif
                             endif
-                        endif
+                        enddo
                     enddo
-                enddo
-                ! =======================
-                do while (MT /= 451)
-                    read(rd_yield,'(A80)',end = 300) line0 ! Skip until next isotope's description (MT=451)
-                    read(line0(73:75),'(i)') MT 
-                enddo
-                read(rd_yield,*,end=300)
-                go to 30
-                300 close (rd_yield)
+                    ! =======================
+                    do while (MT /= 451)
+                        read(rd_yield,'(A80)',end = 300) line0 ! Skip until next isotope's description (MT=451)
+                        read(line0(73:75),'(i)') MT 
+                    enddo
+                    read(rd_yield,*,end=300)
+                    go to 30
+                    300 close (rd_yield)
+                else
+                    if(icore==score) print *, '    FATAL ERROR: .nfy file does not exist... terminating calculation'
+                    if(icore==score) print *, trim(nfy_lib)
+                    stop
+                endif
                
                 !if(Xe_search) then
                 !Xe_source =(/491350,491360,501350,501370,511350,511360,511370,521350,521360,531350/)
@@ -638,76 +664,90 @@ module depletion_module
                 !endif
                 !
                 ! ======= 211116, SFY LIBRARY READ ========
-                open(rd_sfy, file = trim(dep_lib)//'sss_endfb71.sfy', action = 'read')
-                sfid = 0; isfp = 0
-                allocate(sfy_yield(1:2500,1:100)); sfy_yield = 0.d0
-                allocate(sfp_zai(1:2500)) ! ZAI of fp from SFY
-                allocate(sfssn_zai(1:100)) ! ZAI of fssn from SFY
-                n_sfp_max = 0
-                50 continue
-                MT = 0
-                do while (MT/=454)
+                !open(rd_sfy, file = trim(dep_lib)//'sss_endfb71.sfy', action = 'read')
+                inquire(file=trim(sfy_lib), exist = file_exists)
+                if(file_exists) then
+                    open(rd_sfy, file = trim(sfy_lib), action = 'read')
+                    sfid = 0; isfp = 0
+                    allocate(sfy_yield(1:2500,1:100)); sfy_yield = 0.d0
+                    allocate(sfp_zai(1:2500)) ! ZAI of fp from SFY
+                    allocate(sfssn_zai(1:100)) ! ZAI of fssn from SFY
+                    n_sfp_max = 0
+                    50 continue
+                    MT = 0
+                    do while (MT/=454)
+                        read(rd_sfy,'(A80)',end=500) line0
+                        read(line0(73:75),'(i)') MT
+                    enddo
+                    sfid = sfid + 1
+                    read(line0(1:11),'(f)') ZA; nuclid = int(ZA)
+                    anum = nuclid/1000; mnum = nuclid-anum*1000
+                    nnum = mnum-anum; inum =0
+                    fssn_anum = anum; fssn_nnum = nnum
+                    nuclide(inum,nnum,anum)%sfy_idx = sfid
+                    sfssn_zai(sfid) = nuclid*10 + inum
+                    read(line0(23:33),'(i)') n_y_eg
                     read(rd_sfy,'(A80)',end=500) line0
-                    read(line0(73:75),'(i)') MT
-                enddo
-                sfid = sfid + 1
-                read(line0(1:11),'(f)') ZA; nuclid = int(ZA)
-                anum = nuclid/1000; mnum = nuclid-anum*1000
-                nnum = mnum-anum; inum =0
-                fssn_anum = anum; fssn_nnum = nnum
-                nuclide(inum,nnum,anum)%sfy_idx = sfid
-                sfssn_zai(sfid) = nuclid*10 + inum
-                read(line0(23:33),'(i)') n_y_eg
-                read(rd_sfy,'(A80)',end=500) line0
-                read(line0(56:66),'(i)') n_fp
-                n_sfp_max = max(n_sfp_max,n_fp)
-                do fp = 1,n_fp
-                    flag = mod(fp*4-3,6)
-                    if(flag<3) read(rd_sfy,'(A80)',end=500) line1
-                    read(line1(11*flag-10:11*flag),'(f)') ZA
-                    read(line1(11*flag+1:11*flag+11),'(f)') i_real
-                    nuclid = int(ZA); inum = int(i_real)
-                    anum = nuclid/1000; mnum = nuclid-anum*1000; nnum = mnum-anum
-                    tmpfp = nuclide(inum,nnum,anum)%sfp
-                    if(nuclide(inum,nnum,anum)%sfp ==0 .and. nuclide(inum,nnum,anum)%data_exist) then
-                        isfp = isfp + 1
-                        nuclide(inum,nnum,anum)%sfp = isfp
-                        sfp_zai(isfp) = nuclid*10+inum
+                    read(line0(56:66),'(i)') n_fp
+                    n_sfp_max = max(n_sfp_max,n_fp)
+                    do fp = 1,n_fp
+                        flag = mod(fp*4-3,6)
+                        if(flag<3) read(rd_sfy,'(A80)',end=500) line1
+                        read(line1(11*flag-10:11*flag),'(f)') ZA
+                        read(line1(11*flag+1:11*flag+11),'(f)') i_real
+                        nuclid = int(ZA); inum = int(i_real)
+                        anum = nuclid/1000; mnum = nuclid-anum*1000; nnum = mnum-anum
                         tmpfp = nuclide(inum,nnum,anum)%sfp
-                    endif
-                    flag = mod(fp*4-1,6)
-                    if(flag<3) read(rd_sfy,'(A80)',end=500) line1
-                    read(line1(11*flag-10:11*flag),'(f)') sfy
-                    if(sfy>0.d0 .and. tmpfp>0) sfy_yield(tmpfp,sfid) = &
-                        sfy_yield(tmpfp,sfid) + sfy
-                enddo
-                
-                do while (MT/=451)
-                    read(line0(73:75),'(i)') MT
-                    read(rd_sfy,'(A80)',end=500) line0
-                enddo
-                read(rd_sfy,*,end=500)
-                go to 50
-                500 close(rd_sfy)
+                        if(nuclide(inum,nnum,anum)%sfp ==0 .and. nuclide(inum,nnum,anum)%data_exist) then
+                            isfp = isfp + 1
+                            nuclide(inum,nnum,anum)%sfp = isfp
+                            sfp_zai(isfp) = nuclid*10+inum
+                            tmpfp = nuclide(inum,nnum,anum)%sfp
+                        endif
+                        flag = mod(fp*4-1,6)
+                        if(flag<3) read(rd_sfy,'(A80)',end=500) line1
+                        read(line1(11*flag-10:11*flag),'(f)') sfy
+                        if(sfy>0.d0 .and. tmpfp>0) sfy_yield(tmpfp,sfid) = &
+                            sfy_yield(tmpfp,sfid) + sfy
+                    enddo
+                    
+                    do while (MT/=451)
+                        read(line0(73:75),'(i)') MT
+                        read(rd_sfy,'(A80)',end=500) line0
+                    enddo
+                    read(rd_sfy,*,end=500)
+                    go to 50
+                    500 close(rd_sfy)
+                else
+                    if(icore==score) print *, '    FATAL ERROR: .sfy file does not exist... terminating calculation'
+                    if(icore==score) print *, trim(sfy_lib)
+                    stop
+                endif
 
                 11 continue
 
                 !==================================================================================
                 !ISOMERIC BRANCHING RATIO (UNDER TESTING, 10/18)
-                open(isom_brn,file=trim(dep_lib)//'isomeric_branching',action='read')
-                read(isom_brn,'(A80)',end = 400) line0
-                read(line0,'(i)') num_brn
-
-                allocate(ZAIMT_ism(num_brn))
-                allocate(gnd_frac(num_brn))
-
-                do brn = 1,num_brn
-                   read(isom_brn,'(A80)',end = 400) line0
-                   read(line0(1:6),'(i)') ZAIMT_ism(brn)
-                   read(line0(13:20),'(f)') gnd_frac(brn)
-                   !TESTING
-                enddo
-400             close(isom_brn)
+                !open(isom_brn,file=trim(dep_lib)//'isomeric_branching',action='read')
+                inquire(file=trim(isom_lib), exist = file_exists)
+                if(file_exists) then
+                    open(isom_brn,file=trim(isom_lib),action='read')
+                    read(isom_brn,'(A80)',end = 400) line0
+                    read(line0,'(i)') num_brn
+    
+                    allocate(ZAIMT_ism(num_brn))
+                    allocate(gnd_frac(num_brn))
+    
+                    do brn = 1,num_brn
+                       read(isom_brn,'(A80)',end = 400) line0
+                       read(line0(1:6),'(i)') ZAIMT_ism(brn)
+                       read(line0(13:20),'(f)') gnd_frac(brn)
+                       !TESTING
+                    enddo
+    400             close(isom_brn)
+                else
+                    if(icore==score) print *, '    NOTE: isomeric branching file does not exist'
+                endif
                 !==============================================================================
                 ! CROP NFY DATA
                 tmp_yield = tmp_yield(1:ifp,1:4,1:fid)
@@ -740,6 +780,7 @@ module depletion_module
                 allocate(decay(10000)); decay = 0; idx = 0
 
                 do i = 1,num_iso
+                    if ( .not. ace(i) % depletable ) cycle
                     zai = ace(i)%zaid
                     liblen = len_trim(ace(i)%xslib)
                     tail= ace(i)%xslib(liblen-3:liblen)
@@ -777,26 +818,27 @@ module depletion_module
                         call ADDACE(decay(idx),tail)
                     endif
 
-                    if(nuclide(0,1,1)%data_exist .and. nuclide(0,1,0)%conn<0) then ! D
-                        nuclide(0,1,0)%conn = 0
+                    if(nuclide(0,1,1)%data_exist .and. nuclide(0,1,1)%conn<0) then ! D
+                        nuclide(0,1,1)%conn = 0
                         idx = idx + 1
-                        decay(idx) = 00010
+                        decay(idx) = 10020
                         call ADDACE(decay(idx),tail)
                     endif
 
-                    if(nuclide(0,2,1)%data_exist .and. nuclide(0,1,0)%conn<0) then ! T
-                        nuclide(0,1,0)%conn = 0
+                    if(nuclide(0,2,1)%data_exist .and. nuclide(0,2,1)%conn<0) then ! T
+                        nuclide(0,2,1)%conn = 0
                         idx = idx + 1
-                        decay(idx) = 00010
+                        decay(idx) = 10030
                         call ADDACE(decay(idx),tail)
                     endif
 
-                    if(nuclide(0,1,2)%data_exist .and. nuclide(0,1,0)%conn<0) then ! A3
+                    if(nuclide(0,1,2)%data_exist .and. nuclide(0,1,2)%conn<0) then ! A3
                         nuclide(0,1,2)%conn = 0
                         idx = idx + 1
-                        decay(idx) = 00010
+                        decay(idx) = 20030
                         call ADDACE(decay(idx),tail)
                     endif
+
 
                     do j = 1,ace(i)%NXS(4) ! FOR ALL AVAILABLE RX
                                 mt = ace(i) % MT(j)
@@ -834,10 +876,9 @@ module depletion_module
                                         nnum1 = nnum + 1 - nn - dn - 2*tn - 2*an - a3n
                                         ! if(.not. (anum==anum1 .and. nnum==nnum1)) then ! If nuclide changes...
                                         if(nuclide(0, nnum1, anum1) % data_exist .and. nuclide(0, nnum1, anum1) % conn < 0) then
-                                            !    'DAUGH', idx1, mt, anum*1001+ nnum, anum1 *1001 + nnum1
                                             nuclide(0, nnum1, anum1) % conn = 1
                                             idx = idx + 1
-                                            decay(idx) = (nnum1+anum1)*10 + anum * 10000
+                                            decay(idx) = (nnum1+anum1)*10 + anum1 * 10000
                                             call ADDACE(decay(idx), tail)
                                         endif
                                     endif
@@ -862,6 +903,7 @@ module depletion_module
                     endif
                 enddo
                 do j = 1,nfp
+                    if(icore==score .and. fp_zai(j)==621480) print *, 'HMM', nuclide(inum1, nnum1, anum1) % data_exist, nuclide(inum1, nnum1, anum1) % conn, nuclide(inum1, nnum1, anum1) % fiss
                     anum1 = fp_zai(j)/10000
                     mnum1 = (fp_zai(j)-anum1*10000)/10
                     nnum1 = mnum1 - anum1
@@ -876,7 +918,7 @@ module depletion_module
                 allocate(daugh(10000)); daugh = 0; conval= 1
 
                 do while(idx>0)
-                    !if(conval>5) exit
+                    if(conval>5) exit
                     conval = conval + 1
                     idx1 = 0;
                     do i = 1,idx
@@ -904,6 +946,7 @@ module depletion_module
                         ! Regarding their reactions
                         iso = find_ACE_iso_idx_zaid(zaid=decay(i))
                         if(iso==0) cycle
+                        if( .not. ace(iso) % depletable ) cycle
                         do j = 1,ace(iso)%NXS(4)
                                     mt = ace(iso) % MT(j)
                                     tgt = decay(i)/10
@@ -996,10 +1039,52 @@ module depletion_module
                 allocate(iAcsr(1:nnuc+1))
                 if(icore==score) print *, "Number of isotopes:", nnuc-1 ! Checking number of isotopes
                 if(icore==score) print *, "ACE FORMAT ISOTOPES:", num_iso 
+                
+                ! Expand numden
+                do imat = 1, n_materials
+                    if ( .not. materials(imat) % depletable ) cycle
+                    allocate(numden(num_iso)); numden = 0d0
+                    allocate(sablist(num_iso)); sablist = 0
+                    allocate(aceidx(num_iso)); aceidx = 0
+                    
+                    allocate(numden_tmp(num_iso)); numden_tmp = 0d0
+                    allocate(sablist_tmp(num_iso)); sablist_tmp = 0
+                    allocate(aceidx_tmp(num_iso)); aceidx_tmp = 0
+
+                    ! Move NUMDEN, SABLIST
+                    do mt_iso = 1, materials(imat) % n_iso
+                        numden( materials(imat) % ace_idx( mt_iso ) ) = &
+                            materials(imat) % numden( mt_iso ) 
+                        sablist( materials(imat) % ace_idx( mt_iso ) ) = &
+                            materials(imat) % sablist( mt_iso ) 
+                    enddo
+
+                    do iso = 1, num_iso
+                        aceidx(iso) = iso
+                    enddo
+
+                    base_tmp = ace( materials(imat) % ace_idx(1) ) % temp
+                    iso_cnt = 0
+                    do iso = 1, num_iso
+                        if ( abs(base_tmp - ace(iso) % temp) < 1E-3 * K_B ) then
+                            iso_cnt = iso_cnt + 1
+                            numden_tmp(iso_cnt) = numden(iso)
+                            sablist_tmp(iso_cnt) = sablist(iso)
+                            aceidx_tmp(iso_cnt ) = aceidx(iso)
+                        endif
+                    enddo
+                    
+                    materials( imat ) % n_iso = iso_cnt
+                    call move_alloc ( numden_tmp, materials(imat) % numden ) 
+                    call move_alloc ( sablist_tmp, materials(imat) % sablist ) 
+                    call move_alloc ( aceidx_tmp, materials(imat) % ace_idx ) 
+
+                    deallocate(numden, sablist, aceidx)
+
+                enddo
 
                 !do i = 1, num_iso
                 !    if(abs(ace(i)%TY(rx))==1 .and. .not. (mt==
-
 
                 !Burnup result files
                 if(icore==score) then
@@ -1089,17 +1174,18 @@ module depletion_module
                 if(icore==score) print *, 'XS pre-calculation completed'
             end subroutine
 
-            function buildflux(iso, n, eflux_tmp) result(flux)
+            subroutine buildflux(iso, n, eflux_tmp, flux)
             implicit none
             integer, intent(in) :: iso
             real(8), intent(in) :: eflux_tmp(:)
             real(8) :: eflux(0:nueg)
-            real(8) :: flux(0:n-1)
+            real(8), allocatable, intent(out) :: flux(:)
             integer :: i, n, idx
             real(8) :: g, erg
 
             eflux(0:nueg) = eflux_tmp(1:nueg+1)
 
+            allocate(flux(0:n-1))
             flux(1:n-1) = 0d0
             flux(0)   = eflux(0)
             idx = 1
@@ -1122,7 +1208,7 @@ module depletion_module
                 endif
             enddo FLX_LOOP
 
-            end function
+            end subroutine
 
             function buildogxs_iso(iso, rx, flux)
             implicit none
@@ -1295,12 +1381,14 @@ module depletion_module
 
                 line = trim(trim(zaline)//tail)
                 do i = 1, size(libname)
+                    if(zai==62148) print *, trim(line), i, trim(libname(i))
                     if(acerecord(i) .and. trim(line) == trim(libname(i))) then
                         num_iso = num_iso + 1
                         ace(num_iso) % xslib   = trim(line)
                         ace(num_iso) % library = trim(libpath(i))
                         acerecord(i) = .false.
                         call set_ace_iso(num_iso, trim(line))
+                        ace(num_iso) % depletable = .true.
                         return
                     endif
                 enddo
@@ -1319,7 +1407,7 @@ module depletion_module
             integer :: anum1, mnum1, nnum1, inum1
             integer :: i, j, k
             logical :: exist_in_MC
-            real(8) :: real_flux, tot_flux=0.d0
+            real(8) :: real_flux, tot_flux=0.d0, tmpflux
             integer :: fy_midx, diff, tmp, ierr
             real(8) :: nxt_full_numden(1:nnuc)
             type (Material_CE), pointer :: mat
@@ -1366,7 +1454,7 @@ module depletion_module
             integer :: tmpaceidx
 
             real(8) :: totfiss, numer, denom, g2
-            integer :: cnt, rcv, addn
+            integer :: rcv, addn
 
             logical :: do_exist
 
@@ -1520,10 +1608,9 @@ module depletion_module
             if ( DTMCBU ) &
                 call MPI_BCAST(materials(:)%flux,n_materials,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
             !Substitute burnup matrix element
-            !do imat = 1, n_materials
-            cnt = 0
-            do ii = 1, ngeom
-                imat = mpigeom(ii,icore)
+            do imat = 1, n_materials
+!            do ii = 1, ngeom
+!                imat = mpigeom(ii,icore)
 
                 if(imat==0) cycle
                 if(.not. materials(imat)%depletable) cycle    !material imat is not burned
@@ -1539,138 +1626,156 @@ module depletion_module
                 allocate(yield_data(nfp,nfssn))
                 yield_data = 0.d0
                 !TODO NFY interpolation Option
-                select case(NFYtype)
-                case(1) ! Nuc.wise Avg Energy 
-                do i = 1,nfssn
-                    numer = 0d0; denom = 0d0;
-                    totfiss = 0d0
-                    zai = fssn_zai(i)
-                    anum = zai/10000; mnum = (zai-10000*anum)/10; nnum = mnum-anum
-                    inum = zai-anum*10000-mnum*10
-                    aceval = find_ACE_iso_idx_zaid(zaid=zai, temp=mat % temp)
-                    mt_iso = 0
-                    do j = 1, mat % n_iso
-                        if(mat % ace_idx(j) == aceval) then
-                            mt_iso = j; exit
+                if ( .not. do_rx_tally ) then
+                    select case(NFYtype)
+                    case(1) ! Nuc.wise Avg Energy 
+                    do i = 1,nfssn
+                        numer = 0d0; denom = 0d0;
+                        totfiss = 0d0
+                        zai = fssn_zai(i)
+                        anum = zai/10000; mnum = (zai-10000*anum)/10; nnum = mnum-anum
+                        inum = zai-anum*10000-mnum*10
+                        aceval = find_ACE_iso_idx_zaid(zaid=zai, temp=mat % temp)
+                        mt_iso = 0
+                        do j = 1, mat % n_iso
+                            if(mat % ace_idx(j) == aceval) then
+                                mt_iso = j; exit
+                            endif
+                        enddo
+                        if(mt_iso==0) cycle
+                        Ep = yieldE(i,1:4); nE = yieldnE(i)
+                        if(.not. allocated(ace(aceval) % UEG % sigf)) cycle
+    
+                        numer = numer + mat % eflux(0) * ace(aceval) % UEG % sigf(1) * ueggrid(1) * mat % numden(mt_iso)
+                        denom = denom + mat % eflux(0) * ace(aceval) % UEG % sigf(1) * mat % numden(mt_iso)
+    
+                        do j = 1, nueg
+                            numer = numer + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * ueggrid(j) * mat % numden(mt_iso)
+                            denom = denom + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * mat % numden(mt_iso)
+                        enddo
+                        
+                        erg = numer/denom
+                        
+                        if(nE<=1) then
+                            yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
+                        else
+                            if(erg < Ep(1)) then
+                                yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
+                            elseif(erg > Ep(nE)) then
+                                yield_data(1:nfp,i) = tmp_yield(1:nfp,nE,i)
+                            else
+                                do eg = 1, nE-1
+                                    if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
+                                        g2 = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
+                                        !print *, fssn_zai(i), erg, g2, Ep(eg), Ep(eg+1)
+                                        yield_data(1:nfp,i) = &
+                                            tmp_yield(1:nfp,eg,i) * (1d0-g2) + &
+                                            tmp_yield(1:nfp,eg+1,i) * g2
+                                    endif
+                                enddo
+                            endif
                         endif
                     enddo
-                    if(mt_iso==0) cycle
-                    Ep = yieldE(i,1:4); nE = yieldnE(i)
-                    if(.not. allocated(ace(aceval) % UEG % sigf)) cycle
-
-                    numer = numer + mat % eflux(0) * ace(aceval) % UEG % sigf(1) * ueggrid(1) * mat % numden(mt_iso)
-                    denom = denom + mat % eflux(0) * ace(aceval) % UEG % sigf(1) * mat % numden(mt_iso)
-
-                    do j = 1, nueg
-                        numer = numer + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * ueggrid(j) * mat % numden(mt_iso)
-                        denom = denom + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * mat % numden(mt_iso)
+    
+                    case(2) ! Material-wise Avg. Energy
+                    ! USING UNIFIED ENERGY for NFY Interpolation
+                    numer = 0d0; denom = 0d0
+                    do i = 1,nfssn
+                        totfiss = 0d0
+                        zai = fssn_zai(i)
+                        anum = zai/10000; mnum = (zai-10000*anum)/10; nnum = mnum-anum
+                        inum = zai-anum*10000-mnum*10
+                        aceval = find_ACE_iso_idx_zaid(zaid=zai,temp=mat%temp)
+                        mt_iso = 0
+                        do j = 1, mat % n_iso
+                            if(mat % ace_idx(j) == aceval) then
+                                mt_iso = j; exit
+                            endif
+                        enddo
+                        if(mt_iso==0) cycle
+                        Ep = yieldE(i,1:4); nE = yieldnE(i)
+                        if(.not. allocated(ace(aceval) % UEG % sigf)) cycle
+    
+                        numer = numer + mat % eflux(0) * ace(aceval) % UEG % sigf(1) * ueggrid(0) * mat % numden(mt_iso)
+                        denom = denom + mat % eflux(0) * ace(aceval) % UEG % sigf(1) * mat % numden(mt_iso)
+                        do j = 1, nueg
+                            numer = numer + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * ueggrid(j) * mat % numden(mt_iso)
+                            denom = denom + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * mat % numden(mt_iso)
+                        enddo
                     enddo
-                    
+                    !print *, 'NFY', numer/denom
                     erg = numer/denom
-                    
-                    if(nE<=1) then
-                        yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
-                    else
-                        if(erg < Ep(1)) then
+                    !erg = 0.85355
+                    do i = 1, nfssn
+                        Ep = yieldE(i,1:4); nE = yieldnE(i)
+                        if(nE<=1) then
                             yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
-                        elseif(erg > Ep(nE)) then
-                            yield_data(1:nfp,i) = tmp_yield(1:nfp,nE,i)
                         else
-                            do eg = 1, nE-1
-                                if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
-                                    g2 = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
-                                    !print *, fssn_zai(i), erg, g2, Ep(eg), Ep(eg+1)
-                                    yield_data(1:nfp,i) = &
-                                        tmp_yield(1:nfp,eg,i) * (1d0-g2) + &
-                                        tmp_yield(1:nfp,eg+1,i) * g2
-                                endif
-                            enddo
-                        endif
-                    endif
-                enddo
-
-                case(2) ! Material-wise Avg. Energy
-                ! USING UNIFIED ENERGY for NFY Interpolation
-                numer = 0d0; denom = 0d0
-                do i = 1,nfssn
-                    totfiss = 0d0
-                    zai = fssn_zai(i)
-                    anum = zai/10000; mnum = (zai-10000*anum)/10; nnum = mnum-anum
-                    inum = zai-anum*10000-mnum*10
-                    aceval = find_ACE_iso_idx_zaid(zaid=zai,temp=mat%temp)
-                    mt_iso = 0
-                    do j = 1, mat % n_iso
-                        if(mat % ace_idx(j) == aceval) then
-                            mt_iso = j; exit
+                            if(erg < Ep(1)) then
+                                yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
+                            elseif(erg > Ep(nE)) then
+                                yield_data(1:nfp,i) = tmp_yield(1:nfp,nE,i)
+                            else
+                                do eg = 1, nE-1
+                                    if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
+                                        g2 = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
+                                        yield_data(1:nfp,i) = &
+                                            tmp_yield(1:nfp,eg,i) * (1d0-g2) + &
+                                            tmp_yield(1:nfp,eg+1,i) * g2
+                                        !print *, 'POS', erg, Ep(eg), Ep(eg+1), g2
+                                    endif
+                                enddo
+                            endif
                         endif
                     enddo
-                    if(mt_iso==0) cycle
-                    Ep = yieldE(i,1:4); nE = yieldnE(i)
-                    if(.not. allocated(ace(aceval) % UEG % sigf)) cycle
-
-                    numer = numer + mat % eflux(0) * ace(aceval) % UEG % sigf(1) * ueggrid(0) * mat % numden(mt_iso)
-                    denom = denom + mat % eflux(0) * ace(aceval) % UEG % sigf(1) * mat % numden(mt_iso)
-                    do j = 1, nueg
-                        numer = numer + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * ueggrid(j) * mat % numden(mt_iso)
-                        denom = denom + mat % eflux(j) * ace(aceval) % UEG % sigf(j) * mat % numden(mt_iso)
-                    enddo
-                enddo
-                !print *, 'NFY', numer/denom
-                erg = numer/denom
-                !erg = 0.85355
-                do i = 1, nfssn
-                    Ep = yieldE(i,1:4); nE = yieldnE(i)
-                    if(nE<=1) then
-                        yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
-                    else
-                        if(erg < Ep(1)) then
+                    case(3)
+                    do i = 1,nfssn
+                        Ep = yieldE(i,1:4); nE = yieldnE(i)
+                        zai = fssn_zai(i)
+                        if(nE==0) then
                             yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
-                        elseif(erg > Ep(nE)) then
-                            yield_data(1:nfp,i) = tmp_yield(1:nfp,nE,i)
                         else
-                            do eg = 1, nE-1
-                                if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
-                                    g2 = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
-                                    yield_data(1:nfp,i) = &
-                                        tmp_yield(1:nfp,eg,i) * (1d0-g2) + &
-                                        tmp_yield(1:nfp,eg+1,i) * g2
-                                    !print *, 'POS', erg, Ep(eg), Ep(eg+1), g2
-                                endif
+                            if(nE==1) then
+                                aceval = find_ACE_iso_idx_zaid(zaid=zai,temp=mat%temp)
+                                mat%fratio(i,1) = 1.d0
+                            else
+                                aceval = find_ACE_iso_idx_zaid(zaid=zai,temp=mat%temp)
+                                if(aceval==0) cycle
+                                if(.not. allocated(ace(aceval) % UEG % sigf)) cycle
+                                do j = 1,nueg
+                                    erg = ueggrid(j)
+                                    if(erg<Ep(1)) then
+                                        mat%fratio(i,1) = mat%fratio(i,1) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)
+                                    elseif(erg>=Ep(nE)) then
+                                        mat%fratio(i,nE) = mat%fratio(i,nE) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)
+                                    else
+                                        do eg = 1,nE-1
+                                            if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
+                                                g2 = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
+                                                mat%fratio(i,eg) = mat%fratio(i,eg) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)*(1D0-g2)
+                                                mat%fratio(i,eg+1) = mat%fratio(i,eg+1) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)*g2
+                                            endif
+                                        enddo
+                                    endif
+                                enddo
+                            endif
+                            if(sum(mat%fratio(i,1:nE))>0) then
+                                mat%fratio(i,1:nE) = mat%fratio(i,1:nE)/sum(mat%fratio(i,1:nE))
+                            else
+                                mat%fratio(i,1) = 1.d0
+                                mat%fratio(i,2:4) = 0.d0
+                            endif
+                            !print *, 'FRATIO', i, fssn_zai(i), mat % fratio(i, :)
+                            do k = 1,nE
+                                yield_data(1:nfp,i) = yield_data(1:nfp,i) + &
+                                    tmp_yield(1:nfp,k,i) * mat%fratio(i,k)
                             enddo
                         endif
-                    endif
-                enddo
-                case(3)
-                do i = 1,nfssn
-                    Ep = yieldE(i,1:4); nE = yieldnE(i)
-                    zai = fssn_zai(i)
-                    if(nE==0) then
-                        yield_data(1:nfp,i) = tmp_yield(1:nfp,1,i)
-                    else
-                        if(nE==1) then
-                            aceval = find_ACE_iso_idx_zaid(zaid=zai,temp=mat%temp)
-                            mat%fratio(i,1) = 1.d0
-                        else
-                            aceval = find_ACE_iso_idx_zaid(zaid=zai,temp=mat%temp)
-                            if(aceval==0) cycle
-                            if(.not. allocated(ace(aceval) % UEG % sigf)) cycle
-                            do j = 1,nueg
-                                erg = ueggrid(j)
-                                if(erg<Ep(1)) then
-                                    mat%fratio(i,1) = mat%fratio(i,1) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)
-                                elseif(erg>=Ep(nE)) then
-                                    mat%fratio(i,nE) = mat%fratio(i,nE) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)
-                                else
-                                    do eg = 1,nE-1
-                                        if(erg>=Ep(eg) .and. erg<Ep(eg+1)) then
-                                            g2 = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
-                                            mat%fratio(i,eg) = mat%fratio(i,eg) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)*(1D0-g2)
-                                            mat%fratio(i,eg+1) = mat%fratio(i,eg+1) + mat%eflux(j) * ace(aceval) % UEG % sigf(j)*g2
-                                        endif
-                                    enddo
-                                endif
-                            enddo
-                        endif
+                    enddo
+                    end select
+                else ! DO_RX_TALLY
+                    do i = 1, nfssn
+                        Ep = yieldE(i,1:4); nE = yieldnE(i)
                         if(sum(mat%fratio(i,1:nE))>0) then
                             mat%fratio(i,1:nE) = mat%fratio(i,1:nE)/sum(mat%fratio(i,1:nE))
                         else
@@ -1681,9 +1786,8 @@ module depletion_module
                             yield_data(1:nfp,i) = yield_data(1:nfp,i) + &
                                 tmp_yield(1:nfp,k,i) * mat%fratio(i,k)
                         enddo
-                    endif
-                enddo
-                end select
+                    enddo
+                endif
 
                 allocate(nucexist(nfp)); nucexist = 0.d0
                 do i = 1,nfp
@@ -1698,7 +1802,6 @@ module depletion_module
                     ! NORMALIZE NFY: sum(NFY) = 200
                     ratio = sum(yield_data(:,i)*nucexist)/2.d0
                     if(ratio>0.d0) yield_data(:,i) = yield_data(:,i)/ratio
-                    !if(icore==score) print *, 'NFY', fssn_zai(i), ratio
                 enddo
                 deallocate(nucexist)
                 !Calculate real flux (volume-averaged)
@@ -1762,6 +1865,7 @@ module depletion_module
                 DO_ISO: do mt_iso = 1,num_iso
                     !print *, 'ISO', mt_iso
                     iso = mt_iso
+                    if( abs(ace(iso)%temp-mat%temp) > 1E-3 * K_B ) cycle
                     anum = ace(iso)%zaid/1000
                     mnum = (ace(iso)%zaid - anum*1000)
                     inum = 0
@@ -1779,8 +1883,9 @@ module depletion_module
 
                     ! BUILD ISO-WISE FLUX
                     if(do_iso_ueg) then
-                        flx  = buildflux(iso,ace(iso)%NXS(3)+1, mat %eflux(0:nueg))
-                        flx2 = buildflux(iso,ace(iso)%NXS(3)+1, mat%e2flux(0:nueg))
+                        call buildflux(iso,ace(iso)%NXS(3)+1, mat %eflux(0:nueg), flx)
+                        call buildflux(iso,ace(iso)%NXS(3)+1, mat%e2flux(0:nueg), flx2)
+                        toteflux = sum(flx)
                         flx  = flx / toteflux; flx = flx * real_flux
                         flx2 = flx2/ toteflux; flx2= flx2* real_flux
                     endif
@@ -1791,6 +1896,7 @@ module depletion_module
                         if(mt == 4 .or. mt > 200) cycle ! Inelastic and Damage
                         ! TALLY OGXS
                         if(do_iso_ueg) ogxs = buildogxs_e2(iso, rx, flx, flx2) * barn
+                        !deallocate(flx, flx2)
 
                         if(do_rx_tally) then
                             if(ANY(RXMT==mt)) then
@@ -1798,14 +1904,15 @@ module depletion_module
                                 do i_rx = 1, 7
                                     if(RXMT(i_rx)==mt) then
                                         ogxs = mat % ogxs(iso, i_rx) * real_flux
-!                                        if(ace(iso)%zaid==92235 .or. ace(iso)%zaid==92238) write(*,'(A,A,I6, I3,E15.5,E15.5,E15.5)') 'BIAS ', trim(materials(imat)%mat_name), ace(iso)%zaid, mt, ogxs, ogxs1, (ogxs1-ogxs)/ogxs*1E2
+                                        if(ace(iso)%zaid==92235 .or. ace(iso)%zaid==92238) write(*,'(A,A,I6, I3,E15.5,E15.5,E15.5)') 'BIAS ', trim(materials(imat)%mat_name), ace(iso)%zaid, mt, ogxs, ogxs1, (ogxs1-ogxs)/ogxs*1E2
                                         exit
                                     endif
                                 enddo
+                            else
+                                ogxs = 0d0
                             endif
                         endif
                         !if(mt==N_NF .or. mt==N_2NF .or. mt==N_3NF) cycle
-                        !if(ace(iso)%zaid==92235) print *, mat%mat_name, mt, ogxs
                         ! FIND DESTINATION
                         if(mt==18 .or. ace(iso)%TY(rx)==19) then ! In case of Fission
                             if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then 
@@ -1968,7 +2075,6 @@ module depletion_module
         !Solve the burnup matrix equation 
         select case(matrix_exponential_solver)
         case(0)
-            if(icore==score) print *, 'NUMDEN', trim(materials(imat)%mat_name), materials(imat)%flux
             call cram(bMat, materials(imat)%full_numden(:), nxt_full_numden(:)) 
             !allocate(bMat_tmp(1:nnuc,1:nnuc)) 
             !call r8mat_expm1 ( nnuc, bMat, bMat_tmp )
@@ -2009,17 +2115,16 @@ module depletion_module
             ! write(*,*) imat, icore, zai_idx(jnuc), mat%full_numden(jnuc)
 
             tmp = find_ACE_iso_idx_zaid(zaid=zai_idx(jnuc), temp=mat%temp)
-            if(mat%full_numden(jnuc)>1.d0 .and. tmp > 0) then 
+            if(mat%full_numden(jnuc)>=1d10 .and. tmp > 0) then 
                 knuc = knuc + 1
                 mat % iso_idx(knuc) = jnuc
             elseif(mat%full_numden(jnuc)>0.d0) then
                 ! MEASURING LOST TERM
                 remsum = remsum + mat%full_numden(jnuc)
             endif
-        end do
-
+        enddo
         mat%n_iso = knuc
-        deallocate(mat%ace_idx);allocate(mat%ace_idx(1:knuc));     mat%ace_idx= 0D0
+        deallocate(mat%ace_idx);allocate(mat%ace_idx(1:knuc));     mat%ace_idx= 0
         deallocate(mat%numden); allocate(mat%numden(1:knuc));      mat%numden = 0D0
         deallocate(mat%ogxs);   allocate(mat%ogxs(1:num_iso,1:7)); mat%ogxs   = 0d0
 
@@ -2030,7 +2135,7 @@ module depletion_module
         do mt_iso=1, mat % n_iso
             ! find ace_idx
             tmp = find_ACE_iso_idx_zaid(zaid = zai_idx(mat % iso_idx(mt_iso)), temp=mat%temp)
-            if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>1d0) then 
+            if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
                 i = i + 1
                 mat%ace_idx(mt_iso) = tmp
                 mat%numden(mt_iso)  = mat%full_numden(mat % iso_idx(mt_iso))
@@ -2046,35 +2151,38 @@ module depletion_module
     enddo
     !print *, 'ARRIVED', icore
     call MPI_BARRIER(MPI_COMM_WORLD, ierr)
-    if(icore==score) print *, 'Total Flux', tot_flux
     
     if(DTMCBU .and. allocated(buflux)) &
         deallocate(buflux)
 
 
     ! data sharing
-    if(icore==score .and. ncore > 1) print *, '   Broadcasting Number densities to MPI nodes...'
-    do ii = 0, ncore-1
-    do jj = 1, ngeom
-        imat = mpigeom(jj,ii)
-        if( imat == 0 ) cycle
-        mat => materials(imat)
-        call MPI_BCAST(mat%n_iso,1,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-        niso = mat%n_iso
-    
-        if ( icore /= ii ) then
-           deallocate(mat%ace_idx); allocate(mat%ace_idx(niso)); mat%ace_idx(:) = 0
-           deallocate(mat%numden);  allocate(mat%numden(niso));  mat%numden(:)  = 0
-           deallocate(mat%sablist); allocate(mat%sablist(niso)); mat%sablist(:) = 0
-           if(.not. allocated(mat%iso_idx)) allocate(mat%iso_idx(nnuc))
-           mat%iso_idx(:) = 0
-       end if
-    
-       call MPI_BCAST(mat%ace_idx,niso,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-       call MPI_BCAST(mat%numden,niso,MPI_REAL8,ii,MPI_COMM_WORLD,ierr)
-       call MPI_BCAST(mat%iso_idx,nnuc,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-    end do
-    end do
+!    if(icore==score .and. ncore > 1) print *, '   Broadcasting Number densities to MPI nodes...'
+!    do ii = 0, ncore-1
+!    do jj = 1, ngeom
+!        imat = mpigeom(jj,ii)
+!        if( imat == 0 ) cycle
+!        mat => materials(imat)
+!        call MPI_BCAST(mat%n_iso,1,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+!        niso = mat%n_iso
+!    
+!        if ( icore /= ii ) then
+!           deallocate(mat%ace_idx); allocate(mat%ace_idx(niso)); mat%ace_idx(:) = 0
+!           deallocate(mat%numden);  allocate(mat%numden(niso));  mat%numden(:)  = 0
+!           deallocate(mat%sablist); allocate(mat%sablist(niso)); mat%sablist(:) = 0
+!           if(.not. allocated(mat%iso_idx)) allocate(mat%iso_idx(nnuc))
+!           mat%iso_idx(:) = 0
+!       end if
+!    
+!       call MPI_BCAST(mat%ace_idx,niso,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+!       call MPI_BCAST(mat%numden,niso,MPI_REAL8,ii,MPI_COMM_WORLD,ierr)
+!       call MPI_BCAST(mat%iso_idx,nnuc,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+!    end do
+!    end do
+
+    call MPI_REDUCE(tot_flux, tmpflux, 1, MPI_DOUBLE_PRECISION, MPI_SUM, score, MPI_COMM_WORLD, ierr)
+    tot_flux = tmpflux
+    if(icore==score) print *, 'Total Flux:', tot_flux
 
     call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
@@ -2100,7 +2208,7 @@ module depletion_module
         if( allocated(therm) ) then
             do iso = 1, size(therm) 
                 write(prt_restart, *) 'THERM ', adjustl(trim(therm(iso)%tag)),&
-                    therm(iso)%temp, therm(iso)%lib_low, ' ', therm(iso)%lib_high
+                    therm(iso)%temp/K_B, trim(therm(iso)%lib_low), ' ', trim(therm(iso)%lib_high)
             enddo
         endif
 
@@ -2139,12 +2247,9 @@ module depletion_module
             !isotopes
             write(prt_restart, *) 'isotopes = ', &
                 ace(materials(imat)%ace_idx(1))%xslib, materials(imat)%numden(1)
-            if( materials(imat) % n_iso > 1 ) then
                 do iso = 2, materials(imat) % n_iso
-                    if( materials(imat) % numden(iso) > 1E4 ) &
-                        write(prt_restart, *) ace(materials(imat)%ace_idx(iso))%xslib, materials(imat)%numden(iso)
+                    write(prt_restart, *) ace(materials(imat)%ace_idx(iso))%xslib, materials(imat)%numden(iso)
                 enddo
-            endif
 !            if( allocated(materials(imat) % full_numden) ) then
 !                !n_full_iso
 !                write(prt_restart, *) 'n_full_iso = ', count(materials(imat)%full_numden > 0d0) 
@@ -2183,8 +2288,18 @@ module depletion_module
         mat % ogxs0  = mat % ogxs1
         mat % ace_idx0 = mat % ace_idx1
     endif
+
+    if(do_iso_ueg) then
+        if( allocated (flx) ) deallocate(flx)
+        if( allocated (flx2) ) deallocate(flx2)
+    endif
      
     end subroutine depletion 
+
+
+    subroutine macro_depletion
+
+    end subroutine macro_depletion
     
     subroutine mtrxread(mt,nn,pn,dn,tn,an,a3n)
     integer, intent(in) :: mt
@@ -2266,7 +2381,7 @@ module depletion_module
         integer :: i, ierg
         integer :: fy_midx, diff, tmp, Xe_ptr
         real(8) :: g
-        real(8) :: Ep(4)
+        real(8) :: Ep(4), g2
         integer :: nE, eg
 
         type (Material_CE), pointer :: mat
@@ -2276,7 +2391,7 @@ module depletion_module
         integer :: anum, mnum, inum, nnum !atomic number, mass number, isomer state, neutron number of nuclide
         integer :: a1, m1
         real(8) :: fluxtmp, val1, val2
-        integer :: fssn
+        integer :: fssn, fid
 
         real(8), pointer :: ogxs(:,:)
 
@@ -2331,6 +2446,44 @@ module depletion_module
                mat%ogxs(iso,6) = mat%ogxs(iso,6) + getxs(N_A,iso,erg,ierg)*wgt*distance*barn
                !$OMP ATOMIC
                mat%ogxs(iso,7) = mat%ogxs(iso,7) + micro_f*wgt*distance*barn
+
+               if( micro_f > 0d0 ) then
+
+                    anum = ace(iso)%zaid/1000
+                    mnum = (ace(iso)%zaid - anum*1000)
+                    inum = 0
+                    if(mnum>300) then
+                        inum = 1
+                        mnum = mnum - 200
+                        if(anum>88) mnum = mnum + 100
+                    elseif(mnum==0) then
+                        cycle
+                    endif
+                    nnum = mnum-anum
+                    fid = nuclide(inum, nnum, anum) % fy_idx
+                    if( fid == 0 ) cycle
+                    Ep = yieldE(fid,1:4); nE = yieldnE(fid)
+                    if( erg < Ep(1) ) then
+                       !$omp atomic
+                       mat % fratio(fid,1) = mat % fratio(fid,1) + micro_f * wgt * distance * barn
+                    elseif ( erg >= Ep(nE) ) then
+                       !$omp atomic
+                       mat % fratio(fid,nE) = mat % fratio(fid,nE) + micro_f * wgt * distance * barn
+                    elseif( nE <= 1 ) then
+                        !$omp atomic
+                        mat % fratio(fid,1) = mat % fratio(fid,1) + micro_f *  wgt * distance * barn
+                    else
+                    do eg = 1, nE-1
+                        if( erg >= Ep(eg) .and. erg < Ep(eg+1)) then
+                            g2 = (erg-Ep(eg))/(Ep(eg+1)-Ep(eg))
+                            !$omp atomic
+                            mat % fratio(fid, eg) = mat % fratio(fid, eg) + micro_f * wgt * distance * barn * (1d0-g2)
+                            !$omp atomic
+                            mat % fratio(fid, eg+1) = mat % fratio(fid, eg+1) + micro_f * wgt * distance * barn * g2
+                        endif
+                    enddo
+                    endif
+                endif
             enddo
         endif
     end subroutine tally_burnup
@@ -2567,7 +2720,7 @@ module depletion_module
     !         MPI reduce burnup tallies 
     ! ===================================================================
     subroutine MPI_reduce_burnup 
-        integer :: iso, imat, i 
+        integer :: iso, imat, i , fid
         real(8) :: rcvbuf, rcvbufarr(7)
         real(8), allocatable :: sndbufarrlong(:), rcvbufarrlong(:)
         real(8) :: val
@@ -2614,6 +2767,21 @@ module depletion_module
                 enddo
                 deallocate(rcvbufarrlong)
                 deallocate(sndbufarrlong) 
+
+                allocate(rcvbufarrlong(1:nfssn * 4))
+                allocate(sndbufarrlong(1:nfssn * 4))
+                do fid = 1, nfssn
+                    sndbufarrlong((fid-1)*4+1:(fid-1)*4+4) = materials(imat) % fratio(fid, :)
+                enddo
+                call MPI_ALLREDUCE(sndbufarrlong, rcvbufarrlong, nfssn*4, MPI_DOUBLE_PRECISION, MPI_SUM, core, ierr)
+                rcvbufarrlong(:) = rcvbufarrlong(:) / dble(n_act) / materials(imat) % vol
+                do fid = 1, nfssn
+                    materials(imat) % fratio(fid, :) = rcvbufarrlong((fid-1)*4+1:(fid-1)*4+4)
+                enddo
+                deallocate(rcvbufarrlong)
+                deallocate(sndbufarrlong) 
+
+                
             endif
         enddo
 

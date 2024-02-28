@@ -84,7 +84,9 @@ implicit none
     real(8), allocatable :: betaarr(:,:), genarr(:), alphaarr(:), lamarr(:,:), betad(:,:)
 
     ! MSR parameter
-    real(8) :: fuel_speed = 0.d0
+    real(8), allocatable :: fuel_speed(:), active_mesh(:), fuel_stay_time(:)
+    real(8) :: fuel_bulk_speed
+    integer :: n_mesh_axial = 0
     logical :: do_fuel_mv = .false.
     real(8) :: t_rc       = 0.d0
     real(8) :: core_height
@@ -92,7 +94,7 @@ implicit none
     real(8) :: core_base
     integer :: n_core_axial, n_core_radial
     real(8), allocatable :: core_prec(:,:,:)
-    integer :: MSR_leak, MSR_leak_kcol
+    integer :: MSR_leak, MSR_leak0
 
     ! MODIFIED ( Oct. 29 2023 )
     ! Modified for RZ

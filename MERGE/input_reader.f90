@@ -309,9 +309,11 @@ recursive subroutine read_geom(path, geom_nest)
     endif
     ! ===================================================================================== !
     !> add pure universes from cells(:)
+    !!$omp parallel do
     do i = 1, size(cells)
         !> if univ_id = 0 then add to base universe / else add to the tail
         if (cells(i)%univ_id == 0 ) then 
+            !!$omp atomic
             universes(0)%ncell = universes(0)%ncell+1
         else
             found = .false.
@@ -323,6 +325,7 @@ recursive subroutine read_geom(path, geom_nest)
                 endif
             enddo 
             if ( .not. found ) then 
+                !!$omp critical
                 isize = size(universes(1:))
                 allocate(universes_temp(0:isize+1))
                 universes_temp(0) = universes(0)
@@ -335,11 +338,14 @@ recursive subroutine read_geom(path, geom_nest)
                 obj_univ%ncell     = 1
                 universes_temp(isize+1) = obj_univ
                 call move_alloc(universes_temp, universes)
+                !!$omp end critical
             elseif (.not. allocated(universes(idx)%r)) then 
+                !!$omp atomic
                 universes(idx)%ncell = universes(idx)%ncell+1
             endif
         endif
     enddo         
+    !!$omp end parallel do
     
     if(icore==score) then
         print *, 'Step2 is done...'
@@ -471,13 +477,15 @@ recursive subroutine read_geom(path, geom_nest)
     do i = 0, size(universes(1:))
         idx = 1
         if (.not.allocated(universes(i)%cell)) allocate(universes(i)%cell(universes(i)%ncell))
+        !!$omp parallel do
         do k = 1, size(cells)
             if (cells(k)%univ_id == universes(i)%univ_id) then 
-                if(universes(i)%ncell < idx) print *, 'HMM?', idx, universes(i)%ncell, universes(i)%univ_id
                 universes(i)%cell(idx) = k
+                !$omp atomic
                 idx = idx+1
             endif 
         enddo 
+        !!$omp end parallel do
     enddo
 
     if(icore==score) then
@@ -489,6 +497,7 @@ recursive subroutine read_geom(path, geom_nest)
     endif
 	
     !> 5. Change lattice universe name to universe index
+    !!$omp parallel do collapse(4)
     do i = 1, size(lattices) 
         do ix = 1, lattices(i)%n_xyz(1)
             do iy = 1, lattices(i)%n_xyz(2)
@@ -499,6 +508,7 @@ recursive subroutine read_geom(path, geom_nest)
             enddo 
         enddo 
     enddo 
+    !!$omp end parallel do
     if(icore==score) then
         print *, 'Step5 is done...'
         print *, 'Surf #:', nsurf
@@ -970,6 +980,7 @@ subroutine READ_CTRL
     directory = "./inputfile/"
     else
     call GETARG(1,directory)
+    title = trim(directory)
     directory = "./inputfile/"//trim(directory)//'/'
     end if
 
@@ -1015,8 +1026,9 @@ end subroutine READ_CTRL
 		integer,intent(in)::File_Number
 		character(*),intent(inout)::Card_Type
 		integer::File_Error
-		character(30):: Char_Temp
+		character(80):: Char_Temp
 		character(80):: line, lib1,lib2
+        integer :: niso
 		character(1)::Equal
 		integer :: n, nm0, nm1, nmat
 		logical :: switch
@@ -1038,7 +1050,6 @@ end subroutine READ_CTRL
         integer, allocatable:: mid(:)
 
         ! For MSR-related feature
-        real(8) :: l_inact = 0d0
 
         ! For Automatic Fissionable
         integer :: iso
@@ -1131,7 +1142,7 @@ end subroutine READ_CTRL
                 case("DBRC")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, DBRC_E_MIN, DBRC_E_MAX, lib1
-                    call find_ACE(lib1, iso_, issab)
+                    call find_ACE(lib1, iso_, issab, .false.)
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
                 case("URES")
                     backspace(File_Number)
@@ -1562,8 +1573,8 @@ end subroutine READ_CTRL
 			    
                 case('LIB_PATH')	
                     backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal
-                    read(File_Number,'(A)',iostat=File_Error) acelib
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, acelib
+                    if(File_Error/=0) read(File_Number,'(A)',iostat=File_Error) acelib
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
                     allocate(ace(1:2000))
                     allocate(sab(1:1000))
@@ -1670,51 +1681,51 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ifp
 
-				case("FUEL_SPEED_AXIAL")
-                    backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fuel_speed
-                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                    if(fuel_speed>=0.d0 .and. do_ifp) do_fuel_mv = .true.
-                    if(l_inact > 0d0) then
-                        t_rc = l_inact / fuel_speed
-                        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
-                    endif 
-                    
-
-                case("RECIRCULATION_TIME")
-                    backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, t_rc
-                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                    
-                case("INACTIVE_LENGTH")
-                    backspace(File_Number)
-                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, l_inact
-                    if(Equal/="=") call Card_Error(Card_Type, Char_Temp)
-                    if(fuel_speed > 0d0) then
-                        t_rc = l_inact / fuel_speed
-                        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
-                    endif
-
-                case("CORE_HEIGHT")
-                    backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_height
-                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-
-                case("CORE_RADIUS")
-                    backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_radius
-                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-
-                case("CORE_BASE")
-                    backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_base
-                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                case("N_CORE_MESH")
-                    backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_core_radial, n_core_axial
-                    print *, 'HM?', Char_Temp, Equal, n_core_radial
-                    allocate(core_prec(8,n_core_axial,n_core_radial)); core_prec = 0.d0
-                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+!				case("FUEL_SPEED_AXIAL")
+!                    backspace(File_Number)
+!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fuel_speed
+!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+!                    if(fuel_speed>=0.d0 .and. do_ifp) do_fuel_mv = .true.
+!                    if(l_inact > 0d0) then
+!                        t_rc = l_inact / fuel_speed
+!                        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
+!                    endif 
+!                    
+!
+!                case("RECIRCULATION_TIME")
+!                    backspace(File_Number)
+!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, t_rc
+!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+!                    
+!                case("INACTIVE_LENGTH")
+!                    backspace(File_Number)
+!                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, l_inact
+!                    if(Equal/="=") call Card_Error(Card_Type, Char_Temp)
+!                    if(fuel_speed > 0d0) then
+!                        t_rc = l_inact / fuel_speed
+!                        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
+!                    endif
+!
+!                case("CORE_HEIGHT")
+!                    backspace(File_Number)
+!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_height
+!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+!
+!                case("CORE_RADIUS")
+!                    backspace(File_Number)
+!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_radius
+!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+!
+!                case("CORE_BASE")
+!                    backspace(File_Number)
+!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_base
+!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+!                case("N_CORE_MESH")
+!                    backspace(File_Number)
+!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_core_radial, n_core_axial
+!                    print *, 'HM?', Char_Temp, Equal, n_core_radial
+!                    allocate(core_prec(8,n_core_axial,n_core_radial)); core_prec = 0.d0
+!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
                 case("MSR_FLOW")
                     backspace(File_Number)
                     read(File_Number, *, iostat=File_Error) Char_Temp, Equal, do_fuel_mv, v_type
@@ -1725,8 +1736,9 @@ end subroutine READ_CTRL
                             case("RZ")
                                 flowtype = 1    !> 1 for RZ
                                 call READ_MSR_RZ
-                            case("BULK")
-                                ! DO NOTHING...
+                            case("Z")
+                                flowtype = 2
+                                call READ_MSR_Z
                                 continue
                             case default
                                 if(icore==score) then
@@ -1807,7 +1819,7 @@ end subroutine READ_CTRL
                             CE_mat_ptr % sab = .true.
                             read(File_Number,*,iostat=File_Error) Char_Temp, Equal, lib1, link
                             if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                            call find_ACE(lib1, iso_, issab)
+                            call find_ACE(lib1, iso_, issab, .false.)
                             if(.not. issab) then
                                 if(icore==score) print *, trim(lib1), ' is not S(a,b) lib.'
                             else
@@ -1836,28 +1848,45 @@ end subroutine READ_CTRL
                                 sablist(n_sab) = -ii
                                 linklist(n_sab)= link ! In ZAID
                             endif
-                        case("N_ISO")
-                            backspace(File_Number)
-                            read(File_Number,*,iostat=File_Error) Char_Temp, Equal, CE_mat_ptr%n_iso
-                            if(Equal/="=") call Card_Error(Card_Type,Char_Temp)    
-                            allocate(CE_mat_ptr%ace_idx(1:CE_mat_ptr%n_iso))
-                            allocate(CE_mat_ptr%numden(1:CE_mat_ptr%n_iso)) 
-                            allocate(numden(1:CE_mat_ptr%n_iso)) 
+!                        case("N_ISO")
+!                            backspace(File_Number)
+!                            read(File_Number,*,iostat=File_Error) Char_Temp, Equal, CE_mat_ptr%n_iso
+!                            if(Equal/="=") call Card_Error(Card_Type,Char_Temp)    
+!                            allocate(CE_mat_ptr%ace_idx(1:CE_mat_ptr%n_iso))
+!                            allocate(CE_mat_ptr%numden(1:CE_mat_ptr%n_iso)) 
+!                            allocate(numden(1:CE_mat_ptr%n_iso)) 
                             
                         case("ISOTOPES")
                             backspace(File_Number)
                             if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
 
                             ! Store ACE Data path
+
+                            niso = 1
+                            allocate(CE_mat_ptr % numden ( 1000 ) )
+                            allocate(CE_mat_ptr % ace_idx( 1000 ) )
+
                             read(File_Number,*,iostat=File_Error) Char_Temp, Equal, line, CE_mat_ptr%numden(1)
-                            call find_ACE(line, iso_, issab)
+                            call find_ACE(line, iso_, issab, CE_mat_ptr % depletable)
                             CE_mat_ptr % ace_idx(1) = iso_
                             
-                            do i = 2, CE_mat_ptr%n_iso
+                            ISOLOOP: do i = 2, 1000
+                                read(File_Number,*,iostat=File_Error) line
+                                backspace(File_Number)
+                                if(line(len_trim(line):len_trim(line)) /= 'c') exit ISOLOOP
+                                niso = niso + 1
                                 read(File_Number,*,iostat=File_Error) line, CE_mat_ptr%numden(i)
-                                call find_ACE(line, iso_, issab)
+                                call find_ACE(line, iso_, issab, CE_mat_ptr % depletable)
                                 CE_mat_ptr % ace_idx(i) = iso_
-                            enddo 
+                            enddo ISOLOOP
+                            
+                            CE_mat_ptr % n_iso = niso
+                            allocate(numden(niso))
+
+
+                            CE_mat_ptr % numden = CE_mat_ptr % numden(1:niso)
+                            CE_mat_ptr % ace_idx= CE_mat_ptr % ace_idx(1:niso)
+
 							if (CE_mat_ptr%density_gpcc < 0 .and. CE_mat_ptr%numden(1) < 0) then 
 								numden(:) = CE_mat_ptr%numden(:)
 								sum_den = sum(numden(:))
@@ -2021,8 +2050,8 @@ end subroutine READ_CTRL
                     therm(therm_iso) % lib_low  = trim(tchar2)
                     therm(therm_iso) % lib_high = trim(tchar3)
                     therm(therm_iso) % temp = tmp * K_B 
-                    call find_ACE(therm(therm_iso) % lib_low, therm(therm_iso) % iso_low, issab_low) 
-                    call find_ACE(therm(therm_iso) % lib_high,therm(therm_iso) % iso_high,issab_high)
+                    call find_ACE(therm(therm_iso) % lib_low, therm(therm_iso) % iso_low, issab_low, .false.)
+                    call find_ACE(therm(therm_iso) % lib_high,therm(therm_iso) % iso_high,issab_high, .false.)
                     therm(therm_iso) % issab    = issab_low
                     if( therm(therm_iso) % issab ) then ! S(a,b)
                         t1 = sab(therm(therm_iso)%iso_low) % temp
@@ -2144,12 +2173,33 @@ end subroutine READ_CTRL
                     if(icore==score) print *, 'BURN STEP ADJUSTED:', nstep_burnup, burn_step(:)/86400.d0
                     if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
 
-                case("LIBRARY_PATH")
+!                 case("LIBRARY_PATH")
+!                     backspace(File_Number)
+!                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal
+!                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+!                     read(File_Number,'(A)',iostat=File_Error) dep_lib(:)
+!                     dep_lib = adjustl(dep_lib)
+                case("DEC_LIB")
                     backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal
+                    read(File_Number, * ,iostat=File_Error) Char_Temp, Equal, dec_lib
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                    read(File_Number,'(A)',iostat=File_Error) dep_lib(:)
-                    dep_lib = adjustl(dep_lib)
+                    dec_lib = trim(directory)//adjustl(dec_lib)
+                    if(icore==score) print *, 'DEC', dec_lib
+                case("NFY_LIB")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, nfy_lib
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+                    nfy_lib = trim(directory)//adjustl(nfy_lib)
+                case("SFY_LIB")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, sfy_lib
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+                    sfy_lib = trim(directory)//adjustl(sfy_lib)
+                case("ISOM_LIB")
+                    backspace(File_Number)
+                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, isom_lib
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+                    isom_lib = trim(directory)//adjustl(isom_lib)
                 ! Own input for removal/refueling
                 case("REMOVAL_GAS")
                     backspace(File_Number)
@@ -3382,6 +3432,94 @@ end function
 		
 	end function 
 
+    subroutine READ_MSR_Z
+    implicit none
+    integer :: File_Error, ierr
+    character(30) :: Char_Temp
+    character(1)  :: Equal
+    real(8) :: l_inact = 0d0
+    integer :: z
+    real(8), allocatable :: tt(:)
+    if ( icore == score ) print *, '    Reading MSR_Z.inp'
+    filename = trim(directory)//'MSR_Z.inp'
+    open(rd_rz, file=trim(filename), action='read', status='old')
+    ierr = 0
+
+    do while (ierr == 0)
+        read(rd_rz, *, iostat=ierr) Char_Temp
+        if ( ierr /= 0 ) exit
+        call Small_to_Capital(Char_Temp)
+        select case(Char_Temp)
+            case("N_AXIAL_MESH")
+                backspace(rd_rz)
+                read(rd_rz, *, iostat=File_Error) Char_Temp, Equal, n_mesh_axial
+                allocate(fuel_speed(n_mesh_axial))
+                allocate(active_mesh(n_mesh_axial-1))
+
+
+            case("FUEL_SPEED_AXIAL")
+                backspace(rd_rz)
+                read(rd_rz, *, iostat=File_Error) Char_Temp, Equal, fuel_speed(1:n_mesh_axial)
+
+                if(ANY(fuel_speed<=0d0)) then
+                    if(icore==score) print *, fuel_speed
+                    if(icore==score) print *, '    Fuel is stuck!'
+                    stop
+                endif
+                if(do_ifp) do_fuel_mv = .true.
+
+            case("FUEL_SPEED_AXIAL_MESH")
+                backspace(rd_rz)
+                if(n_mesh_axial >= 1) then ! If axial speed is defined...
+                    read(rd_rz, *, iostat=File_Error) Char_Temp, Equal, active_mesh(1:n_mesh_axial-1)
+                else
+                    read(rd_rz, *, iostat=File_Error) Char_Temp
+                endif   
+
+            case("RECIRCULATION_TIME")
+                backspace(rd_rz)
+                read(rd_rz,*,iostat=File_Error) Char_Temp, Equal, t_rc
+                
+            case("INACTIVE_LENGTH")
+                backspace(rd_rz)
+                read(rd_rz, *, iostat=File_Error) Char_Temp, Equal, l_inact
+
+            case("CORE_HEIGHT")
+                backspace(rd_rz)
+                read(rd_rz,*,iostat=File_Error) Char_Temp, Equal, core_height
+
+            case("CORE_RADIUS")
+                backspace(rd_rz)
+                read(rd_rz,*,iostat=File_Error) Char_Temp, Equal, core_radius
+
+            case("CORE_BASE")
+                backspace(rd_rz)
+                read(rd_rz,*,iostat=File_Error) Char_Temp, Equal, core_base
+            case("CORE_TALLY_MESH")
+                backspace(rd_rz)
+                read(rd_rz,*,iostat=File_Error) Char_Temp, Equal, n_core_radial, n_core_axial
+                allocate(core_prec(n_core_axial,n_core_radial,8)); core_prec = 0.d0
+                print *, 'CORE_PREC', n_core_axial, n_core_radial
+        end select
+    enddo
+
+    allocate(tt(0:n_mesh_axial))
+    tt(0) = core_base
+    if(allocated(active_mesh)) tt(1:n_mesh_axial-1) = active_mesh(1:n_mesh_axial-1)
+    tt(n_mesh_axial) = core_base + core_height
+    call move_alloc(tt, active_mesh)
+
+    allocate(fuel_stay_time(1:n_mesh_axial))
+    if(icore==score) print *, 'ACT', active_mesh
+    fuel_stay_time = (active_mesh(1:n_mesh_axial)-active_mesh(0:n_mesh_axial-1))/fuel_speed
+    if(icore==score) print *, 'STAY', fuel_stay_time
+
+    if(l_inact > 0d0 .and. sum(fuel_speed) > 0d0) then
+        t_rc = l_inact / (core_height/sum(fuel_stay_time))
+        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
+    endif 
+    end subroutine
+
     subroutine READ_MSR_RZ
     implicit none
     integer :: File_Error, ierr
@@ -3433,7 +3571,7 @@ end function
             case("PLOT_MESH")
                 backspace(rd_rz)
                 read(rd_rz, *, iostat=File_Error) Char_Temp, n_core_radial, n_core_axial
-                allocate(core_prec(8, n_core_axial, n_core_radial))
+                allocate(core_prec(n_core_axial, n_core_radial, 8))
 
                 core_prec = 0d0
         end select

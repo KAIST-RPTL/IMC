@@ -235,6 +235,8 @@ subroutine SAB_THERM_EL_CE(p,iso,isab_l,isab_h,f)
     real(8) :: uvw_l(3), uvw_h(3)
     real(8) :: E_l, E_h
 
+    if ( sab(isab_l)%nxs(5)==0 .or. sab(isab_l)%nxs(6)==-1 .or. sab(isab_l)%jxs(6)==0) return
+    if ( sab(isab_h)%nxs(5)==0 .or. sab(isab_h)%nxs(6)==-1 .or. sab(isab_h)%jxs(6)==0) return
     ! LOW TEMP
     ab1 => sab(isab_l)%itca
     ab2 => sab(isab_l)%itce
@@ -430,12 +432,18 @@ subroutine SAB_EL_CE(p,iso,isab)
     ipfac=max(0D0,min(1D0,(p%e-ab2%erg(ierg))/(ab2%erg(ierg+1)-ab2%erg(ierg))))
 
     ! outgoing angle
-    mu = ab1%ang(ierg,iang) + ipfac*(ab1%ang(ierg+1,iang)-ab1%ang(ierg,iang))
+    if( allocated( ab1 % ang ) ) then 
+        mu = ab1%ang(ierg,iang) + ipfac*(ab1%ang(ierg+1,iang)-ab1%ang(ierg,iang))
+    elseif ( ab2 % erg ( ierg ) < p % e ) then
+        mu = 1d0 - 2d0 * ab2 % erg(ierg) / p % e
+    else
+        print *, 'ERG is something wrong...'
+    endif
     
     ! coordinate change
     awr = ace(iso)%atn
     aa = 1D0+awr*(awr+2D0*mu)
-    p%E = p%E*aa / ((1D0+awr)*(1D0+awr))
+    !p%E = p%E*aa / ((1D0+awr)*(1D0+awr))
     mu = (1D0+mu*awr)/sqrt(aa)
     p%coord(1)%uvw = rotate_angle(p%coord(1)%uvw,mu)
     
@@ -993,39 +1001,6 @@ subroutine fissionSite_CE (p, iso, micro_xs)
 end subroutine
 
 
-subroutine MSR_treatment(xyz, t_emit)
-    use variables, only: core_radius, core_height, fuel_speed, core_base, t_rc, MSR_leak
-    implicit none
-    real(8), intent(inout) :: xyz(3)
-    real(8), intent(in)    :: t_emit
-    integer :: n_recirc
-    real(8) :: t_end, t_res
-    real(8) :: rn1, rn2
-    integer :: zidx
-
-    if(.not. do_fuel_mv) return
-    if(fuel_speed <= 0.d0) return
-    t_end   = (core_height-(xyz(3)-core_base)) / fuel_speed
-    n_recirc= max(0,floor((t_emit-t_end)/(t_rc + (core_height/fuel_speed))))
-    t_res   = t_emit - t_end - n_recirc * (t_rc + core_height/fuel_speed)
-
-    if(t_emit < t_end) then ! decays before hits top
-        xyz(3) = xyz(3) + fuel_speed * t_emit
-    elseif(t_res<=t_rc) then ! decays out of the core: exterminates
-        bank_idx = bank_idx - 1
-        !print *, 'DEAD', t_emit, t_end, t_res, t_rc
-        MSR_leak = MSR_leak + 1
-        !print *, MSR_leak
-    elseif(t_res>t_rc) then ! recirculate and decayed
-        rn1 = rang(); rn2 = rang()
-        xyz(1) = rn1 * core_radius * cos(2*pi*rn2)
-        xyz(2) = rn1 * core_radius * sin(2*pi*rn2)
-        xyz(3) = core_base + fuel_speed * (t_res-t_rc)
-        !print *, 'RECIRC', t_emit, t_end, t_res, t_rc, xyz(1:3)
-    else
-        bank_idx = bank_idx - 1
-    endif
-end subroutine
 
 ! ================================================== !
 !    fission_E() samples the fission neutron Energy. 
