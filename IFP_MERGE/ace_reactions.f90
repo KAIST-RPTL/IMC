@@ -235,8 +235,6 @@ subroutine SAB_THERM_EL_CE(p,iso,isab_l,isab_h,f)
     real(8) :: uvw_l(3), uvw_h(3)
     real(8) :: E_l, E_h
 
-    if ( sab(isab_l)%nxs(5)==0 .or. sab(isab_l)%nxs(6)==-1 .or. sab(isab_l)%jxs(6)==0) return
-    if ( sab(isab_h)%nxs(5)==0 .or. sab(isab_h)%nxs(6)==-1 .or. sab(isab_h)%jxs(6)==0) return
     ! LOW TEMP
     ab1 => sab(isab_l)%itca
     ab2 => sab(isab_l)%itce
@@ -416,8 +414,6 @@ subroutine SAB_EL_CE(p,iso,isab)
     real(8):: ipfac         ! interpolation factor
     real(8):: awr           ! atomic weight ratio
     real(8):: aa            ! parameter
-    real(8):: r
-    integer:: j
 
     ! isab = ace(iso)%sab_iso
 
@@ -434,22 +430,13 @@ subroutine SAB_EL_CE(p,iso,isab)
     ipfac=max(0D0,min(1D0,(p%e-ab2%erg(ierg))/(ab2%erg(ierg+1)-ab2%erg(ierg))))
 
     ! outgoing angle
-    if( allocated( ab1 % ang ) ) then 
-        mu = ab1%ang(ierg,iang) + ipfac*(ab1%ang(ierg+1,iang)-ab1%ang(ierg,iang))
-    elseif ( ab2 % erg ( ierg ) < p % e ) then
-        r = rang()
-        COH_MU: do j = 1, ierg
-            if ( ab2 % erg(j) / ab2 % erg(ierg) > r ) then
-                mu = 1d0 - 2d0 * ab2 % erg(j) / p % e
-                exit COH_MU
-            endif
-        enddo COH_MU
-
-    else
-        print *, 'ERG is something wrong...'
-    endif
+    mu = ab1%ang(ierg,iang) + ipfac*(ab1%ang(ierg+1,iang)-ab1%ang(ierg,iang))
     
     ! coordinate change
+    awr = ace(iso)%atn
+    aa = 1D0+awr*(awr+2D0*mu)
+    p%E = p%E*aa / ((1D0+awr)*(1D0+awr))
+    mu = (1D0+mu*awr)/sqrt(aa)
     p%coord(1)%uvw = rotate_angle(p%coord(1)%uvw,mu)
     
     if ( associated(ab1) ) nullify(ab1)
@@ -848,8 +835,8 @@ subroutine fissionSite_CE (p, iso, micro_xs)
     integer :: iMT, MT
     integer :: pt1, pt2, pt3
     integer :: law, ilaw        ! collision law
-    real(8) :: ipfac    ! interpolation factor
-    real(8) :: F         ! collision probability
+    real(8) :: ipfac            ! interpolation factor
+    real(8) :: F                ! collision probability
     real(8) :: erg_out, mu
     integer :: id(3)
     logical :: delayed
@@ -974,31 +961,43 @@ subroutine fissionSite_CE (p, iso, micro_xs)
         erg_out = p%E
         !> call the corresponding law subroutines
         call law_selector (erg_out, iso, mu, eg%dist(ilaw), iMT, law)
-        thread_bank(bank_idx)%E = erg_out
+        thread_bank(bank_idx)%E       = erg_out
         thread_bank(bank_idx)%delayed = delayed
-        thread_bank(bank_idx)%G = iso
-        thread_bank(bank_idx)%time = 0
-        if(do_ifp) then
-        ! ADJOINT : pass particle's IFP related info. to bank
-            if(latent>1) thread_bank(bank_idx)%delayedarr(1:latent-1) = p%delayedarr(2:latent)
-            if(latent>1) thread_bank(bank_idx)%delayedlam(1:latent-1) = p%delayedlam(2:latent)
-            if(latent>1) thread_bank(bank_idx)%nlifearr(1:latent-1)   = p%nlifearr(2:latent)
-            if(p%trvltime > 0) thread_bank(bank_idx)%nlifearr(latent)    = p%trvltime
-            if(delayed) then
-                thread_bank(bank_idx)%delayedarr(latent) = iMT
-                thread_bank(bank_idx)%delayedlam(latent) = ace(iso) % prcr(iMT) % decay_const
-                thread_bank(bank_idx)%G   = iMT
-            else !prompt
-                thread_bank(bank_idx)%delayedarr(latent) = 0
-                thread_bank(bank_idx)%delayedlam(latent) = 0
-            endif
+        thread_bank(bank_idx)%G       = iso
+        thread_bank(bank_idx)%time    = 0
+        ! (TSOH-IFP)	! ADJOINT : pass particle's IFP related info. to bank
+        ! (TSOH-IFP)	if(latent>1) thread_bank(bank_idx)%delayedarr(1:latent-1) = p%delayedarr(2:latent)
+        ! (TSOH-IFP)	if(latent>1) thread_bank(bank_idx)%delayedlam(1:latent-1) = p%delayedlam(2:latent)
+        ! (TSOH-IFP)	if(latent>1) thread_bank(bank_idx)%nlifearr(1:latent-1)   = p%nlifearr(2:latent)
+        ! (TSOH-IFP)	if(p%trvltime > 0) thread_bank(bank_idx)%nlifearr(latent)    = p%trvltime
+        ! (TSOH-IFP)	if(delayed) then
+        ! (TSOH-IFP)	    thread_bank(bank_idx)%delayedarr(latent) = iMT
+        ! (TSOH-IFP)	    thread_bank(bank_idx)%delayedlam(latent) = ace(iso) % prcr(iMT) % decay_const
+        ! (TSOH-IFP)	    thread_bank(bank_idx)%G   = iMT
+        ! (TSOH-IFP)	else !prompt
+        ! (TSOH-IFP)	    thread_bank(bank_idx)%delayedarr(latent) = 0
+        ! (TSOH-IFP)	    thread_bank(bank_idx)%delayedlam(latent) = 0
+        ! (TSOH-IFP)	endif
+		
+		! TSOH-IFP: IT IS THE DERIVED DATA TYPE FOR SOURCE (BANK) THAT AFFECTS THE COMPUTING BURDEN, NOT THE inclusion/exclusion of IFP optional
+		thread_bank(bank_idx)%nlife    = p%trvltime
+		thread_bank(bank_idx)%i_Parent = p%i_Parent
+		! * DELAYED NEUTRON
+        if(delayed) then
+            thread_bank(bank_idx)%dIMT = iMT
+			thread_bank(bank_idx)%dlam = ace(iso) % prcr(iMT) % decay_const
+			thread_bank(bank_idx)%G    = iMT
+		! * PROMPT NEUTRON
+        else
+			thread_bank(bank_idx)%dIMT = 0
+			thread_bank(bank_idx)%dlam = 0
         endif
+		
         if(do_fuel_mv .and. delayed) then
             lambda = ace(iso)%prcr(iMT)%decay_const
             thread_bank(bank_idx)%time= -log(rang())/lambda
             !call prec_rz(thread_bank(bank_idx) % xyz, thread_bank(bank_idx) % time)
-            call msr_dnp_track(thread_bank(bank_idx)%xyz, &
-                thread_bank(bank_idx)%time)
+            call msr_dnp_track(thread_bank(bank_idx)%xyz, thread_bank(bank_idx)%time)
         endif
     enddo 
 
@@ -1006,6 +1005,39 @@ subroutine fissionSite_CE (p, iso, micro_xs)
 end subroutine
 
 
+subroutine MSR_treatment(xyz, t_emit)
+    use variables, only: core_radius, core_height, fuel_speed, core_base, t_rc, MSR_leak
+    implicit none
+    real(8), intent(inout) :: xyz(3)
+    real(8), intent(in)    :: t_emit
+    integer :: n_recirc
+    real(8) :: t_end, t_res
+    real(8) :: rn1, rn2
+    integer :: zidx
+
+    if(.not. do_fuel_mv) return
+    if(fuel_speed <= 0.d0) return
+    t_end   = (core_height-(xyz(3)-core_base)) / fuel_speed
+    n_recirc= max(0,floor((t_emit-t_end)/(t_rc + (core_height/fuel_speed))))
+    t_res   = t_emit - t_end - n_recirc * (t_rc + core_height/fuel_speed)
+
+    if(t_emit < t_end) then ! decays before hits top
+        xyz(3) = xyz(3) + fuel_speed * t_emit
+    elseif(t_res<=t_rc) then ! decays out of the core: exterminates
+        bank_idx = bank_idx - 1
+        !print *, 'DEAD', t_emit, t_end, t_res, t_rc
+        MSR_leak = MSR_leak + 1
+        !print *, MSR_leak
+    elseif(t_res>t_rc) then ! recirculate and decayed
+        rn1 = rang(); rn2 = rang()
+        xyz(1) = rn1 * core_radius * cos(2*pi*rn2)
+        xyz(2) = rn1 * core_radius * sin(2*pi*rn2)
+        xyz(3) = core_base + fuel_speed * (t_res-t_rc)
+        !print *, 'RECIRC', t_emit, t_end, t_res, t_rc, xyz(1:3)
+    else
+        bank_idx = bank_idx - 1
+    endif
+end subroutine
 
 ! ================================================== !
 !    fission_E() samples the fission neutron Energy. 
