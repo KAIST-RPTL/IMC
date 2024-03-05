@@ -20,7 +20,7 @@ function getMacroXS_UEG(mat, erg, kT, urn) result (macro_xs)
     type(Material_CE), intent(in) :: mat
     real(8), intent(in) :: erg, kT
     real(8), intent(in) :: urn(1:n_unr)
-    real(8) :: macro_xs(5)
+    real(8) :: macro_xs(5), macro_2(5)
     real(8) :: xs(4), micro_xs(6)
 
     real(8) :: dtemp ! OTF DB
@@ -37,8 +37,15 @@ function getMacroXS_UEG(mat, erg, kT, urn) result (macro_xs)
     ipfac = max(0D0,min(1D0,(erg-ueggrid(ierg))/(ueggrid(ierg+1)-ueggrid(ierg))))
 
     ! 3. Interpolate
+    !print *, 'ALLOC?', allocated(mat % macro_ueg), trim(mat % mat_name)
     macro_xs(:) = (mat % macro_ueg(ierg,:) &
         + ipfac * (mat % macro_ueg(ierg+1,:) - mat % macro_ueg(ierg,:)))
+
+!    macro_2 = getMacroXS(mat, erg, kT, urn)
+!    print *, 'COMPARISON'
+!    do i = 1, 5
+!        print *, i, macro_xs(i), macro_2(i), erg
+!    enddo
 
     ! 4. ADDITIONAL XS: URES
     if(n_unr == 0) return
@@ -644,7 +651,7 @@ subroutine setuegrid
     idx = 1
     tmpgrid_2(0)   = 0d0
     tmpgrid_2(idx) = tmpgrid(1)
-    tolerance = 5D-5
+    tolerance = 0d0
     do i = 2, totngrid
         !if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<Emax &
         !    )then
@@ -1327,7 +1334,7 @@ function EFF_IERG(E0,iso,p1,p2) result(pt4)
     pt1 = p1
     pt2 = p2
 
-    pt2 = pt2 + 1
+    !pt2 = pt2 + 1
 
     if ( pt1 == pt2 ) then
         pt4 = pt1 - 1
@@ -1749,14 +1756,14 @@ subroutine setMacroXS(BU)
     logical, intent(in) :: BU
     integer :: i, j, iso, ii, imat
     integer :: nprod
-    real(8) :: micro(5), xs(6), ipfac
+    real(8) :: micro(5), xs(6), ipfac, xs1(5)
 
     integer :: ierg, cnt
-    integer :: ierg_sab, epoint, i_low, i_high
+    integer :: ierg_sab, ierg_otf, epoint, i_low, i_high
     real(8) :: ff
 
     cnt = 0
-    !$OMP PARALLEL DO PRIVATE(iso, mat, micro, nprod, xs)
+    !$OMP PARALLEL DO PRIVATE(iso, mat, micro, nprod, xs, xs1, ierg_sab, ierg_otf, i, j, epoint)
     do imat = 1, n_materials
     !if(BU .and. .not. materials(imat)%depletable) cycle
     mat => materials(imat)
@@ -1829,6 +1836,36 @@ subroutine setMacroXS(BU)
             mat % macro_ueg(ierg_sab + 1:, 2) =  mat % macro_ueg(ierg_sab + 1:, 2) + &
                 ace(iso) % UEG % sigd(ierg_sab+1:) * mat % numden(i) * barn
 
+        elseif ( mat % db .and. ((mat%temp-ace(iso)%temp) > K_B * 1e-2 ) ) then
+            call getiueg( 1d0, ierg_otf )
+            ierg_otf = ierg_otf - 1
+            do epoint = 1, ierg_otf
+                call GET_OTF_DB_MAC( mat % numden(i), i, iso, ueggrid(epoint), xs1, (mat%temp-ace(iso)%temp))
+                mat % macro_ueg(epoint, 1) = mat % macro_ueg(epoint, 1) + &
+                    xs1(1)
+                mat % macro_ueg(epoint, 2) = mat % macro_ueg(epoint, 2) + &
+                    xs1(2)
+                mat % macro_ueg(epoint, 3) = mat % macro_ueg(epoint, 3) + &
+                    xs1(3)
+                mat % macro_ueg(epoint, 4) = mat % macro_ueg(epoint, 4) + &
+                    xs1(4)
+                mat % macro_ueg(epoint, 5) = mat % macro_ueg(epoint, 5) + &
+                    xs1(5)
+            enddo
+            mat % macro_ueg(ierg_otf+1:,1) = mat % macro_ueg(ierg_otf+1:,1) + &
+                ace(iso) % UEG % sigt(ierg_otf+1:) * mat % numden(i) * barn
+
+            mat % macro_ueg(ierg_otf+1:,2) = mat % macro_ueg(ierg_otf+1:,2) + &
+                ace(iso) % UEG % sigd(ierg_otf+1:) * mat % numden(i) * barn
+
+            if(allocated(ace(iso) % UEG % sigf)) then
+                mat % macro_ueg(ierg_otf+1:,3) = mat % macro_ueg(ierg_otf+1:,3) + &
+                    ace(iso) % UEG % sigf(ierg_otf+1:) * mat % numden(i) * barn
+                mat % macro_ueg(ierg_otf+1:,4) = mat % macro_ueg(ierg_otf+1:,4) + &
+                    ace(iso) % UEG % signuf(ierg_otf+1:) * mat % numden(i) * barn
+                mat % macro_ueg(ierg_otf+1:,5) = mat % macro_ueg(ierg_otf+1:,5) + &
+                    ace(iso) % UEG % sigf(ierg_otf+1:) * mat % numden(i) * barn * ace(iso) % qval
+            endif               
         else
             mat % macro_ueg(:,1) = mat % macro_ueg(:,1) + &
                 ace(iso) % UEG % sigt(:) * mat % numden(i) * barn

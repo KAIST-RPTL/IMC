@@ -41,7 +41,7 @@ subroutine collision_CE (p)
     real(8) :: xs_t(5)
 	real(8) :: E_prev, tmp, xs_noel
 	logical :: elastic = .true. 
-    integer :: isab
+    integer :: isab = 0
 	
 	E_prev = p%E 
     p%n_collision = p%n_collision + 1
@@ -125,7 +125,7 @@ subroutine collision_CE (p)
             call SAB_CE(p,iso,isab,micro_xs(2),micro_xs(6))
         elseif( p % yes_sab .and. isab < 0) then
             !call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
-            if(.not.allocated(therm)) print *, 'NOTHERM RX'
+            if(.not.allocated(therm)) print *, 'NOTHERM RX', materials(p%material)%sablist(:), p % yes_sab, isab
             if( rang() > therm(-isab) % f ) then
                 call SAB_CE(p, iso, therm(-isab) % iso_low, micro_xs(2), micro_xs(6))
             else
