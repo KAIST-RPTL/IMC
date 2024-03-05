@@ -41,7 +41,7 @@ subroutine collision_CE (p)
     real(8) :: xs_t(5)
 	real(8) :: E_prev, tmp, xs_noel
 	logical :: elastic = .true. 
-    integer :: isab = 0
+    integer :: isab
 	
 	E_prev = p%E 
     p%n_collision = p%n_collision + 1
@@ -61,7 +61,7 @@ subroutine collision_CE (p)
     else
         macro_xs = getMacroXS(materials(p%material), p%E,p%kT, p%urn)
     endif
-    rn = rang(); temp = 0; iso = materials(p%material)%n_iso
+    rn = rang(); temp = 0; iso = materials(p%material)%n_iso; isab = 0
     do i = 1, materials(p%material)%n_iso
         dtemp = abs(p%kT-ace(materials(p%material)%ace_idx(i))%temp) 
 		
@@ -83,7 +83,7 @@ subroutine collision_CE (p)
             iso = materials(p%material)%ace_idx(i)
             isab = materials(p%material) % sablist(i)
             i_iso = i
-            if( materials(p%material)%sablist(i) /= 0 & 
+            if( isab /= 0 & 
                 .and. p%E < 4D-6 ) then
                 p%yes_sab = .true.
             else
