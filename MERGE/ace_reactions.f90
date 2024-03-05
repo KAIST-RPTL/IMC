@@ -184,7 +184,7 @@ subroutine WHAT_TEMPERATURE(p)
         case(3); p%kT = t_bulk(ixyz(1),ixyz(2),ixyz(3))
         end select
     elseif ( .not. materials(p%material)%DB .or. p%kT == 0 .or. (do_gmsh .and. .not. p%in_tet)) then 
-        p%kT = ace(materials(p%material)%ace_idx(1))%temp
+        p%kT = materials( p % material ) % temp
     end if
 
 end subroutine
@@ -675,7 +675,7 @@ subroutine elastic_CE (p, iso)
         mu = sign(1.0d0, mu)
     endif
     
-    call directionEnergy (p, mu, iMT, iso) 
+    call directionEnergy (p, mu, iMT, iso, p % kT)
     
 end subroutine
 
@@ -722,7 +722,11 @@ subroutine notElastic_CE (p,iso,xn)
         if (ierg >= (sigmt%IE+sigmt%NE-1) .or. ierg < sigmt%IE  ) cycle 
         
         !> 2. calculate XS for the reaction type
-        sig_arr(i) = sigmt%cx(ierg) + ipfac*(sigmt%cx(ierg+1)-sigmt%cx(ierg))
+        if ( (p % kT - ace(iso) % temp) > 1e-2 * K_B ) then
+            call GET_OTF_DB_MT(p % kT, iso, p % E, i, sig_arr(i))
+        else
+            sig_arr(i) = sigmt%cx(ierg) + ipfac*(sigmt%cx(ierg+1)-sigmt%cx(ierg))
+        endif
     enddo 
     
     
@@ -816,7 +820,7 @@ subroutine notElastic_CE (p,iso,xn)
     
 	
 	
-    call directionEnergy (p, mu, iMT, iso) 
+    call directionEnergy (p, mu, iMT, iso, p%kT)
     
     xn = abs(ace(iso)%TY(iMT))
     if(xn > 4 .or. xn == 0) xn = 1
@@ -888,7 +892,11 @@ subroutine fissionSite_CE (p, iso, micro_xs)
             sigmt => ace(iso)%sig_MT(i)
             if (ierg >= (sigmt%IE+sigmt%NE-1) .or. ierg < sigmt%IE  ) cycle 
             !> 2. calculate XS for the reaction type
-            sig_arr(i) = sigmt%cx(ierg) + ipfac*(sigmt%cx(ierg+1)-sigmt%cx(ierg))
+            if ( (p % kT - ace(iso) % temp) > 1e-2 * K_B ) then
+                call GET_OTF_DB_MT(p % kT, iso, p % E, i, sig_arr(i))
+            else
+                sig_arr(i) = sigmt%cx(ierg) + ipfac*(sigmt%cx(ierg+1)-sigmt%cx(ierg))
+            endif
         enddo 
         
         
@@ -1042,7 +1050,11 @@ function fission_E (E_in, iso,delayed,delayed_group) result (E_out)
         sigmt => ace(iso)%sig_MT(i)
         if (ierg >= (sigmt%IE+sigmt%NE-1) .or. ierg < sigmt%IE  ) cycle 
         !> 2. calculate XS for the reaction type
-        sig_arr(i) = sigmt%cx(ierg) + ipfac*(sigmt%cx(ierg+1)-sigmt%cx(ierg))
+!        if ( (p % kT - ace(iso) % temp) > 1e-2 * K_B ) then
+!            call GET_OTF_DB_MT(p % kT, iso, p % E, i, sig_arr(i))
+!        else
+            sig_arr(i) = sigmt%cx(ierg) + ipfac*(sigmt%cx(ierg+1)-sigmt%cx(ierg))
+!        endif
     enddo 
     
     rn = rang()
@@ -1121,7 +1133,7 @@ end subroutine
 !    directionEnergy() calculates mu and E in the 
 !    target-at-rest (lab) frame 
 ! ================================================== !
-subroutine directionEnergy (p, mu, iMT, iso) 
+subroutine directionEnergy (p, mu, iMT, iso, kT)
 
     type(particle), intent(inout) :: p 
     real(8), intent(inout) :: mu
@@ -1131,7 +1143,7 @@ subroutine directionEnergy (p, mu, iMT, iso)
     real(8) :: temp, val
     logical :: found = .false. 
     integer :: j 
-    real(8) :: kT        ! temperature (MeV)
+    real(8), intent(in) :: kT        ! temperature (MeV)
     real(8):: uvw(3)
     
     
@@ -1143,7 +1155,7 @@ subroutine directionEnergy (p, mu, iMT, iso)
         mu_CM = mu
         Ein = p%E
         A = ace(iso)%atn
-        kT = ace(iso)%temp
+        !kT = ace(iso)%temp
         
 
         ! collision with resonant nuclei
@@ -1774,7 +1786,11 @@ subroutine inElastic_CE (p,iso,xn)
         if (abs(ace(iso)%ty(i))==19 ) cycle
         sigmt => ace(iso)%sig_MT(i)
         if (ierg >= (sigmt%IE+sigmt%NE-1) .or. ierg < sigmt%IE  ) cycle 
-        sig_arr(i) = sigmt%cx(ierg) + ipfac*(sigmt%cx(ierg+1)-sigmt%cx(ierg))
+        if ( (p % kT - ace(iso) % temp) > 1e-2 * K_B ) then
+            call GET_OTF_DB_MT(p % kT, iso, p % E, i, sig_arr(i))
+        else
+            sig_arr(i) = sigmt%cx(ierg) + ipfac*(sigmt%cx(ierg+1)-sigmt%cx(ierg))
+        endif
     enddo 
     
     
@@ -1834,7 +1850,7 @@ subroutine inElastic_CE (p,iso,xn)
     
     if (abs(mu) > 1. ) mu = sign(1.0d0, mu)
     
-    call directionEnergy (p, mu, iMT, iso) 
+    call directionEnergy (p, mu, iMT, iso, p%kT)
     
     xn = abs(ace(iso)%TY(iMT))
     if(xn > 4) xn = 1

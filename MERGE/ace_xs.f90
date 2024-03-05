@@ -161,7 +161,7 @@ function getMacroXS (mat, erg,kT, urn) result (macro_xs)
             micro_t   = ace(iso_)%sigt(ierg_) + ipfac*(ace(iso_)%sigt(ierg_+1)-ace(iso_)%sigt(ierg_))
             micro_d   = ace(iso_)%sigd(ierg_) + ipfac*(ace(iso_)%sigd(ierg_+1)-ace(iso_)%sigd(ierg_))
 
-!            print *, 'COMPARISON:'
+!            print *, 'COMPARISON:', mat % temp / K_B, erg, trim(mat % mat_name), ace(iso_) % zaid
 !            print *, 'TOT', xs(1), micro_t * mat % numden(i_iso) * barn  
 !            print *, 'GAM', xs(2), micro_d * mat % numden(i_iso) * barn
             macro_t   = macro_t   + xs(1) 
@@ -224,8 +224,12 @@ function getMacroXS (mat, erg,kT, urn) result (macro_xs)
         do i = 1, ace(iso_)%NXS(5) !> through the reaction types...
             pt1 = abs(ace(iso_)%TY(i))
             if (pt1 > 1 .and. pt1 < 5) then 
-                micro_xn   = ace(iso_)%sig_MT(i)%cx(ierg_) & 
-                            + ipfac*(ace(iso_)%sig_MT(i)%cx(ierg_+1) - ace(iso_)%sig_MT(i)%cx(ierg_))
+                if ( dtemp > K_B * 1e-2 .and. mat % db ) then
+                    call GET_OTF_DB_MT(kT, iso_, erg, i, micro_xn)
+                else
+                    micro_xn   = ace(iso_)%sig_MT(i)%cx(ierg_) & 
+                                + ipfac*(ace(iso_)%sig_MT(i)%cx(ierg_+1) - ace(iso_)%sig_MT(i)%cx(ierg_))
+                endif
                 xn_xs(pt1) = xn_xs(pt1) + mat%numden(i_iso) * micro_xn * barn
             endif
         enddo
@@ -640,7 +644,7 @@ subroutine setuegrid
     idx = 1
     tmpgrid_2(0)   = 0d0
     tmpgrid_2(idx) = tmpgrid(1)
-    tolerance = 5D-3
+    tolerance = 5D-5
     do i = 2, totngrid
         !if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<Emax &
         !    )then
@@ -1877,7 +1881,7 @@ if (.not. allocated(ace_base)) then
 endif
 
 do i = 1, n_materials
-    if ( .not. materials(i) % db ) cycle
+    if ( materials(i) % db ) cycle
         do iso = 1, materials(i) % n_iso
             if( abs(materials(i) % temp - ace(materials(i)%ace_idx(iso)) % temp) > 1E-3*K_B ) then 
                 found = .false.

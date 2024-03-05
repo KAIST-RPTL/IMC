@@ -1940,10 +1940,10 @@ end subroutine READ_CTRL
 							if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
 					
 						case("TEMPERATURE")
-							if ( .not. CE_mat_ptr%db ) then
-    							call MSG1(CE_mat_ptr%ace_idx(1),trim(CE_mat_ptr%mat_name))
-    							cycle
-							end if
+!							if ( .not. CE_mat_ptr%db ) then
+!    							call MSG1(CE_mat_ptr%ace_idx(1),trim(CE_mat_ptr%mat_name))
+!    							cycle
+!							end if
 							backspace(File_Number)
 							read(File_Number,*,iostat=File_Error) Char_Temp, Equal, CE_mat_ptr%temp
 							CE_mat_ptr%temp = CE_mat_ptr%temp * K_B
@@ -1985,12 +1985,15 @@ end subroutine READ_CTRL
                         case("MOVEMENT")
                         backspace(File_Number)
                         read(File_Number, *, iostat=File_Error) Char_Temp, Equal, surfname
-                        do i = 1, size(surfaces)
+                        if( .not. do_surf_mv ) do_surf_mv = .true.
+
+                        SURFLOOP: do i = 1, size(surfaces)
+                            if(icore==score) print *, 'SURF', trim(surfname), trim(surfaces(i) % surf_id)
                             if( trim(surfname) == trim(surfaces(i) % surf_id) ) then
                                 Surfobj => surfaces(i)
-                                exit
+                                exit SURFLOOP
                             endif
-                        enddo
+                        enddo SURFLOOP
 
                         allocate(Surfobj % movement  ( 1:nstep_burnup ))
 
@@ -2002,6 +2005,11 @@ end subroutine READ_CTRL
                         endif
 
                         if(associated (Surfobj)) nullify(Surfobj)
+
+                        case("POWER_EVOLUTION")
+                        backspace(File_Number)
+                        read(File_Number, *, iostat=File_Error) Char_Temp, Equal, power_bu(1:nstep_burnup)
+                        if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
 
 						end select Card_D_Inp
                     
@@ -2059,7 +2067,7 @@ end subroutine READ_CTRL
                                     exit SABLOOP
                                 endif
                             enddo SABLOOP
-                            ! if(icore==score) print *, '    MAT', ace(CE_mat_ptr % ace_idx(i)) % zaid, CE_mat_ptr % sablist(i)
+                            if(icore==score) print *, '    MAT', ace(CE_mat_ptr % ace_idx(i)) % zaid, CE_mat_ptr % sablist(i)
                         enddo
                     endif
 

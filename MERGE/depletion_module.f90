@@ -99,6 +99,7 @@ module depletion_module
 
     !Real Power to normalize flux
     real(8) :: RealPower  ![MW]
+    real(8), allocatable :: power_bu(:) ! [MW], evolution of BU, size = nstep_burnup
     real(8) :: ULnorm     !Unit less normalization factor
     real(8) :: Wnorm      !Power normalization factor [MeV/s to W]
 
@@ -1603,7 +1604,13 @@ module depletion_module
             endif 
             
             !Normalization constant to be real power
-            ULnorm = RealPower/(avg_power*eVtoJoule)
+            if ( .not. allocated( power_bu ) ) then
+                ULnorm = RealPower/(avg_power*eVtoJoule)
+            else
+                ULnorm = power_bu(istep_burnup) / (avg_power * eVtoJoule)
+                if(icore==score) print *, 'For BU from', burn_step(istep_burnup), '->', burn_step(istep_burnup+1), ', used power of', power_bu(istep_burnup),'[MW]'
+            endif
+            if(ULnorm <= 0d0) goto 304
             call MPI_BCAST(ULnorm, 1, MPI_DOUBLE_PRECISION, score, MPI_COMM_WORLD, ierr)
             if ( DTMCBU ) &
                 call MPI_BCAST(materials(:)%flux,n_materials,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
@@ -2267,6 +2274,7 @@ module depletion_module
     endif
 
     ! PRECO ROUTINE
+304 continue
     istep_burnup = istep_burnup + 1
     if( preco == 0 ) then
     elseif( preco == 1 ) then

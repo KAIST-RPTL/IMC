@@ -731,6 +731,14 @@ module surface_header
         if (surf%surf_type == cuboid) dist = surf_cuboid(surf,xyz,uvw)
         !if (dist<TINY_BIT*10) print *, 'STUCK?',xyz(1:2),dist,surf%surf_type
     end subroutine
+
+    subroutine move_surf_para(surf, step)
+        type(surface) :: surf
+        integer :: step
+
+        surf % parmtrs( surf % move_para ) = &
+            surf % movement( surf % movement( step ) )
+    end subroutine
     
     
 end module 

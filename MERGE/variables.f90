@@ -108,6 +108,9 @@ implicit none
     real(8) :: t_recirc
     
     integer :: flowtype = 0
+
+    ! KNF CR movement
+    logical :: do_surf_mv = .false.
 	
     !==============================================================================
     ! MPI parameters 

@@ -288,9 +288,11 @@ end do TH
 		!> Make & Solve depletion matrix
 		call depletion
 	    time_dep_done = omp_get_wtime()
-        print *, 'DEPDONE', icore
         if ( istep_burnup == 1 ) call setDBPP(1)
         if ( istep_burnup > nstep_burnup ) exit BURNUP
+        do i = 1, size(surfaces)
+            if ( allocated(surfaces(i) % movement) ) call move_surf_para(surfaces(i), istep_burnup)
+        enddo
     else
         exit BURNUP
     end if
