@@ -1982,34 +1982,6 @@ end subroutine READ_CTRL
                             enddo
                         endif
 
-                        case("MOVEMENT")
-                        backspace(File_Number)
-                        read(File_Number, *, iostat=File_Error) Char_Temp, Equal, surfname
-                        if( .not. do_surf_mv ) do_surf_mv = .true.
-
-                        SURFLOOP: do i = 1, size(surfaces)
-                            if(icore==score) print *, 'SURF', trim(surfname), trim(surfaces(i) % surf_id)
-                            if( trim(surfname) == trim(surfaces(i) % surf_id) ) then
-                                Surfobj => surfaces(i)
-                                exit SURFLOOP
-                            endif
-                        enddo SURFLOOP
-
-                        allocate(Surfobj % movement  ( 1:nstep_burnup ))
-
-                        read(File_Number, *, iostat=File_Error) Surfobj % move_para, Surfobj % movement ( 1:nstep_burnup )
-
-                        if(icore == score ) then
-                            print *, 'Moving Surf:', trim(Surfobj % surf_id)
-                            print *, Surfobj % move_para, Surfobj % movement(:)
-                        endif
-
-                        if(associated (Surfobj)) nullify(Surfobj)
-
-                        case("POWER_EVOLUTION")
-                        backspace(File_Number)
-                        read(File_Number, *, iostat=File_Error) Char_Temp, Equal, power_bu(1:nstep_burnup)
-                        if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
 
 						end select Card_D_Inp
                     
@@ -2405,6 +2377,34 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number, *, iostat=File_Error) Char_Temp, Equal, do_iso_ueg
                     if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
+                case("MOVEMENT")
+                backspace(File_Number)
+                read(File_Number, *, iostat=File_Error) Char_Temp, Equal, surfname
+                if( .not. do_surf_mv ) do_surf_mv = .true.
+
+                SURFLOOP: do i = 1, size(surfaces)
+                    if(icore==score) print *, 'SURF', trim(surfname), trim(surfaces(i) % surf_id)
+                    if( trim(surfname) == trim(surfaces(i) % surf_id) ) then
+                        Surfobj => surfaces(i)
+                        exit SURFLOOP
+                    endif
+                enddo SURFLOOP
+
+                allocate(Surfobj % movement  ( 1:nstep_burnup ))
+
+                read(File_Number, *, iostat=File_Error) Surfobj % move_para, Surfobj % movement ( 1:nstep_burnup )
+
+                if(icore == score ) then
+                    print *, 'Moving Surf:', trim(Surfobj % surf_id)
+                    print *, Surfobj % move_para, Surfobj % movement(:)
+                endif
+
+                if(associated (Surfobj)) nullify(Surfobj)
+
+                case("POWER_EVOLUTION")
+                backspace(File_Number)
+                read(File_Number, *, iostat=File_Error) Char_Temp, Equal, power_bu(1:nstep_burnup)
+                if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
                 end select Card_E_Inp
                 if (Char_Temp=="ENDE") Exit Read_Card_E
             end do Read_Card_E

@@ -1797,7 +1797,6 @@ if ( jxs(4) == 0 ) return
 
 ! set pointer
 ab => sab(iso)%itce
-print *, 'ACCESSED: ', iso
 
 ! allocate arrays 
 ab % ne = xss(jxs(4))

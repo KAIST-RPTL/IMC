@@ -575,8 +575,8 @@ subroutine setuegrid
     real(8) :: Etmp, tolerance
     integer :: totngrid
     integer :: i, j, k, iso_, idx
-    integer :: pt1, pt2, pt3
-    real(8), allocatable :: tmpgrid(:), tmpgrid_2(:), heaps(:), tmpgrid_3(:), tmpgrid_4(:), sabpts(:)
+    integer :: pt, pt1, pt2, pt3, pt4
+    real(8), allocatable :: tmpgrid(:), tmpgrid_2(:), heaps(:), tmpgrid_3(:), tmpgrid_4(:), sabpts(:), thresh(:)
 
     if(E_mode==0) return
     totngrid = 0
@@ -596,8 +596,9 @@ subroutine setuegrid
         enddo
     endif
     allocate(tmpgrid(1:totngrid)); pt1 = 1
-    allocate(heaps(1:totngrid)); pt2 = 1
-    allocate(sabpts(1:totngrid)); pt3 = 1
+    allocate(heaps(1:totngrid)); pt2 = 0
+    allocate(sabpts(1:totngrid)); pt3 = 0
+    allocate(thresh(1:totngrid)); pt4 = 0
 
     udelta = log10((Emax+1E-9)/Emin)/dble(nugrid)
 
@@ -605,7 +606,7 @@ subroutine setuegrid
       tmpgrid(pt1:pt1-1+ace(iso_)%NXS(3)) = ace(iso_) % E(:)
       pt1 = pt1 + ace(iso_)%NXS(3)
 
-      do i = 1, ace(iso_) % NXS(3)
+      do i = 1, ace(iso_) % NXS(3) ! Conserve Heaps
         if( i == 1 .or. i == ace(iso_)%NXS(3) ) then
             pt2 = pt2 + 1
             heaps(pt2) = ace(iso_) % E(i)
@@ -628,7 +629,13 @@ subroutine setuegrid
                 heaps(pt2) = ace(iso_) % E(i)
             endif
         endif
-    enddo
+      enddo
+
+      do i = 1, ace(iso_) % NXS(4) ! Number of RX: Threshold
+          pt4 = pt4 + 1
+          if( ace(iso_) % sig_MT(i) % IE > 1 ) &
+              thresh(pt4) = ace(iso_) % E( ace(iso_) % sig_MT(i) % IE )
+      enddo
       
       !URES
       if(ace(iso_) % UNR % URES) then
@@ -639,8 +646,20 @@ subroutine setuegrid
       !SAB !TODO
     enddo
 
+    do iso_ = 1, sab_iso
+        sabpts(pt3:pt3-1+sab(iso_) % itie % ne) = sab(iso_) % itie % erg(:)
+        pt3 = pt3 + sab(iso_) % itie % ne
+
+        if ( sab(iso_) % jxs (4) /= 0 ) then
+            sabpts(pt3 : pt3-1 + sab(iso_) % itce % ne) = sab(iso_) % itce % erg(:)
+            pt3 = pt3 + sab(iso_) % itce % ne
+        endif
+    enddo
+
     if(icore==score) print *, "   Setting UNIONIZED GRID..."
     if(icore==score) print *, 'HEAP #:', pt2
+    if(icore==score) print *, 'SAB  #:', pt3
+    if(icore==score) print *, 'THRS #:', pt4
 
     ! SORT and COLLIDE UEGGRID 
     ! 1. SORT
@@ -664,10 +683,12 @@ subroutine setuegrid
         endif
     enddo
 
-    pt3 = idx + pt2
+    pt = idx + pt2 + pt3 + pt4
     allocate(tmpgrid_3(1:idx+pt2))
     tmpgrid_3(1:idx) = tmpgrid_2(1:idx)
     tmpgrid_3(idx+1:idx+pt2) = heaps(1:pt2)
+    tmpgrid_3(idx+pt2+1:idx+pt2+pt3) = sabpts(1:pt3)
+    tmpgrid_3(idx+pt2+pt3+1:pt) = thresh(:)
 
     open(502, file='ueg.out', action='write', status='unknown')
     do i = 1, idx
@@ -681,7 +702,7 @@ subroutine setuegrid
     allocate(tmpgrid_4(0:idx+pt2))
     idx = 0
     tmpgrid_4   = 0d0
-    do i = 1, pt3
+    do i = 1, pt
         if( i == 1 ) then
             if( tmpgrid_3(i) > 0 ) then
                 idx = idx + 1
