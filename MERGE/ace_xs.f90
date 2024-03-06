@@ -597,7 +597,7 @@ subroutine setuegrid
     endif
     allocate(tmpgrid(1:totngrid)); pt1 = 1
     allocate(heaps(1:totngrid)); pt2 = 0
-    allocate(sabpts(1:totngrid)); pt3 = 0
+    allocate(sabpts(1:totngrid)); pt3 = 1
     allocate(thresh(1:totngrid)); pt4 = 0
 
     udelta = log10((Emax+1E-9)/Emin)/dble(nugrid)
