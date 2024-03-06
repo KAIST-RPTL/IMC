@@ -1382,8 +1382,7 @@ end subroutine
 		integer :: i, j, i_plot
 		integer :: univ_idx, cell_idx
 		real(8) :: x, y, z, xyz(3) 
-		integer :: mat_rgb(3, n_materials), rgb_blk(3) 
-        !integer :: mat_rgb(n_materials, 3), rgb_blk(3) 
+		integer :: mat_rgb(n_materials, 3), rgb_blk(3) 
 		real(8) :: rn 
 		type(rgbimage) :: im
 		character(24) :: plottitle
@@ -1397,10 +1396,10 @@ end subroutine
             if(sum(materials(i) % rgb) < 0) then
     			do j = 1, 3
     				call random_number(rn) 
-    				mat_rgb(j,i) = floor(rn*255)
+    				mat_rgb(i,j) = floor(rn*255)
     			enddo 
             else ! RGB assigned
-                mat_rgb(1:3,i) = materials(i) % rgb(1:3)
+                mat_rgb(i,1:3) = materials(i) % rgb(1:3)
             endif
 		enddo 
 		rgb_blk(1:3) = 0
@@ -1423,7 +1422,7 @@ end subroutine
 					if (cells(cell_idx)%mat_idx < 1) then 
 						call im%set_pixel(i, j, rgb_blk)
 					else 
-						call im%set_pixel(i, j, mat_rgb(1:3, cells(cell_idx)%mat_idx))
+						call im%set_pixel(i, j, mat_rgb(cells(cell_idx)%mat_idx,:))
 					endif 
 				enddo 
 			enddo 
@@ -1440,7 +1439,7 @@ end subroutine
 					if (cells(cell_idx)%mat_idx < 1) then 
 						call im%set_pixel(i, j, rgb_blk)
 					else 
-						call im%set_pixel(i, j, mat_rgb(1:3, cells(cell_idx)%mat_idx))
+						call im%set_pixel(i, j, mat_rgb(cells(cell_idx)%mat_idx,:))
 					endif 
 				enddo 
 			enddo 
@@ -1456,7 +1455,7 @@ end subroutine
 					if (cells(cell_idx)%mat_idx < 1) then 
 						call im%set_pixel(i, j, rgb_blk)
 					else 
-						call im%set_pixel(i, j, mat_rgb(1:3, cells(cell_idx)%mat_idx))
+						call im%set_pixel(i, j, mat_rgb(cells(cell_idx)%mat_idx,:))
 					endif 
 				enddo 
 			enddo 
@@ -1476,9 +1475,9 @@ end subroutine
 		enddo 
 		!call system("python /home/guest/Inyup/convert_ppm_to_jpg.py")
 		
-!		deallocate(plt_x0, plt_y0, plt_z0, plt_x1, plt_y1, plt_z1, &
-!					plt_dx, plt_dy, plt_dz, plt_nx, plt_ny, plt_nz, &
-!					plotlist, plottype) 
+		deallocate(plt_x0, plt_y0, plt_z0, plt_x1, plt_y1, plt_z1, &
+					plt_dx, plt_dy, plt_dz, plt_nx, plt_ny, plt_nz, &
+					plotlist, plottype) 
 					
 					
 	end subroutine

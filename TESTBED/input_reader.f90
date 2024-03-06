@@ -1017,8 +1017,7 @@ end subroutine READ_CTRL
 ! =============================================================================
     subroutine Read_Card(File_Number,Card_Type)
 		use ENTROPY, only: en0, en1, nen, shannon
-		use TH_HEADER, only: th_on, th0, th1, th2, nth, dth, rr0, rr1, p_th, mth, &
-            t_bulk, t_clad, t_fuel
+		use TH_HEADER, only: th_on, th0, th1, th2, nth, dth, rr0, rr1, p_th, mth
 		use FMFD_HEADER
 		use TALLY, only: n_type, ttally, meshon, tgroup, n_tgroup
         use PERTURBATION, only: perton
@@ -1077,11 +1076,6 @@ end subroutine READ_CTRL
         ! Movement
         type(surface), pointer :: Surfobj
         character(20) :: surfname
-
-        ! Temperature Grid
-        character(50) :: tgrid_fuel, tgrid_clad, tgrid_cool !> File for temperature grid
-        logical :: found
-        integer :: k
 
         File_Error=0
         n = 0 
@@ -1396,7 +1390,7 @@ end subroutine READ_CTRL
 					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, th_on
 					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
 				case("TH_GRID")
-					!if ( .not. th_on ) cycle
+					if ( .not. th_on ) cycle
 					backspace(File_Number)
 					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, th0, th1, nth
 					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
@@ -1759,59 +1753,6 @@ end subroutine READ_CTRL
                                 do_fuel_mv = .false.
                         end select
                     endif
-                case("TEMPERATURE_GRID")
-                    backspace(File_Number)
-                    if ( .not. do_temp_grid ) do_temp_grid = .true.
-                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, tgrid_fuel, tgrid_clad, tgrid_cool
-
-                    allocate(t_fuel(nth(1),nth(2),nth(3))); t_fuel = 0d0
-                    allocate(t_bulk(nth(1),nth(2),nth(3))); t_bulk = 0d0
-                    allocate(t_clad(nth(1),nth(2),nth(3))); t_clad = 0d0
-
-                    inquire(file=trim(tgrid_fuel), exist=found)
-                    if ( found ) then
-                        open(rd_tgrid, file=trim(tgrid_fuel), action='read', status='old')
-                        do k = 1, nth(3)
-                            do j = 1, nth(2)
-                                read(rd_tgrid, *, iostat=File_Error) t_fuel(:,j,k)
-                            enddo
-                        enddo
-                        t_fuel = t_fuel * K_B
-                        close(rd_tgrid) 
-                    else
-                        if(icore==score) print *, '    Fuel grid not exist: ', trim(tgrid_fuel)
-                    endif
-
-                    inquire(file=trim(tgrid_clad), exist=found)
-                    if ( found ) then
-                        open(rd_tgrid, file=trim(tgrid_clad), action='read', status='old')
-                        do k = 1, nth(3)
-                            do j = 1, nth(2)
-                                read(rd_tgrid, *, iostat=File_Error) t_clad(:,j,k)
-                            enddo
-                        enddo
-                        t_clad = t_clad * K_B
-                        close(rd_tgrid) 
-                    else
-                        if(icore==score) print *, '    Cladding grid not exist: ', trim(tgrid_clad)
-                    endif
-
-                    inquire(file=trim(tgrid_cool), exist=found)
-                    if ( found ) then
-                        open(rd_tgrid, file=trim(tgrid_cool), action='read', status='old')
-                        do k = 1, nth(3)
-                            do j = 1, nth(2)
-                                read(rd_tgrid, *, iostat=File_Error) t_bulk(:,j,k)
-                            enddo
-                        enddo
-                        t_bulk = t_bulk * K_B
-                        close(rd_tgrid) 
-                    else
-                        if(icore==score) print *, '    Coolant grid not exist: ', trim(tgrid_cool)
-                    endif
-                    
-                    if(Equal /='=') call Card_Error(Card_Type, Char_Temp)
-
                 end select Card_A_Inp
                 if (Char_Temp=="ENDA") Exit Read_Card_A
             end do Read_Card_A
@@ -2442,6 +2383,7 @@ end subroutine READ_CTRL
                 if( .not. do_surf_mv ) do_surf_mv = .true.
 
                 SURFLOOP: do i = 1, size(surfaces)
+                    if(icore==score) print *, 'SURF', trim(surfname), trim(surfaces(i) % surf_id)
                     if( trim(surfname) == trim(surfaces(i) % surf_id) ) then
                         Surfobj => surfaces(i)
                         exit SURFLOOP
@@ -2454,7 +2396,7 @@ end subroutine READ_CTRL
 
                 if(icore == score ) then
                     print *, 'Moving Surf:', trim(Surfobj % surf_id)
-                    print '(I3,<nstep_burnup>F6.2)', Surfobj % move_para, Surfobj % movement(:)
+                    print *, Surfobj % move_para, Surfobj % movement(:)
                 endif
 
                 if(associated (Surfobj)) nullify(Surfobj)

@@ -32,7 +32,6 @@ real(8) :: erg, ipfac
 character(100) :: filename
 real(8) :: kavg, kstd
 character(80) :: dfile, dfile1
-character(3) :: buid
 
 !> Preparation for parallelization ===============================================
 !call omp_set_num_threads(14)
@@ -291,19 +290,9 @@ end do TH
         if ( istep_burnup == 1 ) call setDBPP(1)
         if ( istep_burnup > nstep_burnup ) exit BURNUP
         if ( do_surf_mv ) then
-            do i = 1, size(surfaces)
-                if ( allocated(surfaces(i) % movement) ) then
-                    call move_surf_para(surfaces(i), istep_burnup)
-                    if(icore==score) print *, 'PARA', trim(surfaces(i) % surf_id), surfaces(i) % parmtrs(:)
-                endif
-            enddo
-            
-            write(buid, '(i3)') istep_burnup
-            do i = 1, size(plotlist)
-                plotlist(i) = plotlist(i)//trim(buid)
-                if(icore==score) print *, 'PLOT ID:', i, trim(plotlist(i))
-            enddo
-    	    call draw_geometry()
+        do i = 1, size(surfaces)
+            if ( allocated(surfaces(i) % movement) ) call move_surf_para(surfaces(i), istep_burnup)
+        enddo
         endif
     else
         exit BURNUP

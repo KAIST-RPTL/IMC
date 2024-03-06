@@ -111,9 +111,6 @@ implicit none
 
     ! KNF CR movement
     logical :: do_surf_mv = .false.
-    
-    ! KNF Tgrid
-    logical :: do_temp_grid = .false.
 	
     !==============================================================================
     ! MPI parameters 

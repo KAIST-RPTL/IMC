@@ -737,7 +737,7 @@ module surface_header
         integer :: step
 
         surf % parmtrs( surf % move_para ) = &
-            surf % movement( step )
+            surf % movement( surf % movement( step ) )
     end subroutine
     
     

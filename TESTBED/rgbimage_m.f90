@@ -60,7 +60,7 @@ contains
     integer,         intent(in)  :: height, width
  
     this%n = [height, width]
-    allocate (this%rgb(3, height,width), source=0)
+    allocate (this%rgb(height,width,3), source=0)
   end subroutine
  
   logical function rgbimage_valid(this, check_rgb_vals)
@@ -73,9 +73,9 @@ contains
  
     ! always check that dimensions match
     rgbimage_valid = ( all(this%n > 0)                     .and. &
-      &               (size(this%rgb, dim=2) == this%n(1)) .and. &
-      &               (size(this%rgb, dim=3) == this%n(2)) .and. &
-      &               (size(this%rgb, dim=1) == 3)               )
+      &               (size(this%rgb, dim=1) == this%n(1)) .and. &
+      &               (size(this%rgb, dim=2) == this%n(2)) .and. &
+      &               (size(this%rgb, dim=3) == 3)               )
  
     ! optionally: check if rgb values are in allowed range
     if (present(check_rgb_vals)) then
@@ -105,13 +105,13 @@ contains
  
     if (this%inside(x, y)) then
       ! use given data at first
-      this%rgb(:,x,y) = rgb
+      this%rgb(x,y,:) = rgb
  
       ! check if given data was out of bounds
-      where     (this%rgb(:,x,y) > 255)
-        this%rgb(:,x,y) = 255
-      elsewhere (this%rgb(:,x,y) < 0)
-        this%rgb(:,x,y) = 0
+      where     (this%rgb(x,y,:) > 255)
+        this%rgb(x,y,:) = 255
+      elsewhere (this%rgb(x,y,:) < 0)
+        this%rgb(x,y,:) = 0
       end where
     end if
   end subroutine
@@ -124,7 +124,7 @@ contains
       !! red, green, blue values
  
     if (this%inside(x, y)) then
-      rgb = this%rgb(:,x,y)
+      rgb = this%rgb(x,y,:)
     else
       rgb = 0
     end if
@@ -149,15 +149,11 @@ contains
     integer,         intent(in)    :: rgb(3)
       !! red, green, blue values
  
-    integer :: i, j, k
+    integer :: i
  
     if (this%valid()) then
       do i = 1, 3
-        do j = 1, size(this % rgb, dim=2)
-            do k = 1, size(this % rgb, dim=3)
-                this%rgb(i,j,k) = rgb(i)
-            enddo
-        enddo
+        this%rgb(:,:,i) = rgb(i)
       end do
     end if
   end subroutine
@@ -179,7 +175,7 @@ contains
  
 	do j = this%n(2), 1, -1
 		do i = 1, this%n(1)
-			write (iounit, '(3A1)', advance='no') this%rgb(:,i,j) 
+			write (iounit, '(3A1)', advance='no') this%rgb(i,j,:) 
 		end do
 	end do
  

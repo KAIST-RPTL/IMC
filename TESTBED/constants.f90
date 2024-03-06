@@ -13,8 +13,7 @@ module constants
                           rd_temp  = 0, &
                           rd_xslib = 99, &
                           rd_mgt   = 98, &
-                          rd_rz    = 60, &
-                          rd_tgrid = 97
+                          rd_rz    = 60
     integer, parameter :: wt_coord = 8  !I/O unit for coordinate test 
     integer, parameter :: prt_spec = 9  !I/O unit for spectral analysis variable print 
     

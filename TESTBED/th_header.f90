@@ -18,8 +18,6 @@ module TH_HEADER
     real(8), allocatable:: t_bulk(:,:,:)    ! bulk coolant temperature
     real(8), allocatable:: t_save(:,:,:)    ! backup for convergence test
 
-    logical :: do_temp_grid = .false.
-
     ! TH grid
     real(8):: th0(3), th1(3)    ! starting and end point of T/H grid
     real(8):: th2(3)            ! total size of mesh
