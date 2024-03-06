@@ -58,7 +58,6 @@ BATCH : do
 BURNUP : do
 
     time3 = omp_get_wtime()
-    if(icore==score) print *, 'DOUEG', do_ueg, do_burn
     if (do_ueg) then
         time1 = omp_get_wtime()
         call setMacroXS(istep_burnup/=0)
@@ -290,9 +289,11 @@ end do TH
 	    time_dep_done = omp_get_wtime()
         if ( istep_burnup == 1 ) call setDBPP(1)
         if ( istep_burnup > nstep_burnup ) exit BURNUP
+        if ( do_surf_mv ) then
         do i = 1, size(surfaces)
             if ( allocated(surfaces(i) % movement) ) call move_surf_para(surfaces(i), istep_burnup)
         enddo
+        endif
     else
         exit BURNUP
     end if
