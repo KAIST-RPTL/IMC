@@ -66,7 +66,8 @@ module geometry_header
         procedure :: initialize
     End Type
     
-    type(Universe), allocatable, target :: universes(:), universes_temp(:)
+    type(Universe), allocatable, target :: universes(:), universes_temp(:), &
+        univ_temp(:)
     type(Universe) :: obj_univ
     type(Universe), pointer :: univptr
     

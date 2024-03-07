@@ -77,6 +77,11 @@ recursive subroutine read_geom(path, geom_nest)
     character(5) :: char1, char2
     integer :: File_Error
 
+    ! For optimization of large input
+    integer :: max_univ = 0
+    integer, allocatable :: univlist(:)
+    integer, allocatable :: celluniv(:), celllist(:), cell2univ(:)
+
     if (icore==score) print *, "   ", path, " :: GEOMETRY CARD is being read..., LOOP #:", geom_nest
     if( geom_nest == 0 ) then ! Mother file
     
@@ -156,10 +161,14 @@ recursive subroutine read_geom(path, geom_nest)
 !            call move_alloc(cells_temp, cells)            
             ncell = ncell + 1
             call read_cell (cells(ncell), args, nargs) 
+            if ( cells(ncell) % univ_id > max_univ ) &
+                max_univ = cells(ncell) % univ_id
                         
         case ("PIN")
             nuniv = nuniv + 1
             call read_pin (universes(nuniv), args, nargs) 
+            if ( universes(nuniv) % univ_id > max_univ ) &
+                max_univ = universes(nuniv) % univ_id
             universes(nuniv)%xyz(:) = 0
             
             univptr => universes(nuniv)
@@ -308,45 +317,49 @@ recursive subroutine read_geom(path, geom_nest)
         print *, 'Latt #:', nlatt
     endif
     ! ===================================================================================== !
+
+    allocate(univlist(1:max_univ)); univlist = 0; j = 0
+
+    do i = 1, size(universes(1:))
+        univlist( universes(i) % univ_id ) = i
+    enddo
+
+    allocate(universes_temp(1:max_univ))
     !> add pure universes from cells(:)
-    !!$omp parallel do
     do i = 1, size(cells)
         !> if univ_id = 0 then add to base universe / else add to the tail
         if (cells(i)%univ_id == 0 ) then 
-            !!$omp atomic
             universes(0)%ncell = universes(0)%ncell+1
         else
-            found = .false.
-            do j = 1, size(universes(1:))
-                if (universes(j)%univ_id == cells(i)%univ_id) then 
-                    found = .true.
-                    idx = j
-                    exit 
+            if ( univlist(cells(i) % univ_id) == 0 ) then 
+                j = j + 1
+                univlist(cells(i) % univ_id) = -j
+
+                universes_temp(j) % univ_type = 0
+                universes_temp(j) % univ_id   = cells(i) % univ_id
+                universes_temp(j) % xyz(:)    = 0
+                universes_temp(j) % ncell     = 1
+            elseif ( univlist(cells(i) % univ_id) < 0 ) then ! Created Univ.
+                universes_temp( -univlist(cells(i) % univ_id) ) % ncell = &
+                universes_temp( -univlist(cells(i) % univ_id) ) % ncell + 1
+            else
+                idx = univlist(cells(i) % univ_id)
+                if (.not. allocated(universes(idx)%r)) then 
+                    universes(idx)%ncell = universes(idx)%ncell+1
                 endif
-            enddo 
-            if ( .not. found ) then 
-                !!$omp critical
-                isize = size(universes(1:))
-                allocate(universes_temp(0:isize+1))
-                universes_temp(0) = universes(0)
-                do j = 1, isize 
-                    universes_temp(j) = universes(j)
-                enddo
-                obj_univ%univ_type = 0
-                obj_univ%univ_id   = cells(i)%univ_id
-                obj_univ%xyz(:)    = 0 
-                obj_univ%ncell     = 1
-                universes_temp(isize+1) = obj_univ
-                call move_alloc(universes_temp, universes)
-                !!$omp end critical
-            elseif (.not. allocated(universes(idx)%r)) then 
-                !!$omp atomic
-                universes(idx)%ncell = universes(idx)%ncell+1
             endif
         endif
     enddo         
-    !!$omp end parallel do
-    
+
+    isize = size(universes(1:))
+    allocate( univ_temp ( 0: isize + j ) )
+    do i =  0, isize
+        univ_temp(i) = universes(i)
+    enddo
+    do i = 1, j
+        univ_temp(isize + i) = universes_temp(i)
+    enddo
+    call move_alloc( univ_temp, universes ); deallocate(universes_temp) 
     if(icore==score) then
         print *, 'Step2 is done...'
         print *, 'Surf #:', nsurf
@@ -474,18 +487,44 @@ recursive subroutine read_geom(path, geom_nest)
     
     !> 4. Add cells to pin universe
     !> Add the cells to the universe cell list   
+
+    allocate( cell2univ ( 1:size(cells) ) ); cell2univ = -1 ! neg. cell2univ
+    allocate( celllist  ( 1:size(cells) ) )
+    do i = 1, size( cells )
+        celllist  ( i ) = i
+        if ( cells(i) % univ_id == 0 ) then
+            print *, 'ZEROCELL: ', trim(cells(i) % cell_id)
+            cell2univ = 0
+        else
+            cell2univ ( i ) = abs ( univlist( cells(i) % univ_id ) )
+            if ( cell2univ (i) == 0 ) print *, 'HMM', universes( cell2univ(i) ) % univ_id
+        endif
+    enddo
+
     do i = 0, size(universes(1:))
         idx = 1
         if (.not.allocated(universes(i)%cell)) allocate(universes(i)%cell(universes(i)%ncell))
-        !!$omp parallel do
-        do k = 1, size(cells)
-            if (cells(k)%univ_id == universes(i)%univ_id) then 
-                universes(i)%cell(idx) = k
-                !$omp atomic
-                idx = idx+1
-            endif 
-        enddo 
-        !!$omp end parallel do
+!        do k = 1, size(cells)
+!            if (cells(k)%univ_id == universes(i)%univ_id) then 
+!                universes(i)%cell(idx) = k
+!                !$omp atomic
+!                idx = idx+1
+!            endif 
+!        enddo 
+        celluniv = pack ( celllist, cell2univ==i ) 
+        if ( size ( celluniv ) > size(universes(i) % cell) ) then
+            print *, 'CELL', celluniv
+            do k = 1, size(celluniv)
+                print *, 'TST ', trim(cells(celluniv(k)) % cell_id), cells(celluniv(k)) % univ_id, cell2univ(k), univlist(cells(celluniv(k)) % univ_id)
+            enddo
+            print *, 'UNIV', universes(i) % univ_id, universes(i) % ncell, size(universes(i) % cell), size(celluniv)
+        endif
+        if ( size ( celluniv ) > 0 ) then
+
+            do k = 1, size( celluniv )
+                universes(i) % cell(k) = celllist(k)
+            enddo
+        endif
     enddo
 
     if(icore==score) then
@@ -1600,6 +1639,11 @@ end subroutine READ_CTRL
                     endif
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
 
+                case('TOLERANCE')
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, tolerance
+                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+
 				case("N_INTERVAL")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_interval 
@@ -2098,7 +2142,6 @@ end subroutine READ_CTRL
                                     exit SABLOOP
                                 endif
                             enddo SABLOOP
-                            if(icore==score) print *, '    MAT', ace(CE_mat_ptr % ace_idx(i)) % zaid, CE_mat_ptr % sablist(i)
                         enddo
                     endif
 

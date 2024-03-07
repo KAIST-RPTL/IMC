@@ -904,7 +904,6 @@ module depletion_module
                     endif
                 enddo
                 do j = 1,nfp
-                    if(icore==score .and. fp_zai(j)==621480) print *, 'HMM', nuclide(inum1, nnum1, anum1) % data_exist, nuclide(inum1, nnum1, anum1) % conn, nuclide(inum1, nnum1, anum1) % fiss
                     anum1 = fp_zai(j)/10000
                     mnum1 = (fp_zai(j)-anum1*10000)/10
                     nnum1 = mnum1 - anum1
@@ -2122,7 +2121,11 @@ module depletion_module
             ! write(*,*) imat, icore, zai_idx(jnuc), mat%full_numden(jnuc)
 
             tmp = find_ACE_iso_idx_zaid(zaid=zai_idx(jnuc), temp=mat%temp)
-            if(mat%full_numden(jnuc)>=1d10 .and. tmp > 0) then 
+            !if(mat%full_numden(jnuc)>=1d10 .and. tmp > 0) then 
+            if( zai_idx(jnuc) == 541350 .or. &
+                zai_idx(jnuc) == 621480 .or. &
+                zai_idx(jnuc)/10000 == 64 .or. &
+                zai_idx(jnuc)/10000 >  88 ) then ! Simplified Version
                 knuc = knuc + 1
                 mat % iso_idx(knuc) = jnuc
             elseif(mat%full_numden(jnuc)>0.d0) then
@@ -2142,7 +2145,12 @@ module depletion_module
         do mt_iso=1, mat % n_iso
             ! find ace_idx
             tmp = find_ACE_iso_idx_zaid(zaid = zai_idx(mat % iso_idx(mt_iso)), temp=mat%temp)
-            if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
+            !if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
+            if( tmp /= 0 .and. ( &
+                zai_idx(mat % iso_idx(mt_iso)) == 541350 .or. &
+                zai_idx(mat % iso_idx(mt_iso)) == 621480 .or. &
+                zai_idx(mat % iso_idx(mt_iso))/10000 == 64 .or. &
+                zai_idx(mat % iso_idx(mt_iso))/10000 >  88 )) then ! Simplified Version
                 i = i + 1
                 mat%ace_idx(mt_iso) = tmp
                 mat%numden(mt_iso)  = mat%full_numden(mat % iso_idx(mt_iso))

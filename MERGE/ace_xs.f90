@@ -572,7 +572,7 @@ end subroutine
 
 subroutine setuegrid
     implicit none
-    real(8) :: Etmp, tolerance
+    real(8) :: Etmp
     integer :: totngrid
     integer :: i, j, k, iso_, idx
     integer :: pt, pt1, pt2, pt3, pt4
@@ -670,16 +670,18 @@ subroutine setuegrid
     idx = 1
     tmpgrid_2(0)   = 0d0
     tmpgrid_2(idx) = tmpgrid(1)
-    tolerance = 0d0
     do i = 2, totngrid
         !if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<Emax &
         !    )then
         if(tmpgrid(i) < Emax) then
-        if(abs(tmpgrid(i)-tmpgrid(i-1))>tmpgrid(i-1) * tolerance) then
-        
-            idx = idx + 1
-            tmpgrid_2(idx) = tmpgrid(i)
-        endif
+            if(abs(tmpgrid(i)-tmpgrid_2(idx))>tmpgrid_2(idx) * tolerance) then
+            
+                idx = idx + 1
+                tmpgrid_2(idx) = tmpgrid(i)
+            else
+                tmpgrid_2(idx) = tmpgrid_2(idx) * 5d-1 + tmpgrid(i) * 5d-1
+            endif
+
         endif
     enddo
 
@@ -691,9 +693,6 @@ subroutine setuegrid
     tmpgrid_3(idx+pt2+pt3+1:pt) = thresh(1:pt4)
 
     open(502, file='ueg.out', action='write', status='unknown')
-    do i = 1, idx
-        write(502, *) i, tmpgrid_2(i)
-    enddo
 
     deallocate(tmpgrid, tmpgrid_2)
     call quicksort(tmpgrid_3, 1, pt)
@@ -884,7 +883,7 @@ subroutine GET_SAB_MAC(nd,iiso,isab,erg,xs_t,xs_a)
     ipfac = max(0D0,min(1D0,(erg-abe%erg(ierg)) &
         /(abe%erg(ierg+1)-abe%erg(ierg))))
     micro_e = abe%xs(ierg) + ipfac*(abe%xs(ierg+1)-abe%xs(ierg))
-    if ( sab(isab)%nxs(5) == 4 ) micro_e = micro_e / abe%erg(ierg)
+    if ( sab(isab)%nxs(5) == 4 ) micro_e = micro_e / erg
     if ( abe % erg(ierg) > erg ) micro_e = 0d0
     end if
 
@@ -949,7 +948,7 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs)
         ipfac = max(0D0,min(1D0,(erg-abe%erg(ierg)) &
             /(abe%erg(ierg+1)-abe%erg(ierg))))
         xs(6) = abe%xs(ierg) + ipfac*(abe%xs(ierg+1)-abe%xs(ierg))
-        if ( sab(isab)%nxs(5) == 4 ) xs(6) = xs(6) / abe%erg(ierg)
+        if ( sab(isab)%nxs(5) == 4 ) xs(6) = xs(6) / erg
         if ( abe % erg ( ierg ) > erg ) xs(6) = 0d0
         end if
     
@@ -981,7 +980,7 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs)
             ipfac = max(0D0,min(1D0,(erg-abe%erg(ierg)) &
                 /(abe%erg(ierg+1)-abe%erg(ierg))))
             xs6l = abe%xs(ierg) + ipfac*(abe%xs(ierg+1)-abe%xs(ierg))
-            if ( sab(isab_l)%nxs(5) == 4 ) xs6l = xs6l / abe%erg(ierg)
+            if ( sab(isab_l)%nxs(5) == 4 ) xs6l = xs6l / erg
             if ( abe % erg ( ierg ) > erg ) xs6l = 0d0
         end if
         if ( associated(abi) ) nullify(abi)
@@ -1004,7 +1003,7 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs)
             ipfac = max(0D0,min(1D0,(erg-abe%erg(ierg)) &
                 /(abe%erg(ierg+1)-abe%erg(ierg))))
             xs6h = abe%xs(ierg) + ipfac*(abe%xs(ierg+1)-abe%xs(ierg))
-            if ( sab(isab_h)%nxs(5) == 4 ) xs6h = xs6h / abe%erg(ierg)
+            if ( sab(isab_h)%nxs(5) == 4 ) xs6h = xs6h / erg
             if ( abe % erg ( ierg ) > erg ) xs6h = 0d0
         end if
         if ( associated(abi) ) nullify(abi)
@@ -1652,11 +1651,15 @@ end subroutine quicksort
 
 subroutine setueg
 use constants 
-integer :: iso, i, r, ierg, idx
+integer :: iso, i, r, ierg, idx, ista, iend
 real(8) :: ipfac
 type(AceFormat), pointer :: ac
+
+call para_range(1, num_iso, ncore, icore, ista, iend)
+
     !$OMP PARALLEL DO PRIVATE(i, r, iso, ac, idx, ipfac)
-    do iso = 1, num_iso
+    !do iso = 1, num_iso
+    do iso = ista, iend
         ! 1. Initialize Egrid: corresponding E points for each iso.
         ac => ace(iso)
         allocate(ac%UEG%Egrid(1:nueg))

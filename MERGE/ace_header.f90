@@ -216,6 +216,7 @@ real(8) :: unidel
 
 
 real(8), allocatable :: ueggrid(:)
+real(8) :: tolerance = 5d-5
 
 
 ! Doppler broadening

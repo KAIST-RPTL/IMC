@@ -440,7 +440,7 @@ subroutine SAB_EL_CE(p,iso,isab)
     elseif ( ab2 % erg ( ierg ) < p % e ) then
         r = rang()
         COH_MU: do j = 1, ierg
-            if ( ab2 % erg(j) / ab2 % erg(ierg) > r ) then
+            if ( ab2 % xs(j) / ab2 % xs(ierg) > r ) then
                 mu = 1d0 - 2d0 * ab2 % erg(j) / p % e
                 exit COH_MU
             endif
