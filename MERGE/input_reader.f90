@@ -505,6 +505,7 @@ recursive subroutine read_geom(path, geom_nest)
     enddo
 
     do i = 0, size(universes(1:))
+        if(icore==score) print *, i, 'Assigning Cells to Univ #', universes(i) % univ_id
         idx = 1
         if (.not.allocated(universes(i)%cell)) allocate(universes(i)%cell(universes(i)%ncell))
 !        do k = 1, size(cells)
@@ -516,10 +517,10 @@ recursive subroutine read_geom(path, geom_nest)
 !        enddo 
         celluniv = pack ( celllist, cell2univ==i ) 
         if ( size ( celluniv ) > 0 ) then
-            do k = 1, size( celluniv )
-                universes(i) % cell(k) = celllist( celluniv(k) )
-                print *, 'Cell assigned:', trim( cells(celllist(celluniv(k))) % cell_id ), cells(celllist(celluniv(k))) % univ_id, universes(i) % univ_id
-            enddo
+!            do k = 1, size( celluniv )
+!                universes(i) % cell(k) = celllist( celluniv(k) )
+!            enddo
+            universes(i) % cell (:) = celllist ( celluniv (:) )
         endif
     enddo
 
