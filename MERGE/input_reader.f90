@@ -534,7 +534,6 @@ recursive subroutine read_geom(path, geom_nest)
                     itemp = find_univ_idx(universes,lattices(i)%lat(ix,iy,iz) )
                     lattices(i)%lat(ix,iy,iz) = itemp 
                 enddo 
-
             enddo 
         enddo 
     enddo 
