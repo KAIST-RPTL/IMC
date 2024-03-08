@@ -360,6 +360,11 @@ recursive subroutine read_geom(path, geom_nest)
         univ_temp(isize + i) = universes_temp(i)
     enddo
     call move_alloc( univ_temp, universes ); deallocate(universes_temp) 
+
+    do i = 1, size(univlist)
+        if(univlist(i) < 0) univlist(i) = abs(univlist(i)) + isize
+    enddo
+
     if(icore==score) then
         print *, 'Step2 is done...'
         print *, 'Surf #:', nsurf
@@ -493,11 +498,9 @@ recursive subroutine read_geom(path, geom_nest)
     do i = 1, size( cells )
         celllist  ( i ) = i
         if ( cells(i) % univ_id == 0 ) then
-            print *, 'ZEROCELL: ', trim(cells(i) % cell_id)
-            cell2univ = 0
-        else
+            cell2univ(i) = 0
+        elseif ( univlist( cells(i) % univ_id ) /= 0 ) then
             cell2univ ( i ) = abs ( univlist( cells(i) % univ_id ) )
-            if ( cell2univ (i) == 0 ) print *, 'HMM', universes( cell2univ(i) ) % univ_id
         endif
     enddo
 
@@ -512,17 +515,10 @@ recursive subroutine read_geom(path, geom_nest)
 !            endif 
 !        enddo 
         celluniv = pack ( celllist, cell2univ==i ) 
-        if ( size ( celluniv ) > size(universes(i) % cell) ) then
-            print *, 'CELL', celluniv
-            do k = 1, size(celluniv)
-                print *, 'TST ', trim(cells(celluniv(k)) % cell_id), cells(celluniv(k)) % univ_id, cell2univ(k), univlist(cells(celluniv(k)) % univ_id)
-            enddo
-            print *, 'UNIV', universes(i) % univ_id, universes(i) % ncell, size(universes(i) % cell), size(celluniv)
-        endif
         if ( size ( celluniv ) > 0 ) then
-
             do k = 1, size( celluniv )
-                universes(i) % cell(k) = celllist(k)
+                universes(i) % cell(k) = celllist( celluniv(k) )
+                print *, 'Cell assigned:', trim( cells(celllist(celluniv(k))) % cell_id ), cells(celllist(celluniv(k))) % univ_id, universes(i) % univ_id
             enddo
         endif
     enddo
