@@ -1614,9 +1614,9 @@ module depletion_module
             if ( DTMCBU ) &
                 call MPI_BCAST(materials(:)%flux,n_materials,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
             !Substitute burnup matrix element
-            do imat = 1, n_materials
-!            do ii = 1, ngeom
-!                imat = mpigeom(ii,icore)
+            !do imat = 1, n_materials
+            do ii = 1, ngeom
+                imat = mpigeom(ii,icore)
 
                 if(imat==0) cycle
                 if(.not. materials(imat)%depletable) cycle    !material imat is not burned
@@ -2172,28 +2172,28 @@ module depletion_module
 
 
     ! data sharing
-!    if(icore==score .and. ncore > 1) print *, '   Broadcasting Number densities to MPI nodes...'
-!    do ii = 0, ncore-1
-!    do jj = 1, ngeom
-!        imat = mpigeom(jj,ii)
-!        if( imat == 0 ) cycle
-!        mat => materials(imat)
-!        call MPI_BCAST(mat%n_iso,1,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-!        niso = mat%n_iso
-!    
-!        if ( icore /= ii ) then
-!           deallocate(mat%ace_idx); allocate(mat%ace_idx(niso)); mat%ace_idx(:) = 0
-!           deallocate(mat%numden);  allocate(mat%numden(niso));  mat%numden(:)  = 0
-!           deallocate(mat%sablist); allocate(mat%sablist(niso)); mat%sablist(:) = 0
-!           if(.not. allocated(mat%iso_idx)) allocate(mat%iso_idx(nnuc))
-!           mat%iso_idx(:) = 0
-!       end if
-!    
-!       call MPI_BCAST(mat%ace_idx,niso,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-!       call MPI_BCAST(mat%numden,niso,MPI_REAL8,ii,MPI_COMM_WORLD,ierr)
-!       call MPI_BCAST(mat%iso_idx,nnuc,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-!    end do
-!    end do
+    if(icore==score .and. ncore > 1) print *, '   Broadcasting Number densities to MPI nodes...'
+    do ii = 0, ncore-1
+    do jj = 1, ngeom
+        imat = mpigeom(jj,ii)
+        if( imat == 0 ) cycle
+        mat => materials(imat)
+        call MPI_BCAST(mat%n_iso,1,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+        niso = mat%n_iso
+    
+        if ( icore /= ii ) then
+           deallocate(mat%ace_idx); allocate(mat%ace_idx(niso)); mat%ace_idx(:) = 0
+           deallocate(mat%numden);  allocate(mat%numden(niso));  mat%numden(:)  = 0
+           deallocate(mat%sablist); allocate(mat%sablist(niso)); mat%sablist(:) = 0
+           if(.not. allocated(mat%iso_idx)) allocate(mat%iso_idx(nnuc))
+           mat%iso_idx(:) = 0
+       end if
+    
+       call MPI_BCAST(mat%ace_idx,niso,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+       call MPI_BCAST(mat%numden,niso,MPI_REAL8,ii,MPI_COMM_WORLD,ierr)
+       call MPI_BCAST(mat%iso_idx,nnuc,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+    end do
+    end do
 
     call MPI_REDUCE(tot_flux, tmpflux, 1, MPI_DOUBLE_PRECISION, MPI_SUM, score, MPI_COMM_WORLD, ierr)
     tot_flux = tmpflux

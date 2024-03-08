@@ -504,17 +504,9 @@ recursive subroutine read_geom(path, geom_nest)
         endif
     enddo
 
+    !$OMP PARALLEL DO private(celluniv)
     do i = 0, size(universes(1:))
-        if(icore==score) print *, i, 'Assigning Cells to Univ #', universes(i) % univ_id
-        idx = 1
         if (.not.allocated(universes(i)%cell)) allocate(universes(i)%cell(universes(i)%ncell))
-!        do k = 1, size(cells)
-!            if (cells(k)%univ_id == universes(i)%univ_id) then 
-!                universes(i)%cell(idx) = k
-!                !$omp atomic
-!                idx = idx+1
-!            endif 
-!        enddo 
         celluniv = pack ( celllist, cell2univ==i ) 
         if ( size ( celluniv ) > 0 ) then
 !            do k = 1, size( celluniv )
@@ -523,6 +515,7 @@ recursive subroutine read_geom(path, geom_nest)
             universes(i) % cell (:) = celllist ( celluniv (:) )
         endif
     enddo
+    !$OMP END PARALLEL DO
 
     if(icore==score) then
         print *, 'Step4 is done...'
@@ -533,7 +526,7 @@ recursive subroutine read_geom(path, geom_nest)
     endif
 	
     !> 5. Change lattice universe name to universe index
-    !!$omp parallel do collapse(4)
+
     do i = 1, size(lattices) 
         do ix = 1, lattices(i)%n_xyz(1)
             do iy = 1, lattices(i)%n_xyz(2)
@@ -544,7 +537,7 @@ recursive subroutine read_geom(path, geom_nest)
             enddo 
         enddo 
     enddo 
-    !!$omp end parallel do
+
     if(icore==score) then
         print *, 'Step5 is done...'
         print *, 'Surf #:', nsurf
