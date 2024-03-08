@@ -535,6 +535,7 @@ recursive subroutine read_geom(path, geom_nest)
                     lattices(i)%lat(ix,iy,iz) = itemp 
                 enddo 
             enddo 
+
         enddo 
     enddo 
 
