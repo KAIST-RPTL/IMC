@@ -124,13 +124,13 @@ subroutine collision_CE (p)
         if ( p%yes_sab .and. isab > 0 ) then
             call SAB_CE(p,iso,isab,micro_xs(2),micro_xs(6))
         elseif( p % yes_sab .and. isab < 0) then
-            !call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
             if(.not.allocated(therm)) print *, 'NOTHERM RX', materials(p%material)%sablist(:), p % yes_sab, isab
-            if( rang() > therm(-isab) % f ) then
-                call SAB_CE(p, iso, therm(-isab) % iso_low, micro_xs(2), micro_xs(6))
-            else
-                call SAB_CE(p, iso, therm(-isab) % iso_high, micro_xs(2), micro_xs(6))
-            endif
+            call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
+            !if( rang() > therm(-isab) % f ) then
+                !call SAB_CE(p, iso, therm(-isab) % iso_low, micro_xs(2), micro_xs(6))
+            !else
+                !call SAB_CE(p, iso, therm(-isab) % iso_high, micro_xs(2), micro_xs(6))
+            !endif
         else
             call elastic_CE (p, iso)
         end if
@@ -235,9 +235,9 @@ subroutine SAB_THERM_EL_CE(p,iso,isab_l,isab_h,f)
     real(8):: aa            ! parameter
     real(8) :: uvw_l(3), uvw_h(3)
     real(8) :: E_l, E_h
+    integer :: i, j
+    real(8) :: r
 
-    if ( sab(isab_l)%nxs(5)==0 .or. sab(isab_l)%nxs(6)==-1 .or. sab(isab_l)%jxs(6)==0) return
-    if ( sab(isab_h)%nxs(5)==0 .or. sab(isab_h)%nxs(6)==-1 .or. sab(isab_h)%jxs(6)==0) return
     ! LOW TEMP
     ab1 => sab(isab_l)%itca
     ab2 => sab(isab_l)%itce
@@ -252,13 +252,21 @@ subroutine SAB_THERM_EL_CE(p,iso,isab_l,isab_h,f)
     ipfac=max(0D0,min(1D0,(p%e-ab2%erg(ierg))/(ab2%erg(ierg+1)-ab2%erg(ierg))))
 
     ! outgoing angle
-    mu = ab1%ang(ierg,iang) + ipfac*(ab1%ang(ierg+1,iang)-ab1%ang(ierg,iang))
+    if( allocated( ab1 % ang ) ) then 
+        mu = ab1%ang(ierg,iang) + ipfac*(ab1%ang(ierg+1,iang)-ab1%ang(ierg,iang))
+    elseif ( ab2 % erg ( ierg ) < p % e ) then
+        r = rang()
+        COH_MU_L: do j = 1, ierg
+            if ( ab2 % xs(j) / ab2 % xs(ierg) > r ) then
+                mu = 1d0 - 2d0 * ab2 % erg(j) / p % e
+                exit COH_MU_L
+            endif
+        enddo COH_MU_L
+
+    else
+        print *, 'ERG is something wrong...'
+    endif
     
-    ! coordinate change
-    awr = ace(iso)%atn
-    aa = 1D0+awr*(awr+2D0*mu)
-    E_l = p%E * aa / ((1D0+awr)*(1D0+awr))
-    mu = (1D0+mu*awr)/sqrt(aa)
     uvw_l = rotate_angle(p%coord(1)%uvw,mu)
 
     if ( associated(ab1) ) nullify(ab1)
@@ -278,13 +286,21 @@ subroutine SAB_THERM_EL_CE(p,iso,isab_l,isab_h,f)
     ipfac=max(0D0,min(1D0,(p%e-ab2%erg(ierg))/(ab2%erg(ierg+1)-ab2%erg(ierg))))
 
     ! outgoing angle
-    mu = ab1%ang(ierg,iang) + ipfac*(ab1%ang(ierg+1,iang)-ab1%ang(ierg,iang))
+    if( allocated( ab1 % ang ) ) then 
+        mu = ab1%ang(ierg,iang) + ipfac*(ab1%ang(ierg+1,iang)-ab1%ang(ierg,iang))
+    elseif ( ab2 % erg ( ierg ) < p % e ) then
+        r = rang()
+        COH_MU_H: do j = 1, ierg
+            if ( ab2 % xs(j) / ab2 % xs(ierg) > r ) then
+                mu = 1d0 - 2d0 * ab2 % erg(j) / p % e
+                exit COH_MU_H
+            endif
+        enddo COH_MU_H
+
+    else
+        print *, 'ERG is something wrong...'
+    endif
     
-    ! coordinate change
-    awr = ace(iso)%atn
-    aa = 1D0+awr*(awr+2D0*mu)
-    E_h = p%E * aa / ((1D0+awr)*(1D0+awr))
-    mu = (1D0+mu*awr)/sqrt(aa)
     uvw_h = rotate_angle(p%coord(1)%uvw,mu)
 
     if ( associated(ab1) ) nullify(ab1)
