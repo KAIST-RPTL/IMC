@@ -288,7 +288,7 @@ end do TH
 		!> Make & Solve depletion matrix
 		call depletion
 	    time_dep_done = omp_get_wtime()
-        if ( istep_burnup == 1 ) call setDBPP(1)
+        !if ( istep_burnup == 1 ) call setDBPP(.true.)
         if ( istep_burnup > nstep_burnup ) exit BURNUP
         if ( do_surf_mv ) then
             do i = 1, size(surfaces)

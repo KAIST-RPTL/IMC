@@ -1606,17 +1606,17 @@ module depletion_module
             if ( .not. allocated( power_bu ) ) then
                 ULnorm = RealPower/(avg_power*eVtoJoule)
             else
-                ULnorm = power_bu(istep_burnup) / (avg_power * eVtoJoule)
-                if(icore==score) print *, 'For BU from', burn_step(istep_burnup), '->', burn_step(istep_burnup+1), ', used power of', power_bu(istep_burnup),'[MW]'
+                ULnorm = RealPower * power_bu(istep_burnup) / (avg_power * eVtoJoule)
+                if(icore==score) print *, 'For BU from', burn_step(istep_burnup), '->', burn_step(istep_burnup+1), ', used power of', power_bu(istep_burnup) * RealPower ,'[MW]'
             endif
             if(ULnorm <= 0d0) goto 304
             call MPI_BCAST(ULnorm, 1, MPI_DOUBLE_PRECISION, score, MPI_COMM_WORLD, ierr)
             if ( DTMCBU ) &
                 call MPI_BCAST(materials(:)%flux,n_materials,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
             !Substitute burnup matrix element
-            !do imat = 1, n_materials
-            do ii = 1, ngeom
-                imat = mpigeom(ii,icore)
+            do imat = 1, n_materials
+            !do ii = 1, ngeom
+            !    imat = mpigeom(ii,icore)
 
                 if(imat==0) cycle
                 if(.not. materials(imat)%depletable) cycle    !material imat is not burned
@@ -1815,6 +1815,7 @@ module depletion_module
                 if(DTMCBU) real_flux = mat % flux
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
+                if(icore==score) print *, 'FLUX of ', trim(mat%mat_name), real_flux * mat%vol, bstep_size
                 toteflux = sum(mat%eflux(0:nueg))
                 !Build burnup matrix with cross section obtained from MC calculation
                 bMat = bMat0*bstep_size
@@ -1891,7 +1892,6 @@ module depletion_module
                     if(do_iso_ueg) then
                         call buildflux(iso,ace(iso)%NXS(3)+1, mat %eflux(0:nueg), flx)
                         call buildflux(iso,ace(iso)%NXS(3)+1, mat%e2flux(0:nueg), flx2)
-                        toteflux = sum(flx)
                         flx  = flx / toteflux; flx = flx * real_flux
                         flx2 = flx2/ toteflux; flx2= flx2* real_flux
                     endif
@@ -1910,7 +1910,7 @@ module depletion_module
                                 do i_rx = 1, 7
                                     if(RXMT(i_rx)==mt) then
                                         ogxs = mat % ogxs(iso, i_rx) * real_flux
-                                        if(ace(iso)%zaid==92235 .or. ace(iso)%zaid==92238) write(*,'(A,A,I6, I3,E15.5,E15.5,E15.5)') 'BIAS ', trim(materials(imat)%mat_name), ace(iso)%zaid, mt, ogxs, ogxs1, (ogxs1-ogxs)/ogxs*1E2
+                                        !if(ace(iso)%zaid==92235 .or. ace(iso)%zaid==92238) write(*,'(A,A,I6, I3,E15.5,E15.5,E15.5)') 'BIAS ', trim(materials(imat)%mat_name), ace(iso)%zaid, mt, ogxs, ogxs1, (ogxs1-ogxs)/ogxs*1E2
                                         exit
                                     endif
                                 enddo
@@ -2121,11 +2121,12 @@ module depletion_module
             ! write(*,*) imat, icore, zai_idx(jnuc), mat%full_numden(jnuc)
 
             tmp = find_ACE_iso_idx_zaid(zaid=zai_idx(jnuc), temp=mat%temp)
-            !if(mat%full_numden(jnuc)>=1d10 .and. tmp > 0) then 
-            if( zai_idx(jnuc) == 541350 .or. &
-                zai_idx(jnuc) == 621480 .or. &
-                zai_idx(jnuc)/10000 == 64 .or. &
-                zai_idx(jnuc)/10000 >  88 ) then ! Simplified Version
+            if(mat%full_numden(jnuc)>=1d10 .and. tmp > 0) then 
+!            if( tmp /= 0 .and. (zai_idx(jnuc) == 541350 .or. &
+!                zai_idx(jnuc) == 621480 .or. &
+!                zai_idx(jnuc) ==  80160 .or. &
+!                zai_idx(jnuc)/10000 == 64 .or. &
+!                zai_idx(jnuc)/10000 >  88) ) then ! Simplified Version
                 knuc = knuc + 1
                 mat % iso_idx(knuc) = jnuc
             elseif(mat%full_numden(jnuc)>0.d0) then
@@ -2145,12 +2146,13 @@ module depletion_module
         do mt_iso=1, mat % n_iso
             ! find ace_idx
             tmp = find_ACE_iso_idx_zaid(zaid = zai_idx(mat % iso_idx(mt_iso)), temp=mat%temp)
-            !if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
-            if( tmp /= 0 .and. ( &
-                zai_idx(mat % iso_idx(mt_iso)) == 541350 .or. &
-                zai_idx(mat % iso_idx(mt_iso)) == 621480 .or. &
-                zai_idx(mat % iso_idx(mt_iso))/10000 == 64 .or. &
-                zai_idx(mat % iso_idx(mt_iso))/10000 >  88 )) then ! Simplified Version
+            if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
+!            if( tmp /= 0 .and. ( &
+!                zai_idx(mat % iso_idx(mt_iso)) == 541350 .or. &
+!                zai_idx(mat % iso_idx(mt_iso)) == 621480 .or. &
+!                zai_idx(mat % iso_idx(mt_iso)) ==  80160 .or. &
+!                zai_idx(mat % iso_idx(mt_iso))/10000 == 64 .or. &
+!                zai_idx(mat % iso_idx(mt_iso))/10000 >  88 )) then ! Simplified Version
                 i = i + 1
                 mat%ace_idx(mt_iso) = tmp
                 mat%numden(mt_iso)  = mat%full_numden(mat % iso_idx(mt_iso))
@@ -2172,28 +2174,28 @@ module depletion_module
 
 
     ! data sharing
-    if(icore==score .and. ncore > 1) print *, '   Broadcasting Number densities to MPI nodes...'
-    do ii = 0, ncore-1
-    do jj = 1, ngeom
-        imat = mpigeom(jj,ii)
-        if( imat == 0 ) cycle
-        mat => materials(imat)
-        call MPI_BCAST(mat%n_iso,1,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-        niso = mat%n_iso
-    
-        if ( icore /= ii ) then
-           deallocate(mat%ace_idx); allocate(mat%ace_idx(niso)); mat%ace_idx(:) = 0
-           deallocate(mat%numden);  allocate(mat%numden(niso));  mat%numden(:)  = 0
-           deallocate(mat%sablist); allocate(mat%sablist(niso)); mat%sablist(:) = 0
-           if(.not. allocated(mat%iso_idx)) allocate(mat%iso_idx(nnuc))
-           mat%iso_idx(:) = 0
-       end if
-    
-       call MPI_BCAST(mat%ace_idx,niso,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-       call MPI_BCAST(mat%numden,niso,MPI_REAL8,ii,MPI_COMM_WORLD,ierr)
-       call MPI_BCAST(mat%iso_idx,nnuc,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-    end do
-    end do
+!    if(icore==score .and. ncore > 1) print *, '   Broadcasting Number densities to MPI nodes...'
+!    do ii = 0, ncore-1
+!    do jj = 1, ngeom
+!        imat = mpigeom(jj,ii)
+!        if( imat == 0 ) cycle
+!        mat => materials(imat)
+!        call MPI_BCAST(mat%n_iso,1,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+!        niso = mat%n_iso
+!    
+!        if ( icore /= ii ) then
+!           deallocate(mat%ace_idx); allocate(mat%ace_idx(niso)); mat%ace_idx(:) = 0
+!           deallocate(mat%numden);  allocate(mat%numden(niso));  mat%numden(:)  = 0
+!           deallocate(mat%sablist); allocate(mat%sablist(niso)); mat%sablist(:) = 0
+!           if(.not. allocated(mat%iso_idx)) allocate(mat%iso_idx(nnuc))
+!           mat%iso_idx(:) = 0
+!       end if
+!    
+!       call MPI_BCAST(mat%ace_idx,niso,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+!       call MPI_BCAST(mat%numden,niso,MPI_REAL8,ii,MPI_COMM_WORLD,ierr)
+!       call MPI_BCAST(mat%iso_idx,nnuc,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+!    end do
+!    end do
 
     call MPI_REDUCE(tot_flux, tmpflux, 1, MPI_DOUBLE_PRECISION, MPI_SUM, score, MPI_COMM_WORLD, ierr)
     tot_flux = tmpflux
@@ -2209,7 +2211,7 @@ module depletion_module
             write(prt_bumat,*) 'mat: ', mat%mat_name
             write(prt_bumat,*) ''
             do mt_iso = 1, mat%n_iso
-               write(prt_bumat, '(a15,e14.5)') ace(mat%ace_idx(mt_iso))%xslib, mat%numden(mt_iso)*barn 
+            if ( mat % ace_idx(mt_iso) > 0) write(prt_bumat, '(a15,e14.5)') ace(mat%ace_idx(mt_iso))%xslib, mat%numden(mt_iso)*barn 
             enddo
             write(prt_bumat, *) 'Num isotope', i
             write(prt_bumat, *) ''

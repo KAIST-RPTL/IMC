@@ -268,6 +268,7 @@ subroutine SAB_THERM_EL_CE(p,iso,isab_l,isab_h,f)
     endif
     
     uvw_l = rotate_angle(p%coord(1)%uvw,mu)
+    print *, 'UVWL', mu, uvw_l
 
     if ( associated(ab1) ) nullify(ab1)
     if ( associated(ab2) ) nullify(ab2)
@@ -302,6 +303,7 @@ subroutine SAB_THERM_EL_CE(p,iso,isab_l,isab_h,f)
     endif
     
     uvw_h = rotate_angle(p%coord(1)%uvw,mu)
+    print *, 'UVWH', mu, uvw_h
 
     if ( associated(ab1) ) nullify(ab1)
     if ( associated(ab2) ) nullify(ab2)

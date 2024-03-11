@@ -130,6 +130,7 @@ function getMacroXS (mat, erg,kT, urn) result (macro_xs)
     MAT_ISO_LOOP: do i_iso = 1, mat%n_iso     ! isotope number in the material
     
         iso_ = mat%ace_idx(i_iso)   ! isotope number in the inputfile
+        if( iso_ == 0 ) print *, 'ISO', i_iso, trim(mat%mat_name), mat%numden(i_iso)
 
         ! =====================================================================
         ! S(a,b) treatment
@@ -1929,7 +1930,7 @@ end subroutine
 
 subroutine setDBPP(BU)
 implicit none
-integer, intent(in) :: BU
+logical, intent(in) :: BU
 integer :: i, j, iso, iso_, rx
 real(8) :: xs1(6), urn(n_unr), xs2
 type(AceFormat), pointer :: ac
@@ -1943,6 +1944,7 @@ endif
 
 do i = 1, n_materials
     if ( materials(i) % db ) cycle
+    if ( .not. materials(i) % depletable .and. BU ) cycle
         do iso = 1, materials(i) % n_iso
             if( abs(materials(i) % temp - ace(materials(i)%ace_idx(iso)) % temp) > 1E-3*K_B ) then 
                 found = .false.
