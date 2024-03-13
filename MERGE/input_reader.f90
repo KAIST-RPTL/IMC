@@ -139,6 +139,10 @@ recursive subroutine read_geom(path, geom_nest)
                 end if
                 if(icore==score) write(prt_adjoint,*) 'BETA   GENTIME'
             endif
+            if ( do_burn ) then
+                bumat_name = trim(title)//'_bumat.out'
+            endif
+
 		case ('GMSH')
 			read (args(2), '(L)') do_gmsh
 			if (do_gmsh) call read_msh()
