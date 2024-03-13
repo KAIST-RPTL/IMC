@@ -134,6 +134,8 @@ module depletion_module
     character(200) :: nfy_lib
     character(200) :: sfy_lib
     character(200) :: isom_lib
+
+    character(200) :: bumat_name = 'bumat.out'
     
     !Removal/Refueling operator
     real(8) :: eff_gas = 0.d0
@@ -196,6 +198,7 @@ module depletion_module
     ! P/C
     integer :: preco = 0    ! PREC. or not
     integer :: porc  = 0    ! Flag for Predictor/Corrector
+    integer :: nporc = 1
     real(8) :: stepsize0
 
     logical, allocatable :: burnup_restart(:)
@@ -1100,7 +1103,7 @@ module depletion_module
                 !Burnup result files
                 if(icore==score) then
                     !open(prt_ntpy, file="dep_monitor",action="write",status="replace") 
-                    open(prt_bumat, file="bumat.out",action="write",status="replace") !position='append')
+                    open(prt_bumat, file=trim(bumat_name),action="write",status="replace") !position='append')
                     !Initial Density
                     if(istep_burnup==0) then ! Initial Number
                     write(prt_bumat, '(a45)')         '   =========================================='
@@ -1618,16 +1621,22 @@ module depletion_module
                 ULnorm = RealPower/(avg_power*eVtoJoule)
             else
                 ULnorm = RealPower * power_bu(istep_burnup) / (avg_power * eVtoJoule)
-                if(icore==score) print *, 'For BU from', burn_step(istep_burnup), '->', burn_step(istep_burnup+1), ', used power of', power_bu(istep_burnup) * RealPower ,'[MW]'
+            if(icore==score) print *, 'For BU from', burn_step(istep_burnup), '->', burn_step(istep_burnup+1), ', used power of', power_bu(istep_burnup) * RealPower ,'[MW]'
             endif
             if(ULnorm <= 0d0) goto 304
             call MPI_BCAST(ULnorm, 1, MPI_DOUBLE_PRECISION, score, MPI_COMM_WORLD, ierr)
             if ( DTMCBU ) &
                 call MPI_BCAST(materials(:)%flux,n_materials,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
             !Substitute burnup matrix element
+<<<<<<< HEAD
             !do imat = 1, n_materials
             do ii = 1, ngeom
                 imat = mpigeom(ii,icore)
+=======
+            do imat = 1, n_materials
+            !do ii = 1, ngeom
+                !imat = mpigeom(ii,icore)
+>>>>>>> f4d2b40ea843b309b81bce460ef902062660dfb0
 
                 if(imat==0) cycle
                 if(.not. materials(imat)%depletable) cycle    !material imat is not burned
@@ -1826,26 +1835,33 @@ module depletion_module
                 if(DTMCBU) real_flux = mat % flux
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
-                if(icore==score) print *, 'FLUX of ', trim(mat%mat_name), real_flux * mat%vol, bstep_size
+                print *, 'FLUX of ', trim(mat%mat_name), real_flux * mat%vol, bstep_size
                 toteflux = sum(mat%eflux(0:nueg))
                 !Build burnup matrix with cross section obtained from MC calculation
                 bMat = bMat0*bstep_size
                 
                 if(preco == 1) then ! CE/LI
-                    if(porc == 1) then ! Predictor: save
-                        if(.not. allocated(mat % ogxs1)) &
+                    if(porc <= nporc) then ! Predictor: save
+                        if(.not. allocated(mat % ogxs1)) then
                             allocate(mat % ogxs1(num_iso, 1:7))
-                        if(.not. allocated(mat % ace_idx1)) &
+                            mat % ogxs1 = 0d0
+                        endif
+                        if(.not. allocated(mat % ace_idx1)) then
                             allocate(mat % ace_idx1(mat%n_iso))
-                        if(.not. allocated(mat % eflux1)) &
+                            mat % ace_idx1 = 0d0
+                        endif
+                        if(.not. allocated(mat % eflux1)) then
                             allocate(mat % eflux1(nueg))
-                        mat % flux1 = real_flux
-                        mat % eflux1 = mat % eflux
-                        mat % ogxs1(:,:) = mat % ogxs(:,:)
-                        mat % ace_idx1(:) = mat % ace_idx(:)
+                            mat % eflux1 = 0d0
+                        endif
+
+                        mat % flux1 = real_flux + mat % flux1
+                        mat % eflux1 = mat % eflux + mat % eflux1
+                        mat % ogxs1(:,:) = mat % ogxs(:,:) + mat % ogxs1(:,:)
+                        mat % ace_idx1(:) = mat % ace_idx(:) + mat % ace_idx1(:)
                         mat % full_numden1 = mat % full_numden
 
-                    elseif(porc == 2) then ! Corrector: load
+                    elseif(porc == nporc) then ! Corrector: load
                         real_flux = (real_flux + mat % flux1) * 0.5d0
                         mat % eflux = (mat % eflux + mat % eflux1) * 0.5d0
                         mat % ogxs  = (mat % ogxs  + mat % ogxs1) * 0.5d0
@@ -2132,12 +2148,12 @@ module depletion_module
             write(*,*) trim(mat%mat_name), icore, zai_idx(jnuc), mat%full_numden(jnuc)
 
             tmp = find_ACE_iso_idx_zaid(zaid=zai_idx(jnuc), temp=mat%temp)
-            if(mat%full_numden(jnuc)>=1d10 .and. tmp > 0) then 
-!            if( tmp /= 0 .and. (zai_idx(jnuc) == 541350 .or. &
-!                zai_idx(jnuc) == 621480 .or. &
-!                zai_idx(jnuc) ==  80160 .or. &
-!                zai_idx(jnuc)/10000 == 64 .or. &
-!                zai_idx(jnuc)/10000 >  88) ) then ! Simplified Version
+            !if(mat%full_numden(jnuc)>=1d10 .and. tmp > 0) then 
+            if( tmp /= 0 .and. (zai_idx(jnuc) == 541350 .or. &
+                zai_idx(jnuc) == 621480 .or. &
+                zai_idx(jnuc) ==  80160 .or. &
+                zai_idx(jnuc)/10000 == 64 .or. &
+                zai_idx(jnuc)/10000 >  88) ) then ! Simplified Version
                 knuc = knuc + 1
                 mat % iso_idx(knuc) = jnuc
             elseif(mat%full_numden(jnuc)>0.d0) then
@@ -2157,13 +2173,13 @@ module depletion_module
         do mt_iso=1, mat % n_iso
             ! find ace_idx
             tmp = find_ACE_iso_idx_zaid(zaid = zai_idx(mat % iso_idx(mt_iso)), temp=mat%temp)
-            if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
-!            if( tmp /= 0 .and. ( &
-!                zai_idx(mat % iso_idx(mt_iso)) == 541350 .or. &
-!                zai_idx(mat % iso_idx(mt_iso)) == 621480 .or. &
-!                zai_idx(mat % iso_idx(mt_iso)) ==  80160 .or. &
-!                zai_idx(mat % iso_idx(mt_iso))/10000 == 64 .or. &
-!                zai_idx(mat % iso_idx(mt_iso))/10000 >  88 )) then ! Simplified Version
+            !if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
+            if( tmp /= 0 .and. ( &
+                zai_idx(mat % iso_idx(mt_iso)) == 541350 .or. &
+                zai_idx(mat % iso_idx(mt_iso)) == 621480 .or. &
+                zai_idx(mat % iso_idx(mt_iso)) ==  80160 .or. &
+                zai_idx(mat % iso_idx(mt_iso))/10000 == 64 .or. &
+                zai_idx(mat % iso_idx(mt_iso))/10000 >  88 )) then ! Simplified Version
                 i = i + 1
                 mat%ace_idx(mt_iso) = tmp
                 mat%numden(mt_iso)  = mat%full_numden(mat % iso_idx(mt_iso))

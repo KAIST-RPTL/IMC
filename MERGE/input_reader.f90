@@ -46,7 +46,552 @@ subroutine init_var
     if(icore==score) iscore = .true.
 
 end subroutine
+
+! =============================================================================
+! READ_GEOM reads the input about the geometry
+! =============================================================================
+recursive subroutine read_geom(path, geom_nest)
     
+    implicit none
+    
+    character(*), intent(in) :: path
+    integer, intent(in) :: geom_nest
+    integer :: i, j, k, ix, iy,iz, idx, n, level
+    integer :: i_cell, i_univ, i_lat, i_surf 
+    integer :: ntemp, itemp, tmpidx
+    integer :: ierr
+    real(8) :: dtemp, xyz(3)
+    character(200) :: line
+    character(50) :: option, temp, mat_id, pnum 
+    character(1)  :: opt
+    character(30) :: filename
+    character(100) :: args(100)
+    integer :: nargs
+    integer :: ns0, ns1 ! surfaces
+    integer :: nc0, nc1 ! cells
+    integer :: nu0, nu1 ! universes
+    integer :: nl0, nl1 ! lattices
+	
+    logical :: found 
+    character(20) :: dupname
+    character(5) :: char1, char2
+    integer :: File_Error
+
+    ! For optimization of large input
+    integer :: max_univ = 0
+    integer, allocatable :: univlist(:)
+    integer, allocatable :: celluniv(:), celllist(:), cell2univ(:)
+
+    if (icore==score) print *, "   ", path, " :: GEOMETRY CARD is being read..., LOOP #:", geom_nest
+    if( geom_nest == 0 ) then ! Mother file
+    
+        ncell = 0; nsurf = 0; nlatt = 0; nuniv = 0;
+        call count_geom('geom.inp', rd_geom+geom_nest)
+    
+        allocate(surfaces(1:nsurf))
+        allocate(cells(1:ncell))
+        allocate(universes(0:nuniv))
+        universes(0)%univ_type = 0
+        universes(0)%univ_id   = 0
+        universes(0)%xyz(:)    = 0
+        universes(0)%ncell     = 0
+        allocate(lattices(1:nlatt))
+        if(icore==score) then
+            print *, 'Surf #:', nsurf
+            print *, 'Cell #:', ncell
+            print *, 'Univ #:', nuniv
+            print *, 'Latt #:', nlatt
+        endif
+    endif
+
+    !Read geom.inp
+    open(rd_geom+geom_nest, file=trim(trim(directory)//adjustl(trim(path))),action="read", status="old")
+    rewind(rd_geom+geom_nest)
+        
+    ncell = 0; nsurf = 0; nlatt = 0; nuniv = 0;
+    ierr = 0; curr_line = 0 
+    do while (ierr.eq.0)
+		call readandparse(rd_geom+geom_nest, args, nargs, ierr, curr_line)
+		
+        if (ierr /= 0) exit
+		option = args(1)
+        call Small_to_Capital(option)
+        !<================================================================>!
+        select case (option)
+        case ("TITLE") 
+            title = args(2)
+            filename = trim(title)//'_keff.out'
+            
+            inquire(file=filename, exist=found)
+            if (found) then
+              if (icore == score) open(prt_keff, file=filename, status="old")
+            else
+              if (icore == score) open(prt_keff, file=filename, status="new")
+            end if
+            
+            if(do_ifp) then
+                filename = trim(title)//'_adj.out'
+                inquire(file=filename, exist=found)
+                if (found) then
+                  if (icore == score) open(prt_adjoint, file=filename, status="old")
+                else
+                  if (icore == score) open(prt_adjoint, file=filename, status="new")
+                end if
+                if(icore==score) write(prt_adjoint,*) 'BETA   GENTIME'
+            endif
+            if ( do_burn ) then
+                bumat_name = trim(title)//'_bumat.out'
+            endif
+
+		case ('GMSH')
+			read (args(2), '(L)') do_gmsh
+			if (do_gmsh) call read_msh()
+			! TODO :: 경계조건 입력 필요 (현재는 vacuum)
+			
+			
+        case ("SURF")
+            nsurf = nsurf + 1
+            call read_surf(surfaces(nsurf), args, nargs)
+			call EMSG_surf(surfaces(nsurf)%surf_type, nargs, curr_line)
+            
+        case ("CELL")
+!            isize = 0
+!            if (allocated(cells)) isize = size(cells) 
+!            isize = isize+1
+!            allocate(cells_temp(1:isize))
+!            if (isize > 1) cells_temp(1:isize-1) = cells(:) 
+!            call read_cell (cells_temp(isize), args, nargs) 
+!            if(allocated(cells)) deallocate(cells)
+!            call move_alloc(cells_temp, cells)            
+            ncell = ncell + 1
+            call read_cell (cells(ncell), args, nargs) 
+            if ( cells(ncell) % univ_id > max_univ ) &
+                max_univ = cells(ncell) % univ_id
+                        
+        case ("PIN")
+            nuniv = nuniv + 1
+            call read_pin (universes(nuniv), args, nargs) 
+            if ( universes(nuniv) % univ_id > max_univ ) &
+                max_univ = universes(nuniv) % univ_id
+            universes(nuniv)%xyz(:) = 0
+            
+            univptr => universes(nuniv)
+            
+            allocate(univptr%r(1:univptr%ncell-1))
+            allocate(univptr%cell(1:univptr%ncell))
+
+            !> generate cell from pin
+            ncell = ncell + univptr%ncell 
+            do i = 1, univptr%ncell-1
+                j = ncell-univptr%ncell+i
+                univptr%cell(i) = j
+				call readandparse(rd_geom+geom_nest, args, nargs, ierr, curr_line)
+				
+                read(args(1),*) mat_id
+                read(args(2),*) univptr%r(i)
+                
+                if (E_mode == 0) cells(j)%mat_idx = find_mat_idx(XS_MG,mat_id)
+                if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
+                if(materials(cells(j)%mat_idx) % duplicable &
+                    .and. materials(cells(j)%mat_idx) % depletable) then
+                    tmpidx = cells(j) % mat_idx
+                    if(materials(cells(j)%mat_idx) % geom_count > 0) then
+                        if(univptr%univ_id<10) then
+                            write(char1, '(I1)') univptr%univ_id
+                        elseif(univptr%univ_id<100) then
+                            write(char1, '(I2)') univptr%univ_id
+                        elseif(univptr%univ_id<1000) then
+                            write(char1, '(I3)') univptr%univ_id
+                        elseif(univptr%univ_id<10000) then
+                            write(char1, '(I4)') univptr%univ_id
+                        elseif(univptr%univ_id<100000) then
+                            write(char1, '(I5)') univptr%univ_id
+                        endif
+
+                        if(i<10) then
+                            write(char2, '(I1)') i
+                        elseif(i<100) then
+                            write(char2, '(I2)') i
+                        endif
+                        !if(icore==score) print *, 'CHCK', char1, char2
+                        !write(dupname, '(A,A1,A,A1,A)') adjustl(trim(materials(cells(j)%mat_idx) % mat_name)), '_', adjustl(trim(char1)), '_', adjustl(trim(char2))
+                        dupname = adjustl(trim(materials(cells(j)%mat_idx)%mat_name)) //'_' //adjustl(trim(char1)) // '_' // adjustl(trim(char2))
+                        if(icore==score) print *, 'DUP ', dupname, materials(cells(j)%mat_idx) % geom_count
+                        allocate(materials_temp(n_materials+1))
+                        materials_temp(1:n_materials) = materials(:)
+                        materials_temp(n_materials+1) = materials(cells(j)%mat_idx)
+                        materials_temp(n_materials+1) % mat_name = dupname
+                        if(allocated(materials)) deallocate(materials)
+                        call move_alloc(materials_temp, materials)
+                        n_materials = n_materials + 1
+                        cells(j) % mat_idx = n_materials
+                    endif
+                    materials(tmpidx) % geom_count = &
+                        materials(tmpidx) % geom_count + 1
+                endif
+            enddo
+            j = ncell
+            univptr%cell(i) = j
+			call readandparse(rd_geom+geom_nest, args, nargs, ierr, curr_line)
+            read(args(1),*) mat_id
+            
+            if (E_mode == 0) cells(j)%mat_idx = find_mat_idx(XS_MG,mat_id)
+            if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
+            if(materials(cells(j)%mat_idx) % duplicable &
+                .and. materials(cells(j)%mat_idx) % depletable) then
+                if(materials(cells(j)%mat_idx) % geom_count > 0) then
+                    allocate(materials_temp(n_materials+1))
+                    materials_temp(1:n_materials) = materials(:)
+                    materials_temp(n_materials+1) = materials(cells(j)%mat_idx)
+                    if(allocated(materials)) deallocate(materials)
+                    call move_alloc(materials_temp, materials)
+                    n_materials = n_materials + 1
+                    cells(j) % mat_idx = n_materials
+                endif
+                materials(cells(j)%mat_idx) % geom_count = &
+                    materials(cells(j)%mat_idx) % geom_count + 1
+                if(icore==score) print *, 'ADDED', n_materials, cells(j)%mat_idx
+            endif
+            call gen_cells_from_pin (univptr, cells(j-univptr%ncell+1:j)) 
+            
+            
+            !> generate surface from pin
+            if (univptr%ncell > 1) then 
+                nsurf = nsurf + univptr%ncell - 1
+                call gen_surfs_from_pin (univptr, surfaces(nsurf-univptr%ncell+2:nsurf)) 
+            endif 
+        
+        case ("LAT")
+            nlatt = nlatt + 1
+            lat_ptr => lattices(nlatt)
+            call read_lat(lat_ptr, args, nargs) 
+            allocate(lat_ptr%lat(1:lat_ptr%n_xyz(1),1:lat_ptr%n_xyz(2),1:lat_ptr%n_xyz(3))) 
+            if(lat_ptr % lat_type /= 9) then ! non vertical stack
+    			do iz = 1, lat_ptr%n_xyz(3)
+    			do iy = 1, lat_ptr%n_xyz(2)
+    				call readandparse(rd_geom+geom_nest, args, nargs, ierr, curr_line)
+    				if (nargs /= lat_ptr%n_xyz(1)) then
+    					write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice element number"
+                        write (*,*) 'NARGS', nargs, args
+    					stop
+    				endif
+    				do ix = 1, lat_ptr%n_xyz(1)
+    					read (args(ix), *) lat_ptr%lat(ix,iy,iz)
+    				enddo 
+    			enddo 
+                enddo
+            else ! Vertical stack: Z and Mat
+                do iz = 1, lat_ptr % n_xyz(3)
+                    call readandparse(rd_geom+geom_nest, args, nargs, ierr, curr_line)
+                    if(nargs /= 2) then
+                        stop
+                    endif
+                    read(args(1), *) lat_ptr%lat(1,1,iz)
+                    read(args(2), *) lat_ptr%z_lb(iz)
+                enddo
+            endif
+        case ('BC') 
+			call read_bc (surfaces, args, nargs)
+            
+        case ('SGRID') 
+            allocate(sgrid(1:6))
+            call read_sgrid (args, nargs)
+        case("INCLUDE")
+            if(nargs /= 2) then
+                write(*,*) "    Include statement requries only one daughter file"
+                stop
+            endif
+            call read_geom(adjustl(trim(args(2))), geom_nest+1)
+		
+        case default 
+            print *, 'NO SUCH OPTION ::', option, args(1), args(2), nargs
+            stop
+        end select
+        
+    enddo
+    
+    if(geom_nest > 0) then
+        close(rd_geom+geom_nest)
+        return
+    endif
+    if(icore==score) then
+        print *, 'Reading is done...'
+        print *, 'Surf #:', nsurf
+        print *, 'Cell #:', ncell
+        print *, 'Univ #:', nuniv
+        print *, 'Latt #:', nlatt
+    endif
+    ! ===================================================================================== !
+
+    allocate(univlist(1:max_univ)); univlist = 0; j = 0
+
+    do i = 1, size(universes(1:))
+        univlist( universes(i) % univ_id ) = i
+    enddo
+
+    allocate(universes_temp(1:max_univ))
+    !> add pure universes from cells(:)
+    do i = 1, size(cells)
+        !> if univ_id = 0 then add to base universe / else add to the tail
+        if (cells(i)%univ_id == 0 ) then 
+            universes(0)%ncell = universes(0)%ncell+1
+        else
+            if ( univlist(cells(i) % univ_id) == 0 ) then 
+                j = j + 1
+                univlist(cells(i) % univ_id) = -j
+
+                universes_temp(j) % univ_type = 0
+                universes_temp(j) % univ_id   = cells(i) % univ_id
+                universes_temp(j) % xyz(:)    = 0
+                universes_temp(j) % ncell     = 1
+            elseif ( univlist(cells(i) % univ_id) < 0 ) then ! Created Univ.
+                universes_temp( -univlist(cells(i) % univ_id) ) % ncell = &
+                universes_temp( -univlist(cells(i) % univ_id) ) % ncell + 1
+            else
+                idx = univlist(cells(i) % univ_id)
+                if (.not. allocated(universes(idx)%r)) then 
+                    universes(idx)%ncell = universes(idx)%ncell+1
+                endif
+            endif
+        endif
+    enddo         
+
+    isize = size(universes(1:))
+    allocate( univ_temp ( 0: isize + j ) )
+    do i =  0, isize
+        univ_temp(i) = universes(i)
+    enddo
+    do i = 1, j
+        univ_temp(isize + i) = universes_temp(i)
+    enddo
+    call move_alloc( univ_temp, universes ); deallocate(universes_temp) 
+
+    do i = 1, size(univlist)
+        if(univlist(i) < 0) univlist(i) = abs(univlist(i)) + isize
+    enddo
+
+    if(icore==score) then
+        print *, 'Step2 is done...'
+        print *, 'Surf #:', nsurf
+        print *, 'Cell #:', ncell
+        print *, 'Univ #:', nuniv
+        print *, 'Latt #:', nlatt
+    endif
+    
+    !> 3. Update surface info to subpin cells 
+    do i = 1, size(cells)
+        read(cells(i)%cell_id,*) temp
+        if (temp(1:1) == 'p') then                  !> sub_pin cell 
+            !read(temp(2:2),'(I)') itemp
+            !read(temp(4:4),'(I)') j
+			call OptionAndNumber(temp, 1, opt, itemp, pnum) 
+			call OptionAndNumber(temp, 2, opt, j) 
+			
+            
+            do i_univ = 0, size(universes) 
+                if (itemp == universes(i_univ)%univ_id) exit
+            enddo 
+            
+            !print *, i_univ, universes(i_univ)%univ_id , universes(1)%ncell
+            if (universes(i_univ)%ncell > 1) then
+              if (j == 1)then 
+                  allocate(cells(i)%neg_surf_idx(1))
+                  allocate(cells(i)%pos_surf_idx(0))
+                  cells(i)%neg_surf_idx(1) = find_surf_idx(surfaces,trim(pnum)//'s1')
+              elseif (j == universes(i_univ)%ncell) then
+                  allocate(cells(i)%neg_surf_idx(0))
+                  allocate(cells(i)%pos_surf_idx(1))
+                  write(line,*) j-1
+                  cells(i)%pos_surf_idx(1) = find_surf_idx(surfaces,trim(pnum)//'s'//adjustl(line))
+              else 
+                  allocate(cells(i)%pos_surf_idx(1))
+                  write(line,*) j-1
+                  !print *, 'check1'
+                  cells(i)%pos_surf_idx(1) = find_surf_idx(surfaces,trim(pnum)//'s'//adjustl(line))
+                  allocate(cells(i)%neg_surf_idx(1))
+                  write(line,*) j
+                  cells(i)%neg_surf_idx(1) = find_surf_idx(surfaces,trim(pnum)//'s'//adjustl(line))
+                  !print *, 'check2'
+              endif
+            endif
+            cells(i)%operand_flag = 1
+            
+        else                                         !> ordinary cell
+            ix=0; iy=0;
+            cells(i)%nsurf = size(cells(i)%list_of_surface_IDs)
+            do j = 1, cells(i)%nsurf
+				temp = cells(i)%list_of_surface_IDs(j)
+                if (temp(1:1) == '-' ) then 
+					ix = ix+1
+                else 
+					iy = iy+1
+				endif
+            enddo 
+            allocate(cells(i)%neg_surf_idx(ix))
+            allocate(cells(i)%pos_surf_idx(iy))
+            ix=1; iy=1;
+            do j = 1, cells(i)%nsurf
+				temp = cells(i)%list_of_surface_IDs(j)
+                if (temp(1:1) == '-' ) then 
+					write(line, *) temp(2:)
+                    cells(i)%neg_surf_idx(ix) = find_surf_idx(surfaces,adjustl(line))
+                    ix = ix+1
+                else 
+					write(line, *) temp
+                    cells(i)%pos_surf_idx(iy) = find_surf_idx(surfaces,adjustl(line))
+                    iy = iy+1
+				endif
+                
+            enddo 
+            
+            !> cell translation
+            if (cells(i)%nsurf == 1) then 
+				temp = cells(i)%list_of_surface_IDs(1)
+                write(line,*) temp(scan(temp,'-')+1:)
+                idx = find_surf_idx(surfaces,adjustl(line))
+                !if (surfaces(idx)%surf_type == sqcx) 
+                !if (surfaces(idx)%surf_type == sqcy)
+                if (surfaces(idx)%surf_type == sqcz) then 
+                    allocate(cells(i)%translation(3))
+                    cells(i)%translation(1) = surfaces(idx)%parmtrs(1)
+                    cells(i)%translation(2) = surfaces(idx)%parmtrs(2)
+                    cells(i)%translation(3) = 0
+                endif
+                !if (surfaces(idx)%surf_type == cylx)
+                !if (surfaces(idx)%surf_type == cyly)
+                if (surfaces(idx)%surf_type == cylz) then 
+                    allocate(cells(i)%translation(3))
+                    cells(i)%translation(1) = surfaces(idx)%parmtrs(1)
+                    cells(i)%translation(2) = surfaces(idx)%parmtrs(2)
+                    cells(i)%translation(3) = 0
+                endif
+                if (surfaces(idx)%surf_type == sph) then 
+                    allocate(cells(i)%translation(3))
+                    cells(i)%translation(1) = surfaces(idx)%parmtrs(1)
+                    cells(i)%translation(2) = surfaces(idx)%parmtrs(2)
+                    cells(i)%translation(3) = surfaces(idx)%parmtrs(3)
+                endif
+                if (surfaces(idx)%surf_type == hexxc) then
+                    allocate(cells(i)%translation(3))
+                    cells(i)%translation(1) = surfaces(idx)%parmtrs(1)
+                    cells(i)%translation(2) = surfaces(idx)%parmtrs(2)
+                    cells(i)%translation(3) = 0
+                endif
+                if (surfaces(idx)%surf_type == hexyc) then
+                    allocate(cells(i)%translation(3))
+                    cells(i)%translation(1) = surfaces(idx)%parmtrs(1)
+                    cells(i)%translation(2) = surfaces(idx)%parmtrs(2)
+                    cells(i)%translation(3) = 0
+                endif
+                
+            endif
+        endif 
+    enddo 
+    if(icore==score) then
+        print *, 'Step3 is done...'
+        print *, 'Surf #:', nsurf
+        print *, 'Cell #:', ncell
+        print *, 'Univ #:', nuniv
+        print *, 'Latt #:', nlatt
+    endif
+    
+    !> 4. Add cells to pin universe
+    !> Add the cells to the universe cell list   
+
+    allocate( cell2univ ( 1:size(cells) ) ); cell2univ = -1 ! neg. cell2univ
+    allocate( celllist  ( 1:size(cells) ) )
+    do i = 1, size( cells )
+        celllist  ( i ) = i
+        if ( cells(i) % univ_id == 0 ) then
+            cell2univ(i) = 0
+        elseif ( univlist( cells(i) % univ_id ) /= 0 ) then
+            cell2univ ( i ) = abs ( univlist( cells(i) % univ_id ) )
+        endif
+    enddo
+
+    do i = 0, size(universes(1:))
+        if (.not.allocated(universes(i)%cell)) allocate(universes(i)%cell(universes(i)%ncell))
+        celluniv = pack ( celllist, cell2univ==i ) 
+        if ( size ( celluniv ) > 0 ) then
+!            do k = 1, size( celluniv )
+!                universes(i) % cell(k) = celllist( celluniv(k) )
+!            enddo
+            universes(i) % cell (:) = celllist ( celluniv (:) )
+        endif
+    enddo
+
+    if(icore==score) then
+        print *, 'Step4 is done...'
+        print *, 'Surf #:', nsurf
+        print *, 'Cell #:', ncell
+        print *, 'Univ #:', nuniv
+        print *, 'Latt #:', nlatt
+    endif
+	
+    !> 5. Change lattice universe name to universe index
+
+    do i = 1, size(lattices) 
+        do ix = 1, lattices(i)%n_xyz(1)
+            do iy = 1, lattices(i)%n_xyz(2)
+                do iz = 1, lattices(i)%n_xyz(3)
+                    itemp = find_univ_idx(universes,lattices(i)%lat(ix,iy,iz) )
+                    lattices(i)%lat(ix,iy,iz) = itemp 
+                enddo 
+            enddo
+        enddo 
+    enddo 
+
+    if(icore==score) then
+        print *, 'Step5 is done...'
+        print *, 'Surf #:', nsurf
+        print *, 'Cell #:', ncell
+        print *, 'Univ #:', nuniv
+        print *, 'Latt #:', nlatt
+    endif
+    
+    
+    do i = 1, size(cells) 
+        associate(this => cells(i))
+            if (this%fill < 0) then 
+                this%filltype = FILL_MATERIAL
+            elseif (in_the_list_univ(universes, this%fill)) then 
+                this%filltype = FILL_UNIVERSE
+            elseif (in_the_list_lat(lattices, this%fill)) then
+                this%filltype = FILL_LATTICE
+            else 
+                print *, 'ERROR : WRONG SHIT FILLING THIS CELL', cells(i)%cell_id, this % fill
+                stop
+            endif
+        end associate
+    enddo 
+	
+	!> Set transient surface movement 
+	if (geom_change) then 
+		do i = 1, n_interval 
+			purterb(i)%idx1 = find_surf_idx(surfaces, move_surf(i))
+		enddo 
+	endif 
+	
+    
+    
+    !> CHECK THE INPUT READ RESULT
+    !call check_input_result(universes,lattices, cells,surfaces)
+            
+    !> READ DONE
+    close(rd_geom+geom_nest)
+
+    if(icore==score) then
+        print *, 'TST2'
+        print *, 'Surf #:', nsurf
+        print *, 'Cell #:', ncell
+        print *, 'Univ #:', nuniv
+        print *, 'Latt #:', nlatt
+    endif
+    if(icore==score) print '(A25)', '    GEOM  READ COMPLETE...' 
+    
+end subroutine
+
+
 ! =============================================================================
 ! READ_GEOM reads the input about the geometry
 ! =============================================================================
@@ -76,11 +621,6 @@ end subroutine
 !    character(20) :: dupname
 !    character(5) :: char1, char2
 !    integer :: File_Error
-!
-!    ! For optimization of large input
-!    integer :: max_univ = 0
-!    integer, allocatable :: univlist(:)
-!    integer, allocatable :: celluniv(:), celllist(:), cell2univ(:)
 !
 !    if (icore==score) print *, "   ", path, " :: GEOMETRY CARD is being read..., LOOP #:", geom_nest
 !    if( geom_nest == 0 ) then ! Mother file
@@ -161,14 +701,10 @@ end subroutine
 !!            call move_alloc(cells_temp, cells)            
 !            ncell = ncell + 1
 !            call read_cell (cells(ncell), args, nargs) 
-!            if ( cells(ncell) % univ_id > max_univ ) &
-!                max_univ = cells(ncell) % univ_id
 !                        
 !        case ("PIN")
 !            nuniv = nuniv + 1
 !            call read_pin (universes(nuniv), args, nargs) 
-!            if ( universes(nuniv) % univ_id > max_univ ) &
-!                max_univ = universes(nuniv) % univ_id
 !            universes(nuniv)%xyz(:) = 0
 !            
 !            univptr => universes(nuniv)
@@ -268,7 +804,6 @@ end subroutine
 !    				call readandparse(rd_geom+geom_nest, args, nargs, ierr, curr_line)
 !    				if (nargs /= lat_ptr%n_xyz(1)) then
 !    					write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice element number"
-!                        write (*,*) 'NARGS', nargs, args
 !    					stop
 !    				endif
 !    				do ix = 1, lat_ptr%n_xyz(1)
@@ -318,54 +853,39 @@ end subroutine
 !        print *, 'Latt #:', nlatt
 !    endif
 !    ! ===================================================================================== !
-!
-!    allocate(univlist(1:max_univ)); univlist = 0; j = 0
-!
-!    do i = 1, size(universes(1:))
-!        univlist( universes(i) % univ_id ) = i
-!    enddo
-!
-!    allocate(universes_temp(1:max_univ))
 !    !> add pure universes from cells(:)
 !    do i = 1, size(cells)
 !        !> if univ_id = 0 then add to base universe / else add to the tail
 !        if (cells(i)%univ_id == 0 ) then 
 !            universes(0)%ncell = universes(0)%ncell+1
 !        else
-!            if ( univlist(cells(i) % univ_id) == 0 ) then 
-!                j = j + 1
-!                univlist(cells(i) % univ_id) = -j
-!
-!                universes_temp(j) % univ_type = 0
-!                universes_temp(j) % univ_id   = cells(i) % univ_id
-!                universes_temp(j) % xyz(:)    = 0
-!                universes_temp(j) % ncell     = 1
-!            elseif ( univlist(cells(i) % univ_id) < 0 ) then ! Created Univ.
-!                universes_temp( -univlist(cells(i) % univ_id) ) % ncell = &
-!                universes_temp( -univlist(cells(i) % univ_id) ) % ncell + 1
-!            else
-!                idx = univlist(cells(i) % univ_id)
-!                if (.not. allocated(universes(idx)%r)) then 
-!                    universes(idx)%ncell = universes(idx)%ncell+1
+!            found = .false.
+!            do j = 1, size(universes(1:))
+!                if (universes(j)%univ_id == cells(i)%univ_id) then 
+!                    found = .true.
+!                    idx = j
+!                    exit 
 !                endif
+!            enddo 
+!            if ( .not. found ) then 
+!                isize = size(universes(1:))
+!                allocate(universes_temp(0:isize+1))
+!                universes_temp(0) = universes(0)
+!                do j = 1, isize 
+!                    universes_temp(j) = universes(j)
+!                enddo
+!                obj_univ%univ_type = 0
+!                obj_univ%univ_id   = cells(i)%univ_id
+!                obj_univ%xyz(:)    = 0 
+!                obj_univ%ncell     = 1
+!                universes_temp(isize+1) = obj_univ
+!                call move_alloc(universes_temp, universes)
+!            elseif (.not. allocated(universes(idx)%r)) then 
+!                universes(idx)%ncell = universes(idx)%ncell+1
 !            endif
 !        endif
 !    enddo         
-!
-!    isize = size(universes(1:))
-!    allocate( univ_temp ( 0: isize + j ) )
-!    do i =  0, isize
-!        univ_temp(i) = universes(i)
-!    enddo
-!    do i = 1, j
-!        univ_temp(isize + i) = universes_temp(i)
-!    enddo
-!    call move_alloc( univ_temp, universes ); deallocate(universes_temp) 
-!
-!    do i = 1, size(univlist)
-!        if(univlist(i) < 0) univlist(i) = abs(univlist(i)) + isize
-!    enddo
-!
+!    
 !    if(icore==score) then
 !        print *, 'Step2 is done...'
 !        print *, 'Surf #:', nsurf
@@ -493,27 +1013,16 @@ end subroutine
 !    
 !    !> 4. Add cells to pin universe
 !    !> Add the cells to the universe cell list   
-!
-!    allocate( cell2univ ( 1:size(cells) ) ); cell2univ = -1 ! neg. cell2univ
-!    allocate( celllist  ( 1:size(cells) ) )
-!    do i = 1, size( cells )
-!        celllist  ( i ) = i
-!        if ( cells(i) % univ_id == 0 ) then
-!            cell2univ(i) = 0
-!        elseif ( univlist( cells(i) % univ_id ) /= 0 ) then
-!            cell2univ ( i ) = abs ( univlist( cells(i) % univ_id ) )
-!        endif
-!    enddo
-!
 !    do i = 0, size(universes(1:))
+!        idx = 1
 !        if (.not.allocated(universes(i)%cell)) allocate(universes(i)%cell(universes(i)%ncell))
-!        celluniv = pack ( celllist, cell2univ==i ) 
-!        if ( size ( celluniv ) > 0 ) then
-!!            do k = 1, size( celluniv )
-!!                universes(i) % cell(k) = celllist( celluniv(k) )
-!!            enddo
-!            universes(i) % cell (:) = celllist ( celluniv (:) )
-!        endif
+!        do k = 1, size(cells)
+!            if (cells(k)%univ_id == universes(i)%univ_id) then 
+!                if(universes(i)%ncell < idx) print *, 'HMM?', idx, universes(i)%ncell, universes(i)%univ_id
+!                universes(i)%cell(idx) = k
+!                idx = idx+1
+!            endif 
+!        enddo 
 !    enddo
 !
 !    if(icore==score) then
@@ -525,7 +1034,6 @@ end subroutine
 !    endif
 !	
 !    !> 5. Change lattice universe name to universe index
-!
 !    do i = 1, size(lattices) 
 !        do ix = 1, lattices(i)%n_xyz(1)
 !            do iy = 1, lattices(i)%n_xyz(2)
@@ -533,10 +1041,9 @@ end subroutine
 !                    itemp = find_univ_idx(universes,lattices(i)%lat(ix,iy,iz) )
 !                    lattices(i)%lat(ix,iy,iz) = itemp 
 !                enddo 
-!            enddo
+!            enddo 
 !        enddo 
 !    enddo 
-!
 !    if(icore==score) then
 !        print *, 'Step5 is done...'
 !        print *, 'Surf #:', nsurf
@@ -560,6 +1067,7 @@ end subroutine
 !            endif
 !        end associate
 !    enddo 
+!    
 !	
 !	!> Set transient surface movement 
 !	if (geom_change) then 
@@ -587,253 +1095,7 @@ end subroutine
 !    
 !end subroutine
 
-subroutine read_geom
-    
-    implicit none
-    
-    integer :: i, j, k, ix, iy,iz, idx, n, level
-    integer :: i_cell, i_univ, i_lat, i_surf 
-    integer :: ntemp, itemp, tmpidx
-    integer :: ierr
-    real(8) :: dtemp, xyz(3)
-    character(200) :: line
-    character(20) :: option, temp, mat_id, pnum 
-    character(1)  :: opt
-    !character(20) :: title
-    character(30) :: filename
-    character(100) :: args(100)
-    integer :: nargs
-	
-    logical :: found 
-
-    character(20) :: dupname
-    character(5) :: char1, char2
-    
-    !Read geom.inp
-    open(rd_geom, file=trim(trim(directory)//"geom.inp"),action="read", status="old")
-
-    ierr = 0; curr_line = 0 
-    do while (ierr.eq.0)
-		call readandparse(rd_geom, args, nargs, ierr, curr_line)
-		
-        if (ierr /= 0) exit
-		option = args(1)
-        call Small_to_Capital(option)
-        !<================================================================>!
-        select case (option)
-        case ("TITLE") 
-            title = args(2)
-            filename = trim(title)//'_keff.out'
-            
-            inquire(file=filename, exist=found)
-            if (found) then
-              if (icore == score) open(prt_keff, file=filename, status="old")
-            else
-              if (icore == score) open(prt_keff, file=filename, status="new")
-            end if
-            
-            if(do_ifp) then
-                filename = trim(title)//'_adj.out'
-                inquire(file=filename, exist=found)
-                if (found) then
-                  if (icore == score) open(prt_adjoint, file=filename, status="old")
-                else
-                  if (icore == score) open(prt_adjoint, file=filename, status="new")
-                end if
-                if(icore==score) write(prt_adjoint,*) 'BETA   GENTIME'
-            endif
-		case ('GMSH')
-			read (args(2), '(L)') do_gmsh
-			if (do_gmsh) call read_msh()
-			! TODO :: 경계조건 입력 필요 (현재는 vacuum)
-			
-			
-        case ("SURF")
-            isize = 0
-            if (allocated(surfaces)) isize = size(surfaces) 
-            isize = isize+1
-            allocate(surfaces_temp(1:isize))
-            if ( isize > 1 ) surfaces_temp(1:isize-1) = surfaces(:) 
-            call read_surf(surfaces_temp(isize), args, nargs)
-			call EMSG_surf(surfaces_temp(isize)%surf_type, nargs, curr_line)
-            if(allocated(surfaces)) deallocate(surfaces)
-            call move_alloc(surfaces_temp, surfaces)
-            
-        case ("CELL")
-            isize = 0
-            if (allocated(cells)) isize = size(cells) 
-            isize = isize+1
-            allocate(cells_temp(1:isize))
-            if (isize > 1) cells_temp(1:isize-1) = cells(:) 
-            call read_cell (cells_temp(isize), args, nargs) 
-            if(allocated(cells)) deallocate(cells)
-            call move_alloc(cells_temp, cells)            
-                        
-        case ("PIN")
-            isize = 0
-            if (allocated(universes)) isize = size(universes)-1
-            isize = isize+1
-            allocate(universes_temp(0:isize))
-            if (isize > 1) universes_temp(0:isize-1) = universes(:) 
-            call read_pin (universes_temp(isize), args, nargs) 
-            universes_temp(isize)%xyz(:) = 0
-            
-            univptr => universes_temp(isize)
-            
-            allocate(univptr%r(1:univptr%ncell-1))
-            allocate(univptr%cell(1:univptr%ncell))
-            if(allocated(universes)) deallocate(universes)
-            call move_alloc(universes_temp, universes)
-
-            !> generage cell from pin
-            if (allocated(cells)) then 
-                isize = size(cells) 
-                isize = isize + univptr%ncell
-                allocate(cells_temp(1:isize))
-                if (isize > 1) cells_temp(1:isize-univptr%ncell) = cells(:) 
-                deallocate(cells)
-            else 
-                isize = 0
-                isize = isize + univptr%ncell
-                allocate(cells_temp(1:isize))
-            endif
-            
-            call move_alloc(cells_temp, cells)
-            
-            do i = 1, univptr%ncell-1
-                j = size(cells)-univptr%ncell+i
-                univptr%cell(i) = j
-				call readandparse(rd_geom, args, nargs, ierr, curr_line)
-				
-                read(args(1),*) mat_id
-                read(args(2),*) univptr%r(i)
-                
-                if (E_mode == 0) cells(j)%mat_idx = find_mat_idx(XS_MG,mat_id)
-                if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
-                if(materials(cells(j)%mat_idx) % duplicable &
-                    .and. materials(cells(j)%mat_idx) % depletable) then
-                    !if(icore==score)print *, 'DUPL', materials(cells(j)%mat_idx) % geom_count, mat_id, univptr % univ_id
-                    tmpidx = cells(j) % mat_idx
-                    if(materials(cells(j)%mat_idx) % geom_count > 0) then
-                        if(univptr%univ_id<10) then
-                            write(char1, '(I1)') univptr%univ_id
-                        elseif(univptr%univ_id<100) then
-                            write(char1, '(I2)') univptr%univ_id
-                        elseif(univptr%univ_id<1000) then
-                            write(char1, '(I3)') univptr%univ_id
-                        elseif(univptr%univ_id<10000) then
-                            write(char1, '(I4)') univptr%univ_id
-                        elseif(univptr%univ_id<100000) then
-                            write(char1, '(I5)') univptr%univ_id
-                        endif
-
-                        if(i<10) then
-                            write(char2, '(I1)') i
-                        elseif(i<100) then
-                            write(char2, '(I2)') i
-                        endif
-                        !if(icore==score) print *, 'CHCK', char1, char2
-                        !write(dupname, '(A,A1,A,A1,A)') adjustl(trim(materials(cells(j)%mat_idx) % mat_name)), '_', adjustl(trim(char1)), '_', adjustl(trim(char2))
-                        dupname = adjustl(trim(materials(cells(j)%mat_idx)%mat_name)) //'_' //adjustl(trim(char1)) // '_' // adjustl(trim(char2))
-                        if(icore==score) print *, 'DUP ', dupname, materials(cells(j)%mat_idx) % geom_count
-                        allocate(materials_temp(n_materials+1))
-                        materials_temp(1:n_materials) = materials(:)
-                        materials_temp(n_materials+1) = materials(cells(j)%mat_idx)
-                        materials_temp(n_materials+1) % mat_name = dupname
-                        if(allocated(materials)) deallocate(materials)
-                        call move_alloc(materials_temp, materials)
-                        n_materials = n_materials + 1
-                        cells(j) % mat_idx = n_materials
-                    endif
-                    materials(tmpidx) % geom_count = &
-                        materials(tmpidx) % geom_count + 1
-                endif
-            enddo
-            j = size(cells)
-            univptr%cell(i) = j
-			call readandparse(rd_geom, args, nargs, ierr, curr_line)
-            read(args(1),*) mat_id
-            
-            if (E_mode == 0) cells(j)%mat_idx = find_mat_idx(XS_MG,mat_id)
-            if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
-            if(materials(cells(j)%mat_idx) % duplicable &
-                .and. materials(cells(j)%mat_idx) % depletable) then
-                if(materials(cells(j)%mat_idx) % geom_count > 0) then
-                    allocate(materials_temp(n_materials+1))
-                    materials_temp(1:n_materials) = materials(:)
-                    materials_temp(n_materials+1) = materials(cells(j)%mat_idx)
-                    if(allocated(materials)) deallocate(materials)
-                    call move_alloc(materials_temp, materials)
-                    n_materials = n_materials + 1
-                    cells(j) % mat_idx = n_materials
-                endif
-                materials(cells(j)%mat_idx) % geom_count = &
-                    materials(cells(j)%mat_idx) % geom_count + 1
-                if(icore==score) print *, 'ADDED', n_materials, cells(j)%mat_idx
-            endif
-            call gen_cells_from_pin (univptr, cells(j-univptr%ncell+1:j)) 
-            
-            
-            !> generate surface from pin
-            if (univptr%ncell > 1) then 
-                isize = 0
-                if (allocated(surfaces)) isize = size(surfaces) 
-                isize = isize + univptr%ncell -1
-                allocate(surfaces_temp(1:isize))
-                if (isize > 1 .and. allocated(surfaces)) surfaces_temp(1:isize-univptr%ncell+1) = surfaces(:) 
-                if(allocated(surfaces)) deallocate(surfaces)
-                call move_alloc(surfaces_temp, surfaces)
-                j = size(surfaces)
-                call gen_surfs_from_pin (univptr, surfaces(j-univptr%ncell+2:j)) 
-            endif 
-        
-        case ("LAT")
-            isize = 0
-            if (allocated(lattices)) isize = size(lattices) 
-            isize = isize+1
-            allocate(lattices_temp(1:isize))
-            if (isize > 1) lattices_temp(1:isize-1) = lattices(:) 
-            
-            lat_ptr => lattices_temp(isize)
-            call read_lat(lat_ptr, args, nargs) 
-            allocate(lat_ptr%lat(1:lat_ptr%n_xyz(1),1:lat_ptr%n_xyz(2),1:lat_ptr%n_xyz(3))) 
-            
-			!do iz = 1, lat_ptr%n_xyz(3)
-			!	do iy = 1, lat_ptr%n_xyz(2)
-			!		call readandparse(rd_geom, args, nargs, ierr, curr_line)
-			!		if (nargs /= lat_ptr%n_xyz(1)) then
-			!			write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice element number"
-			!			stop
-			!		endif
-			!		do ix = 1, lat_ptr%n_xyz(1)
-			!			read (args(ix), *) lat_ptr%lat(ix,iy,iz)
-			!		enddo 
-			!	enddo 
-			!enddo 
-			
-			do iy = 1, lat_ptr%n_xyz(2)
-				call readandparse(rd_geom, args, nargs, ierr, curr_line)
-				if (nargs /= lat_ptr%n_xyz(1)) then
-					write (*,'(a,i3,a)') "geom.inp (Line ",curr_line ,") Wrong lattice element number"
-					stop
-				endif
-				do ix = 1, lat_ptr%n_xyz(1)
-				  do iz = 1, lat_ptr%n_xyz(3)
-					read (args(ix), *) lat_ptr%lat(ix,iy,iz)
-				  enddo 
-				enddo 
-			enddo 
-			
-			
-            if(allocated(lattices)) deallocate(lattices)
-            call move_alloc(lattices_temp, lattices)    
-            
-            
-            
-        case ('BC') 
-            !if (do_gmsh) then 
-			!	read (args(2), '(I)') tet_bc
-
+<<<<<<< HEAD
 			!else
 				call read_bc (surfaces, args, nargs)
             !endif 
@@ -1041,6 +1303,8 @@ subroutine read_geom
     if(icore==score) print '(A25)', '    GEOM  READ COMPLETE...' 
     
 end subroutine
+=======
+>>>>>>> f4d2b40ea843b309b81bce460ef902062660dfb0
 recursive subroutine count_geom(path, cnt)
     implicit none
     character(*), intent(in) :: path
@@ -1461,7 +1725,6 @@ subroutine READ_CTRL
     directory = "./inputfile/"
     else
     call GETARG(1,directory)
-    title = trim(directory)
     directory = "./inputfile/"//trim(directory)//'/'
     end if
 
@@ -1508,7 +1771,7 @@ end subroutine READ_CTRL
 		integer,intent(in)::File_Number
 		character(*),intent(inout)::Card_Type
 		integer::File_Error
-		character(80):: Char_Temp
+		character(30):: Char_Temp
 		character(80):: line, lib1,lib2
         integer :: niso
 		character(1)::Equal
@@ -1532,6 +1795,7 @@ end subroutine READ_CTRL
         integer, allocatable:: mid(:)
 
         ! For MSR-related feature
+        real(8) :: l_inact = 0d0
 
         ! For Automatic Fissionable
         integer :: iso
@@ -1554,6 +1818,7 @@ end subroutine READ_CTRL
         integer, allocatable :: restart(:)
         real(8) :: restart_from
         real(8), allocatable :: tmp_burn_step(:)
+
 
         ! Movement
         type(surface), pointer :: Surfobj
@@ -2177,74 +2442,6 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ifp
 
-!				case("FUEL_SPEED_AXIAL")
-!                    backspace(File_Number)
-!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fuel_speed
-!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-!                    if(fuel_speed>=0.d0 .and. do_ifp) do_fuel_mv = .true.
-!                    if(l_inact > 0d0) then
-!                        t_rc = l_inact / fuel_speed
-!                        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
-!                    endif 
-!                    
-!
-!                case("RECIRCULATION_TIME")
-!                    backspace(File_Number)
-!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, t_rc
-!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-!                    
-!                case("INACTIVE_LENGTH")
-!                    backspace(File_Number)
-!                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, l_inact
-!                    if(Equal/="=") call Card_Error(Card_Type, Char_Temp)
-!                    if(fuel_speed > 0d0) then
-!                        t_rc = l_inact / fuel_speed
-!                        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
-!                    endif
-!
-!                case("CORE_HEIGHT")
-!                    backspace(File_Number)
-!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_height
-!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-!
-!                case("CORE_RADIUS")
-!                    backspace(File_Number)
-!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_radius
-!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-!
-!                case("CORE_BASE")
-!                    backspace(File_Number)
-!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, core_base
-!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-!                case("N_CORE_MESH")
-!                    backspace(File_Number)
-!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, n_core_radial, n_core_axial
-!                    print *, 'HM?', Char_Temp, Equal, n_core_radial
-!                    allocate(core_prec(8,n_core_axial,n_core_radial)); core_prec = 0.d0
-!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-                case("MSR_FLOW")
-                    backspace(File_Number)
-                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, do_fuel_mv, v_type
-                    if(Equal/="=") call Card_Error(Card_Type, Char_Temp)
-                    call Small_to_Capital(v_type)
-                    if(do_fuel_mv) then
-                        select case(v_type)
-                            case("RZ")
-                                flowtype = 1    !> 1 for RZ
-                                call READ_MSR_RZ
-                            case("Z")
-                                flowtype = 2
-                                call READ_MSR_Z
-                                continue
-                            case default
-                                if(icore==score) then
-                                    print *, '  Something is wrong with Type'
-                                    print *, '  Check your input: Currently supports RZ'
-                                    print *, '  Or it may be not supported in this version...'
-                                endif
-                                do_fuel_mv = .false.
-                        end select
-                    endif
                 case("TEMPERATURE_GRID")
                     backspace(File_Number)
                     if ( .not. do_temp_grid ) do_temp_grid = .true.
@@ -2532,7 +2729,6 @@ end subroutine READ_CTRL
                             enddo
                         endif
 
-
 						end select Card_D_Inp
                     
                         if (Char_Temp(1:7)=="END_MAT") Exit Read_Mat
@@ -2590,6 +2786,7 @@ end subroutine READ_CTRL
                                     exit SABLOOP
                                 endif
                             enddo SABLOOP
+                            ! if(icore==score) print *, '    MAT', ace(CE_mat_ptr % ace_idx(i)) % zaid, CE_mat_ptr % sablist(i)
                         enddo
                     endif
 
@@ -2681,6 +2878,7 @@ end subroutine READ_CTRL
                     burn_step = burn_step * 3600d0
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
 
+
                 case("RESTART")
                     allocate(burnup_restart(0:nstep_burnup))
                     burnup_restart = .false. ! Logical Array
@@ -2737,12 +2935,12 @@ end subroutine READ_CTRL
                     if(icore==score) print *, 'BURN STEP ADJUSTED:', nstep_burnup, burn_step(:)/86400.d0
                     if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
 
-!                 case("LIBRARY_PATH")
-!                     backspace(File_Number)
-!                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal
-!                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
-!                     read(File_Number,'(A)',iostat=File_Error) dep_lib(:)
-!                     dep_lib = adjustl(dep_lib)
+!                case("LIBRARY_PATH")
+!                    backspace(File_Number)
+!                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal
+!                    if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+!                    read(File_Number,'(A)',iostat=File_Error) dep_lib(:)
+!                    dep_lib = adjustl(dep_lib)
                 case("DEC_LIB")
                     backspace(File_Number)
                     read(File_Number, * ,iostat=File_Error) Char_Temp, Equal, dec_lib
@@ -4024,94 +4222,6 @@ end function
 		
 	end function 
 
-    subroutine READ_MSR_Z
-    implicit none
-    integer :: File_Error, ierr
-    character(30) :: Char_Temp
-    character(1)  :: Equal
-    real(8) :: l_inact = 0d0
-    integer :: z
-    real(8), allocatable :: tt(:)
-    if ( icore == score ) print *, '    Reading MSR_Z.inp'
-    filename = trim(directory)//'MSR_Z.inp'
-    open(rd_rz, file=trim(filename), action='read', status='old')
-    ierr = 0
-
-    do while (ierr == 0)
-        read(rd_rz, *, iostat=ierr) Char_Temp
-        if ( ierr /= 0 ) exit
-        call Small_to_Capital(Char_Temp)
-        select case(Char_Temp)
-            case("N_AXIAL_MESH")
-                backspace(rd_rz)
-                read(rd_rz, *, iostat=File_Error) Char_Temp, Equal, n_mesh_axial
-                allocate(fuel_speed(n_mesh_axial))
-                allocate(active_mesh(n_mesh_axial-1))
-
-
-            case("FUEL_SPEED_AXIAL")
-                backspace(rd_rz)
-                read(rd_rz, *, iostat=File_Error) Char_Temp, Equal, fuel_speed(1:n_mesh_axial)
-
-                if(ANY(fuel_speed<=0d0)) then
-                    if(icore==score) print *, fuel_speed
-                    if(icore==score) print *, '    Fuel is stuck!'
-                    stop
-                endif
-                if(do_ifp) do_fuel_mv = .true.
-
-            case("FUEL_SPEED_AXIAL_MESH")
-                backspace(rd_rz)
-                if(n_mesh_axial >= 1) then ! If axial speed is defined...
-                    read(rd_rz, *, iostat=File_Error) Char_Temp, Equal, active_mesh(1:n_mesh_axial-1)
-                else
-                    read(rd_rz, *, iostat=File_Error) Char_Temp
-                endif   
-
-            case("RECIRCULATION_TIME")
-                backspace(rd_rz)
-                read(rd_rz,*,iostat=File_Error) Char_Temp, Equal, t_rc
-                
-            case("INACTIVE_LENGTH")
-                backspace(rd_rz)
-                read(rd_rz, *, iostat=File_Error) Char_Temp, Equal, l_inact
-
-            case("CORE_HEIGHT")
-                backspace(rd_rz)
-                read(rd_rz,*,iostat=File_Error) Char_Temp, Equal, core_height
-
-            case("CORE_RADIUS")
-                backspace(rd_rz)
-                read(rd_rz,*,iostat=File_Error) Char_Temp, Equal, core_radius
-
-            case("CORE_BASE")
-                backspace(rd_rz)
-                read(rd_rz,*,iostat=File_Error) Char_Temp, Equal, core_base
-            case("CORE_TALLY_MESH")
-                backspace(rd_rz)
-                read(rd_rz,*,iostat=File_Error) Char_Temp, Equal, n_core_radial, n_core_axial
-                allocate(core_prec(n_core_axial,n_core_radial,8)); core_prec = 0.d0
-                print *, 'CORE_PREC', n_core_axial, n_core_radial
-        end select
-    enddo
-
-    allocate(tt(0:n_mesh_axial))
-    tt(0) = core_base
-    if(allocated(active_mesh)) tt(1:n_mesh_axial-1) = active_mesh(1:n_mesh_axial-1)
-    tt(n_mesh_axial) = core_base + core_height
-    call move_alloc(tt, active_mesh)
-
-    allocate(fuel_stay_time(1:n_mesh_axial))
-    if(icore==score) print *, 'ACT', active_mesh
-    fuel_stay_time = (active_mesh(1:n_mesh_axial)-active_mesh(0:n_mesh_axial-1))/fuel_speed
-    if(icore==score) print *, 'STAY', fuel_stay_time
-
-    if(l_inact > 0d0 .and. sum(fuel_speed) > 0d0) then
-        t_rc = l_inact / (core_height/sum(fuel_stay_time))
-        if(icore==score) print '(A,F15.3,A)', 'Recirculation time adjusted: ', t_rc, 'sec'
-    endif 
-    end subroutine
-
     subroutine READ_MSR_RZ
     implicit none
     integer :: File_Error, ierr
@@ -4163,7 +4273,7 @@ end function
             case("PLOT_MESH")
                 backspace(rd_rz)
                 read(rd_rz, *, iostat=File_Error) Char_Temp, n_core_radial, n_core_axial
-                allocate(core_prec(n_core_axial, n_core_radial, 8))
+                allocate(core_prec(8, n_core_axial, n_core_radial))
 
                 core_prec = 0d0
         end select
