@@ -571,8 +571,8 @@ subroutine setuegrid
     real(8) :: Etmp
     integer :: totngrid
     integer :: i, j, k, iso_, idx
-    integer :: pt1
-    real(8), allocatable :: tmpgrid(:), tmpgrid_2(:)
+    integer :: pt, pt1, pt2, pt3, pt4
+    real(8), allocatable :: tmpgrid(:), tmpgrid_2(:), heaps(:), tmpgrid_3(:), tmpgrid_4(:), sabpts(:), thresh(:)
 
     if(E_mode==0) return
     totngrid = 0
@@ -586,18 +586,52 @@ subroutine setuegrid
     end do
 
     ! SAB case !TODO
-!    if(sab_iso /= 0) then
-!        do iso_ = 1, sab_iso
-!            totngrid = totngrid + sab(iso_) % NXS(3)
-!        enddo
-!    endif
+    if(sab_iso /= 0) then
+        do iso_ = 1, sab_iso
+            totngrid = totngrid + sab(iso_) % NXS(3)
+        enddo
+    endif
     allocate(tmpgrid(1:totngrid)); pt1 = 1
+    allocate(heaps(1:totngrid)); pt2 = 0
+    allocate(sabpts(1:totngrid)); pt3 = 1
+    allocate(thresh(1:totngrid)); pt4 = 0
 
     udelta = log10((Emax+1E-9)/Emin)/dble(nugrid)
 
     do iso_ = 1, num_iso
       tmpgrid(pt1:pt1-1+ace(iso_)%NXS(3)) = ace(iso_) % E(:)
       pt1 = pt1 + ace(iso_)%NXS(3)
+
+      do i = 1, ace(iso_) % NXS(3) ! Conserve Heaps
+        if( i == 1 .or. i == ace(iso_)%NXS(3) ) then
+            pt2 = pt2 + 1
+            heaps(pt2) = ace(iso_) % E(i)
+        elseif ( ace(iso_) % sigd(i-1) < ace(iso_) % sigd(i) .and. &
+                ace(iso_) % sigd(i+1) < ace(iso_) % sigd(i) ) then
+            pt2 = pt2 + 1
+            heaps(pt2) = ace(iso_) % E(i)
+        elseif ( ace(iso_) % sigd(i-1) > ace(iso_) % sigd(i) .and. &
+                ace(iso_) % sigd(i+1) > ace(iso_) % sigd(i) ) then
+            pt2 = pt2 + 1
+            heaps(pt2) = ace(iso_) % E(i)
+        elseif ( allocated(ace(iso_) % sigf) ) then
+            if ( ace(iso_) % sigf(i-1) < ace(iso_) % sigf(i) .and. &
+                    ace(iso_) % sigf(i+1) < ace(iso_) % sigf(i) ) then
+                pt2 = pt2 + 1
+                heaps(pt2) = ace(iso_) % E(i)
+            elseif ( ace(iso_) % sigf(i-1) > ace(iso_) % sigf(i) .and. &
+                    ace(iso_) % sigf(i+1) > ace(iso_) % sigf(i) ) then
+                pt2 = pt2 + 1
+                heaps(pt2) = ace(iso_) % E(i)
+            endif
+        endif
+      enddo
+
+      do i = 1, ace(iso_) % NXS(4) ! Number of RX: Threshold
+          pt4 = pt4 + 1
+          if( ace(iso_) % sig_MT(i) % IE > 1 ) &
+              thresh(pt4) = ace(iso_) % E( ace(iso_) % sig_MT(i) % IE )
+      enddo
       
       !URES
       if(ace(iso_) % UNR % URES) then
@@ -608,7 +642,20 @@ subroutine setuegrid
       !SAB !TODO
     enddo
 
+    do iso_ = 1, sab_iso
+        sabpts(pt3:pt3-1+sab(iso_) % itie % ne) = sab(iso_) % itie % erg(:)
+        pt3 = pt3 + sab(iso_) % itie % ne
+
+        if ( sab(iso_) % jxs (4) /= 0 ) then
+            sabpts(pt3 : pt3-1 + sab(iso_) % itce % ne) = sab(iso_) % itce % erg(:)
+            pt3 = pt3 + sab(iso_) % itce % ne
+        endif
+    enddo
+
     if(icore==score) print *, "   Setting UNIONIZED GRID..."
+    if(icore==score) print *, 'HEAP #:', pt2
+    if(icore==score) print *, 'SAB  #:', pt3
+    if(icore==score) print *, 'THRS #:', pt4
 
     ! SORT and COLLIDE UEGGRID 
     ! 1. SORT
@@ -620,19 +667,55 @@ subroutine setuegrid
     tmpgrid_2(0)   = 0d0
     tmpgrid_2(idx) = tmpgrid(1)
     do i = 2, totngrid
-        if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<Emax &
-            )then
-            idx = idx + 1
-            tmpgrid_2(idx) = tmpgrid(i)
+        !if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<Emax &
+        !    )then
+        if(tmpgrid(i) < Emax) then
+            if(abs(tmpgrid(i)-tmpgrid_2(idx))>tmpgrid_2(idx) * tolerance) then
+            
+                idx = idx + 1
+                tmpgrid_2(idx) = tmpgrid(i)
+            else
+                tmpgrid_2(idx) = tmpgrid_2(idx) * 5d-1 + tmpgrid(i) * 5d-1
+            endif
+
         endif
     enddo
-    nueg    = idx
-    allocate(ueggrid(0:nueg))
-    ueggrid(0:nueg) = tmpgrid_2(0:nueg)
 
-    deallocate(tmpgrid, tmpgrid_2)
+    pt = idx + pt2 + pt3 + pt4
+    allocate(tmpgrid_3(1:pt))
+    tmpgrid_3(1:idx) = tmpgrid_2(1:idx)
+    tmpgrid_3(idx+1:idx+pt2) = heaps(1:pt2)
+    tmpgrid_3(idx+pt2+1:idx+pt2+pt3) = sabpts(1:pt3)
+    tmpgrid_3(idx+pt2+pt3+1:pt) = thresh(1:pt4)
 
     open(502, file='ueg.out', action='write', status='unknown')
+
+    deallocate(tmpgrid, tmpgrid_2)
+    call quicksort(tmpgrid_3, 1, pt)
+    if(icore==score) print *, 'TMPGRID', tmpgrid_3(1:10)
+
+    allocate(tmpgrid_4(0:idx+pt2))
+    idx = 0
+    tmpgrid_4   = 0d0
+    do i = 1, pt
+        if( i == 1 ) then
+            if( tmpgrid_3(i) > 0 ) then
+                idx = idx + 1
+                tmpgrid_4(idx) = tmpgrid_3(i)
+            endif
+        elseif(tmpgrid_3(i)/=tmpgrid_3(i-1) .and. tmpgrid_3(i)<Emax .and. tmpgrid_3(i) > 0d0 ) then
+        
+            idx = idx + 1
+            tmpgrid_4(idx) = tmpgrid_3(i)
+        endif
+    enddo
+
+    nueg    = idx
+    allocate(ueggrid(0:nueg))
+    ueggrid(0:nueg) = tmpgrid_4(0:nueg)
+
+    deallocate(tmpgrid_3, tmpgrid_4)
+
     if(icore==score)print *, 'NUEG', nueg
     do i = 1, nueg
         write(502, *) i, ueggrid(i), log(ueggrid(i))
@@ -658,7 +741,6 @@ subroutine setuegrid
             idx = idx + 1
         enddo
 22      unigrid(i) = idx - 1
-        ! if(icore==score) print *, 'hash', i, unigrid(i), Etmp
     enddo
     unigrid(nuni) = Emax
 
@@ -666,99 +748,6 @@ subroutine setuegrid
 
     if(icore==score) write(*,'(A,I8,A)') '   UNIONIZED GRID SET: ', nueg, 'grids'
 end subroutine
-
-!subroutine setuegrid
-!    implicit none
-!    real(8) :: Etmp
-!    integer :: totngrid
-!    integer :: i, j, k, iso_, idx
-!    integer :: pt1
-!    real(8), allocatable :: tmpgrid(:)
-!
-!    if(E_mode==0) return
-!    totngrid = 0
-!    !Set ugrid to accelerate energy-grid search
-!    Emin = 1.d-11
-!    !print *, 'ugrid size', nugrid, num_iso
-!    do iso_ = 1, num_iso
-!      totngrid = totngrid + ace(iso_)%NXS(3)
-!      if(ace(iso_) % UNR % URES) & ! URR case
-!          totngrid = totngrid + ace(iso_) % UNR % N
-!    end do
-!
-!    ! SAB case !TODO
-!!    if(sab_iso /= 0) then
-!!        do iso_ = 1, sab_iso
-!!            totngrid = totngrid + sab(iso_) % NXS(3)
-!!        enddo
-!!    endif
-!    allocate(tmpgrid(1:totngrid)); pt1 = 1
-!
-!    udelta = log10((Emax+1E-9)/Emin)/dble(nugrid)
-!
-!    do iso_ = 1, num_iso
-!      tmpgrid(pt1:pt1-1+ace(iso_)%NXS(3)) = ace(iso_) % E(:)
-!      pt1 = pt1 + ace(iso_)%NXS(3)
-!      
-!      !URES
-!      if(ace(iso_) % UNR % URES) then
-!          tmpgrid(pt1:pt1-1+ace(iso_)%UNR%N) = ace(iso_) % UNR % E(:)
-!          pt1 = pt1 + ace(iso_) % UNR % N
-!      endif
-!
-!      !SAB !TODO
-!    enddo
-!
-!    if(icore==score) print *, "   Setting UNIONIZED GRID..."
-!
-!    ! SORT and COLLIDE UEGGRID 
-!    ! 1. SORT
-!    call QUICKSORT(tmpgrid,1,totngrid)
-!
-!    ! 2. COLLECT UNIQUEs
-!    allocate(ueggrid(0:totngrid))
-!    idx = 1
-!    ueggrid(0)   = 0d0
-!    ueggrid(idx) = tmpgrid(1)
-!    do i = 2, totngrid
-!        if(tmpgrid(i)/=tmpgrid(i-1) .and. tmpgrid(i)<UEGMAX &
-!            )then
-!            !.and. tmpgrid(i)-tmpgrid(i-1)>=5E-5*tmpgrid(i-1)) then
-!            idx = idx + 1
-!            ueggrid(idx) = tmpgrid(i)
-!        endif
-!    enddo
-!    nueg    = idx
-!    ueggrid = ueggrid(1:nueg)
-!
-!    ! 3. SETUP HASH TABLE
-!    !   NUNI = len(UNIGRID)
-!    Emin = ueggrid(1); Emax = ueggrid(nueg)
-!    unidel = log10((Emax+Emin*1d-1)/Emin)/dble(nuni)
-!
-!    allocate(unigrid(0:nuni))
-!
-!    idx = 1
-!    unigrid(0) = 0
-!    do i = 1, nuni-1
-!        Etmp = Emin * 1d1 ** (dble(i) * unidel)
-!        if(Etmp > nueg) then
-!            idx = nuni
-!            goto 22
-!        endif
-!        do
-!            if(Etmp < ueggrid(idx)) goto 22
-!            idx = idx + 1
-!        enddo
-!22      unigrid(i) = idx - 1
-!        if(icore==score) print *, 'hash', i, unigrid(i), Etmp
-!    enddo
-!    unigrid(nuni) = UEGMAX
-!
-!    if(icore==score) print *, 'NUNI:',nuni,'UNIDEL:',unidel,Emin,Emax
-!
-!    if(icore==score) write(*,'(A,I8,A)') '   UNIONIZED GRID SET: ', nueg, 'grids'
-!end subroutine
 
 ! =============================================================================
 ! GET_SAB_MAC
@@ -797,7 +786,8 @@ subroutine GET_SAB_MAC(nd,iiso,isab,erg,xs_t,xs_a)
     ipfac = max(0D0,min(1D0,(erg-abe%erg(ierg)) &
         /(abe%erg(ierg+1)-abe%erg(ierg))))
     micro_e = abe%xs(ierg) + ipfac*(abe%xs(ierg+1)-abe%xs(ierg))
-    if ( sab(isab)%nxs(5) == 4 ) micro_e = micro_e / abe%erg(ierg)
+    if ( sab(isab)%nxs(5) == 4 ) micro_e = micro_e / erg
+    if ( abe % erg(ierg) > erg ) micro_e = 0d0
     end if
 
     if ( associated(abi) ) nullify(abi)
@@ -818,7 +808,7 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs,tmp)
     type(Material_CE), intent(in):: mat
     integer, intent(in):: imat
     real(8), intent(in):: erg
-    real(8), intent(in):: tmp
+    real(8), intent(in) :: tmp
     real(8), intent(inout):: xs(:)
     type(SAB_INEL_XS), pointer:: abi
     type(SAB_EL_XS), pointer:: abe
@@ -862,7 +852,8 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs,tmp)
         ipfac = max(0D0,min(1D0,(erg-abe%erg(ierg)) &
             /(abe%erg(ierg+1)-abe%erg(ierg))))
         xs(6) = abe%xs(ierg) + ipfac*(abe%xs(ierg+1)-abe%xs(ierg))
-        if ( sab(isab)%nxs(5) == 4 ) xs(6) = xs(6) / abe%erg(ierg)
+        if ( sab(isab)%nxs(5) == 4 ) xs(6) = xs(6) / erg
+        if ( abe % erg ( ierg ) > erg ) xs(6) = 0d0
         end if
     
         xs(2) = xs(2) + xs(6)  ! thermal scattering = inelastic + elastic
@@ -875,9 +866,10 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs,tmp)
         isab_l = therm(-isab) % iso_low
         isab_h = therm(-isab) % iso_high
         if ( therm(-isab) % temp == 0d0 ) then
-            f = ( tmp - sab(isab_l)%temp ) / (sab(isab_h)%temp-sab(isab_l)%temp)
-        else
-            f = therm(-isab) % f
+            f = (tmp - sab(isab_l)%temp) / (sab(isab_h)%temp-sab(isab_l)%temp)
+            !print *, 'VARY', tmp/K_B, sab(isab_l)%temp/K_B, sab(isab_h)%temp/K_B, f
+        else    
+            f      = therm(-isab) % f
         endif
 
         abi => sab(isab_l)%itie
@@ -897,7 +889,8 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs,tmp)
             ipfac = max(0D0,min(1D0,(erg-abe%erg(ierg)) &
                 /(abe%erg(ierg+1)-abe%erg(ierg))))
             xs6l = abe%xs(ierg) + ipfac*(abe%xs(ierg+1)-abe%xs(ierg))
-            if ( sab(isab_l)%nxs(5) == 4 ) xs6l = xs6l / abe%erg(ierg)
+            if ( sab(isab_l)%nxs(5) == 4 ) xs6l = xs6l / erg
+            if ( abe % erg ( ierg ) > erg ) xs6l = 0d0
         end if
         if ( associated(abi) ) nullify(abi)
         if ( associated(abe) ) nullify(abe)
@@ -919,7 +912,8 @@ subroutine GET_SAB_MIC(mat,imat,erg,xs,tmp)
             ipfac = max(0D0,min(1D0,(erg-abe%erg(ierg)) &
                 /(abe%erg(ierg+1)-abe%erg(ierg))))
             xs6h = abe%xs(ierg) + ipfac*(abe%xs(ierg+1)-abe%xs(ierg))
-            if ( sab(isab_h)%nxs(5) == 4 ) xs6h = xs6h / abe%erg(ierg)
+            if ( sab(isab_h)%nxs(5) == 4 ) xs6h = xs6h / erg
+            if ( abe % erg ( ierg ) > erg ) xs6h = 0d0
         end if
         if ( associated(abi) ) nullify(abi)
         if ( associated(abe) ) nullify(abe)
@@ -1270,7 +1264,7 @@ function EFF_IERG(E0,iso,p1,p2) result(pt4)
     pt1 = p1
     pt2 = p2
 
-    pt2 = pt2 + 1
+    !pt2 = pt2 + 1
 
     if ( pt1 == pt2 ) then
         pt4 = pt1 - 1
@@ -1786,12 +1780,14 @@ integer :: i, j, iso, iso_, rx
 real(8) :: xs1(6), urn(n_unr), xs2
 type(AceFormat), pointer :: ac
 logical :: found
-! 23/12/04 : Preprocessor
-allocate ( ace_tmp ( 1:2*num_iso ) )
+real(8) :: base_tmp
+
+allocate( ace_tmp(1:2*num_iso) )
 ace_tmp(1:num_iso) = ace(1:num_iso)
+
 do i = 1, n_materials
     if ( materials(i) % db ) cycle
-    if ( BU .and. .not. materials(i) % depletable ) cycle
+    if ( .not. materials(i) % depletable .and. BU ) cycle
     do iso = 1, materials(i) % n_iso
         if( abs(materials(i) % temp - ace_tmp(materials(i)%ace_idx(iso)) % temp) > 1E-3*K_B ) then 
             found = .false.
@@ -1810,12 +1806,12 @@ do i = 1, n_materials
                 ac => ace_tmp(num_iso)
                 ac % temp = materials(i) % temp
                 do j = 1, ac % NXS(3)
-                    if ( ac % E(j) < 1d0 ) exit
+                    if ( ac % E(j) > 1d0 ) exit
                     call GET_OTF_DB_MIC(materials(i)%temp, materials(i)%ace_idx(iso), ac % E(j), xs1)
                     ac % sigt(j) = xs1(1)
                     ac % sigel(j) = xs1(2)
                     ac % sigd(j) = xs1(3)-xs1(4)
-                    ac % sigf(j) = xs1(4)
+                    if( allocated (ac % sigf) ) ac % sigf(j) = xs1(4)
                     do rx = 1, ac % NXS(5)
                         call GET_OTF_DB_MT(materials(i)%temp, materials(i)%ace_idx(iso), ac % E(j), rx, xs2)
                         ac % sig_MT(rx) % cx(j) = xs2
@@ -1824,25 +1820,25 @@ do i = 1, n_materials
                 nullify(ac)
                 materials(i) % ace_idx(iso) = num_iso
                 if(icore==score) print *, trim(materials(i)%mat_name), ': Adjusted XS for ', trim(ace_tmp(num_iso) % xslib), ' to', ace_tmp(num_iso) % temp/K_B
-                if ( size(ace_tmp) == num_iso ) call move_alloc( ace_tmp, ace )
-                if ( .not. allocated ( ace_tmp ) ) then
-                    allocate(ace_tmp ( 1:2*num_iso ))
+                if ( size ( ace_tmp ) == num_iso ) call move_alloc (ace_tmp, ace)
+                if ( .not. allocated ( ace_tmp )) then
+                    allocate ( ace_tmp ( 1:2*num_iso ) )
                     ace_tmp(1:num_iso) = ace(1:num_iso)
                 endif
             else
                 if(icore==score) print *, trim(materials(i)%mat_name), ': Linked XS to ', trim(ace_tmp(materials(i)%ace_idx(iso)) % xslib), ' with T:', ace_tmp(materials(i)%ace_idx(iso)) % temp / K_B
             endif
-        elseif( abs(materials(i) % temp - ace_tmp(materials(i)% ace_idx(iso)) % temp) < 1E-3 * K_B) then
+        elseif( abs(materials(i) % temp - ace_tmp(materials(i)% ace_idx(iso)) % temp) > 1E-3 * K_B) then
             if(icore==score) print *, 'WARNING: Invalid Temperature for ', trim(materials(i)%mat_name), materials(i)%temp/K_B, ace_tmp(materials(i)%ace_idx(iso))%temp/K_B
         else
             if(icore==score) print *, trim(materials(i)%mat_name), ': no adjust required for ', trim(ace_tmp(materials(i)%ace_idx(iso))%xslib)
         endif
     enddo
+    if ( allocated ( ace_tmp ) ) then
+        deallocate(ace); allocate(ace(1:num_iso))
+        ace(1:num_iso) = ace_tmp(1:num_iso)
+    endif
 enddo
-if ( allocated( ace_tmp ) ) then
-    deallocate(ace); allocate(ace(num_iso))
-    ace(1:num_iso) = ace_tmp(1:num_iso); deallocate(ace_tmp)
-endif
 end subroutine
 
 end module

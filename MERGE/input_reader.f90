@@ -1499,7 +1499,7 @@ end subroutine READ_CTRL
     subroutine Read_Card(File_Number,Card_Type)
 		use ENTROPY, only: en0, en1, nen, shannon
 		use TH_HEADER, only: th_on, th0, th1, th2, nth, dth, rr0, rr1, p_th, mth, &
-            t_bulk, t_clad, t_fuel
+            t_bulk, t_clad, t_fuel, temp_grid_on
 		use FMFD_HEADER
 		use TALLY, only: n_type, ttally, meshon, tgroup, n_tgroup
         use PERTURBATION, only: perton
@@ -2295,6 +2295,8 @@ end subroutine READ_CTRL
                     else
                         if(icore==score) print *, '    Coolant grid not exist: ', trim(tgrid_cool)
                     endif
+
+                    temp_grid_on = .true.
                     
                     if(Equal /='=') call Card_Error(Card_Type, Char_Temp)
 
@@ -2502,6 +2504,9 @@ end subroutine READ_CTRL
 							case("CLAD"); CE_mat_ptr%mat_type = 2
 							case("COOL"); CE_mat_ptr%mat_type = 3
 							end select                       
+                            if ( icore == score ) then
+                                print *, 'Assigned material ', trim(CE_mat_ptr % mat_name), 'as ', trim(mtype)
+                            endif
 
                         case("RGB")
                             backspace(File_Number)

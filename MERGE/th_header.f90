@@ -2,6 +2,7 @@ module TH_HEADER
     implicit none
 
     logical:: th_on = .false.   ! T/H feedback on?
+    logical:: temp_grid_on = .false.
     logical:: th_cycle = .true.
 
     ! material properties

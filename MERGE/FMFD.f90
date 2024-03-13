@@ -168,6 +168,9 @@ subroutine FMFD_ALLOCATION()
     a_fm(5:6) = dfm(1)*dfm(2)
     v_fm    = dfm(1)*dfm(2)*dfm(3)
 
+    ! 2024/03/13: Weight-window for IDTMC
+    !allocate( w_fm( nfm(1), nfm(2), nfm(3)) ) 
+
 
     ! CMFD parameters
     if ( cmfdon ) then
@@ -584,19 +587,19 @@ subroutine NORM_FMFD(cyc)
 
     !> gather thread FMFD parameters
     do i = 1, nfm(1)
-    do j = 1, nfm(2)
-    do k = 1, nfm(3)
-    fm(i,j,k)%phi     = fm(i,j,k)%phi     + fm_thread(i,j,k)%phi
-    fm(i,j,k)%sig_t   = fm(i,j,k)%sig_t   + fm_thread(i,j,k)%sig_t 
-    fm(i,j,k)%sig_a   = fm(i,j,k)%sig_a   + fm_thread(i,j,k)%sig_a 
-    fm(i,j,k)%nusig_f = fm(i,j,k)%nusig_f + fm_thread(i,j,k)%nusig_f 
-    fm(i,j,k)%kappa   = fm(i,j,k)%kappa   + fm_thread(i,j,k)%kappa 
-    do mm = 1, 6
-    fm(i,j,k)%J0(mm)  = fm(i,j,k)%J0(mm)  + fm_thread(i,j,k)%J0(mm)
-    fm(i,j,k)%J1(mm)  = fm(i,j,k)%J1(mm)  + fm_thread(i,j,k)%J1(mm)
-    end do
-    end do
-    end do
+        do j = 1, nfm(2)
+            do k = 1, nfm(3)
+                fm(i,j,k)%phi     = fm(i,j,k)%phi     + fm_thread(i,j,k)%phi
+                fm(i,j,k)%sig_t   = fm(i,j,k)%sig_t   + fm_thread(i,j,k)%sig_t 
+                fm(i,j,k)%sig_a   = fm(i,j,k)%sig_a   + fm_thread(i,j,k)%sig_a 
+                fm(i,j,k)%nusig_f = fm(i,j,k)%nusig_f + fm_thread(i,j,k)%nusig_f 
+                fm(i,j,k)%kappa   = fm(i,j,k)%kappa   + fm_thread(i,j,k)%kappa 
+                do mm = 1, 6
+                    fm(i,j,k)%J0(mm)  = fm(i,j,k)%J0(mm)  + fm_thread(i,j,k)%J0(mm)
+                    fm(i,j,k)%J1(mm)  = fm(i,j,k)%J1(mm)  + fm_thread(i,j,k)%J1(mm)
+                end do
+            end do
+        end do
     end do
 
     !> gather thread intra-pin FMFD parameters for depletion
@@ -1616,41 +1619,41 @@ subroutine WEIGHT_UPDATE(bat,cyc,k_eff,phi2)
     call MPI_BCAST(update,1,MPI_LOGICAL,score,MPI_COMM_WORLD,ierr)
 
     if ( update ) then
-    if ( inactive_cmfd .and. cyc <= n_inact ) then
-    call MPI_BCAST(fsd3,ncm(1)*ncm(2)*ncm(3),MPI_REAL8,score,MPI_COMM_WORLD,ierr)
-    do ii = 1, size(fission_bank) !bank_size
-        id = CM_ID(fission_bank(ii)%xyz)
-        if ( id(1) < 1 .or. id(1) > ncm(1) ) cycle
-        if ( id(2) < 1 .or. id(2) > ncm(2) ) cycle
-        if ( id(3) < 1 .or. id(3) > ncm(3) ) cycle
-        fission_bank(ii)%wgt = fission_bank(ii)%wgt * fsd3(id(1),id(2),id(3))
-    enddo
-    else
-    call MPI_BCAST(fsd,n_nodes,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
-    if ( dual_fmfd ) then
-    call MPI_BCAST(fsd2,n_nodes,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
-    allocate(fwgt(size(fission_bank))) !bank_size))
-    fwgt(:) = fission_bank(:)%wgt
-    do ii = 1, size(fission_bank) !bank_size
-        id = FM_ID(fission_bank(ii)%xyz)
-        if ( id(1) < 1 .or. id(1) > nfm(1) ) cycle
-        if ( id(2) < 1 .or. id(2) > nfm(2) ) cycle
-        if ( id(3) < 1 .or. id(3) > nfm(3) ) cycle
-        fission_bank(ii)%wgt = fission_bank(ii)%wgt * fsd2(id(1),id(2),id(3))
-        if ( dual_fmfd ) &
-        fwgt(ii) = fwgt(ii) * fsd(id(1),id(2),id(3))
-    enddo
-    return
-    end if
-
-    do ii = 1, size(fission_bank) !bank_size
-        id = FM_ID(fission_bank(ii)%xyz)
-        if ( id(1) < 1 .or. id(1) > nfm(1) ) cycle
-        if ( id(2) < 1 .or. id(2) > nfm(2) ) cycle
-        if ( id(3) < 1 .or. id(3) > nfm(3) ) cycle
-        fission_bank(ii)%wgt = fission_bank(ii)%wgt * fsd(id(1),id(2),id(3))
-    enddo
-    end if
+        if ( inactive_cmfd .and. cyc <= n_inact ) then
+            call MPI_BCAST(fsd3,ncm(1)*ncm(2)*ncm(3),MPI_REAL8,score,MPI_COMM_WORLD,ierr)
+            do ii = 1, size(fission_bank) !bank_size
+                id = CM_ID(fission_bank(ii)%xyz)
+                if ( id(1) < 1 .or. id(1) > ncm(1) ) cycle
+                if ( id(2) < 1 .or. id(2) > ncm(2) ) cycle
+                if ( id(3) < 1 .or. id(3) > ncm(3) ) cycle
+                fission_bank(ii)%wgt = fission_bank(ii)%wgt * fsd3(id(1),id(2),id(3))
+            enddo
+        else
+            call MPI_BCAST(fsd,n_nodes,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
+            if ( dual_fmfd ) then
+                call MPI_BCAST(fsd2,n_nodes,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
+                allocate(fwgt(size(fission_bank))) !bank_size))
+                fwgt(:) = fission_bank(:)%wgt
+                do ii = 1, size(fission_bank) !bank_size
+                    id = FM_ID(fission_bank(ii)%xyz)
+                    if ( id(1) < 1 .or. id(1) > nfm(1) ) cycle
+                    if ( id(2) < 1 .or. id(2) > nfm(2) ) cycle
+                    if ( id(3) < 1 .or. id(3) > nfm(3) ) cycle
+                    fission_bank(ii)%wgt = fission_bank(ii)%wgt * fsd2(id(1),id(2),id(3))
+                    if ( dual_fmfd ) &
+                    fwgt(ii) = fwgt(ii) * fsd(id(1),id(2),id(3))
+                enddo
+                return
+            end if
+        
+            do ii = 1, size(fission_bank) !bank_size
+                id = FM_ID(fission_bank(ii)%xyz)
+                if ( id(1) < 1 .or. id(1) > nfm(1) ) cycle
+                if ( id(2) < 1 .or. id(2) > nfm(2) ) cycle
+                if ( id(3) < 1 .or. id(3) > nfm(3) ) cycle
+                fission_bank(ii)%wgt = fission_bank(ii)%wgt * fsd(id(1),id(2),id(3))
+            enddo
+        end if
     end if
 
 end subroutine

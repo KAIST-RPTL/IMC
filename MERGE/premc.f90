@@ -112,10 +112,6 @@ subroutine premc
         endif
     endif 
 
-    ! Backup ACE for target temp.
-    allocate(ace_base(1:num_iso))
-    ace_base(1:num_iso) = ace(1:num_iso)
-
 
     ace = ace(1:num_iso)
     if(sab_iso > 0) sab = sab(1:sab_iso)

@@ -171,7 +171,7 @@ end subroutine
 ! WHAT_TEMPERATURE
 ! =============================================================================
 subroutine WHAT_TEMPERATURE(p)
-    use TH_HEADER, only: t_fuel, t_clad, t_bulk, th_on
+    use TH_HEADER, only: t_fuel, t_clad, t_bulk, th_on, temp_grid_on
     use TEMPERATURE, only: TH_INSIDE
     use CONSTANTS, only: k_b
     implicit none
@@ -180,7 +180,7 @@ subroutine WHAT_TEMPERATURE(p)
     logical:: inside
 
     inside = .false.
-    if ( th_on ) then
+    if ( th_on .or. temp_grid_on ) then
         call TH_INSIDE(p%coord(1)%xyz(:),ixyz,inside)
     end if
 
