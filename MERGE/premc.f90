@@ -117,7 +117,7 @@ subroutine premc
     ace_base(1:num_iso) = ace(1:num_iso)
 
 
-    !ace = ace(1:num_iso)
+    ace = ace(1:num_iso)
     if(sab_iso > 0) sab = sab(1:sab_iso)
     if(therm_iso > 0) therm = therm(1:therm_iso)
     call read_mgtally

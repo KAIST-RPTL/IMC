@@ -38,7 +38,7 @@ subroutine collision_CE (p)
     integer :: n_iso
     real(8) :: dtemp
     integer :: ii, jj, kk, mm, column 
-    real(8) :: xs_t(5)
+    real(8) :: xs_t(5), f
 	real(8) :: E_prev, tmp, xs_noel
 	logical :: elastic = .true. 
     integer :: isab
@@ -76,7 +76,7 @@ subroutine collision_CE (p)
                 call GET_URR_MICRO(materials(p%material)%ace_idx(i), p%E, micro_xs, p%urn)  
         end if
         ! S(a,b)
-        call GET_SAB_MIC(materials(p%material),i,p%E,micro_xs)
+        call GET_SAB_MIC(materials(p%material),i,p%E,micro_xs,p%kT)
         temp = temp + micro_xs(1)*materials(p%material)%numden(i)*barn
         ! print *, 'TST: ', trim( materials(p%material)%mat_name ), i, temp, macro_xs(1)
         if ( rn < temp/macro_xs(1) ) then
@@ -125,12 +125,19 @@ subroutine collision_CE (p)
             call SAB_CE(p,iso,isab,micro_xs(2),micro_xs(6))
         elseif( p % yes_sab .and. isab < 0) then
             if(.not.allocated(therm)) print *, 'NOTHERM RX', materials(p%material)%sablist(:), p % yes_sab, isab
-            call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
-            !if( rang() > therm(-isab) % f ) then
-                !call SAB_CE(p, iso, therm(-isab) % iso_low, micro_xs(2), micro_xs(6))
-            !else
-                !call SAB_CE(p, iso, therm(-isab) % iso_high, micro_xs(2), micro_xs(6))
-            !endif
+            !call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
+            if ( therm(-isab) % temp == 0d0 ) then
+                f = (p % kT - sab(therm(-isab)%iso_low) % temp) / &
+                    (sab(therm(-isab)%iso_high)%temp-sab(therm(-isab)%iso_low)%temp)
+            else
+                f = therm(-isab) % f
+            endif
+
+            if( rang() > f ) then
+                call SAB_CE(p, iso, therm(-isab) % iso_low, micro_xs(2), micro_xs(6))
+            else
+                call SAB_CE(p, iso, therm(-isab) % iso_high, micro_xs(2), micro_xs(6))
+            endif
         else
             call elastic_CE (p, iso)
         end if

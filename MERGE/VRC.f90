@@ -235,7 +235,7 @@ module VRC
 				micro_xs = getMicroXS( materials(p_psudo%material)%ace_idx(i), p_psudo%E)
 				end if
 				! S(a,b)
-				call GET_SAB_MIC(materials(p_psudo%material),i,p_psudo%E,micro_xs)
+				call GET_SAB_MIC(materials(p_psudo%material),i,p_psudo%E,micro_xs,p%kT)
 				temp = temp + micro_xs(1)*materials(p_psudo%material)%numden(i)*barn
 				if ( rn < temp/macro_xs(1) ) then
 					iso = materials(p_psudo%material)%ace_idx(i)

@@ -275,6 +275,8 @@ module depletion_module
         logical :: ngbranch
 
         character(4) :: tail
+        character(4), allocatable :: taillist(:)
+        integer :: ntail
         integer :: liblen
         integer :: nn, pn, dn, tn, an, a3n
 
@@ -780,11 +782,16 @@ module depletion_module
                 RXMT = (/N_GAMMA, N_2N, N_3N, N_4N, N_P, N_A, N_FISSION/)
                 allocate(decay(10000)); decay = 0; idx = 0
 
+                allocate(taillist(10)); ntail = 0
                 do i = 1,num_iso
                     if ( .not. ace(i) % depletable ) cycle
                     zai = ace(i)%zaid
                     liblen = len_trim(ace(i)%xslib)
                     tail= ace(i)%xslib(liblen-3:liblen)
+                    if (.not. ANY(taillist==tail) ) then
+                        ntail = ntail + 1
+                        taillist(ntail) = tail
+                    endif
                     anum= zai/1000
                     mnum= zai-anum*1000
                     inum= 0
@@ -903,17 +910,21 @@ module depletion_module
                         enddo
                     endif
                 enddo
+                do i = 1, ntail
+                tail = taillist(i)
                 do j = 1,nfp
                     anum1 = fp_zai(j)/10000
                     mnum1 = (fp_zai(j)-anum1*10000)/10
                     nnum1 = mnum1 - anum1
                     inum1 = fp_zai(j)-anum1*10000-mnum1*10
-                    if(nuclide(inum1,nnum1,anum1)%data_exist .and. nuclide(inum1,nnum1,anum1)%conn<0 .and. nuclide(inum1,nnum1,anum1)%fiss) then
+                    !if(nuclide(inum1,nnum1,anum1)%data_exist .and. nuclide(inum1,nnum1,anum1)%conn<0 .and. nuclide(inum1,nnum1,anum1)%fiss) then
+                    if(nuclide(inum1,nnum1,anum1)%data_exist .and. nuclide(inum1,nnum1,anum1)%fiss) then
                        nuclide(inum1,nnum1,anum1)%conn=1
                        idx = idx + 1
                        decay(idx) = fp_zai(j)
                        call ADDACE(decay(idx),tail)
                     endif
+                enddo
                 enddo
                 allocate(daugh(10000)); daugh = 0; conval= 1
 
@@ -1614,9 +1625,9 @@ module depletion_module
             if ( DTMCBU ) &
                 call MPI_BCAST(materials(:)%flux,n_materials,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
             !Substitute burnup matrix element
-            do imat = 1, n_materials
-            !do ii = 1, ngeom
-            !    imat = mpigeom(ii,icore)
+            !do imat = 1, n_materials
+            do ii = 1, ngeom
+                imat = mpigeom(ii,icore)
 
                 if(imat==0) cycle
                 if(.not. materials(imat)%depletable) cycle    !material imat is not burned
@@ -2059,23 +2070,23 @@ module depletion_module
         ! WRITE BURNUP MATRIX (OPTIONAL)
         if(bumat_print)then
         
-        write(fileid,'(i3)') istep_burnup
-        directory = './BUMAT/'//adjustl(trim(fileid))
-        !directory = './BUMAT/UEG'
-        call execute_command_line('mkdir -p '//adjustl(trim(directory)))
-        filename = 'mat_'//trim(adjustl(mat%mat_name(:)))//'_step_'//trim(adjustl(fileid))//'.m'
-        open(bumat_test, file = trim(directory)//'/'//trim(filename),action="write",status="replace")
-        write(bumat_test,*) 'FLUX=',real_flux,';'
-        write(bumat_test,*) 'ZAI1=zeros(',nnuc,',1);'
-        do knuc = 1,nnuc
-            write(bumat_test,*) 'ZAI1(',knuc,')=',zai_idx(knuc),';'
-        enddo
-        write(bumat_test,*) 'A1 = zeros(',nnuc,',',nnuc,');'
-        do knuc1 = 1,nnuc
-            do knuc2 = 1,nnuc
-                if(bMat(knuc2,knuc1)/=0.d0) write(bumat_test,*) 'A1(',knuc2,',',knuc1,')=',bMat(knuc2,knuc1)/bstep_size,';'
+            write(fileid,'(i3)') istep_burnup
+            directory = './BUMAT/'//adjustl(trim(fileid))
+            !directory = './BUMAT/UEG'
+            call execute_command_line('mkdir -p '//adjustl(trim(directory)))
+            filename = 'mat_'//trim(adjustl(mat%mat_name(:)))//'_step_'//trim(adjustl(fileid))//'.m'
+            open(bumat_test, file = trim(directory)//'/'//trim(filename),action="write",status="replace")
+            write(bumat_test,*) 'FLUX=',real_flux,';'
+            write(bumat_test,*) 'ZAI1=zeros(',nnuc,',1);'
+            do knuc = 1,nnuc
+                write(bumat_test,*) 'ZAI1(',knuc,')=',zai_idx(knuc),';'
             enddo
-        enddo
+            write(bumat_test,*) 'A1 = zeros(',nnuc,',',nnuc,');'
+            do knuc1 = 1,nnuc
+                do knuc2 = 1,nnuc
+                    if(bMat(knuc2,knuc1)/=0.d0) write(bumat_test,*) 'A1(',knuc2,',',knuc1,')=',bMat(knuc2,knuc1)/bstep_size,';'
+                enddo
+            enddo
         endif
         !print *, 'B4 CRAM', imat, materials(imat) % mat_name, icore
         !Solve the burnup matrix equation 
@@ -2118,7 +2129,7 @@ module depletion_module
         remsum = 0.d0
         mat % iso_idx = 0
         do jnuc=1, nnuc
-            ! write(*,*) imat, icore, zai_idx(jnuc), mat%full_numden(jnuc)
+            write(*,*) trim(mat%mat_name), icore, zai_idx(jnuc), mat%full_numden(jnuc)
 
             tmp = find_ACE_iso_idx_zaid(zaid=zai_idx(jnuc), temp=mat%temp)
             if(mat%full_numden(jnuc)>=1d10 .and. tmp > 0) then 
@@ -2174,28 +2185,28 @@ module depletion_module
 
 
     ! data sharing
-!    if(icore==score .and. ncore > 1) print *, '   Broadcasting Number densities to MPI nodes...'
-!    do ii = 0, ncore-1
-!    do jj = 1, ngeom
-!        imat = mpigeom(jj,ii)
-!        if( imat == 0 ) cycle
-!        mat => materials(imat)
-!        call MPI_BCAST(mat%n_iso,1,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-!        niso = mat%n_iso
-!    
-!        if ( icore /= ii ) then
-!           deallocate(mat%ace_idx); allocate(mat%ace_idx(niso)); mat%ace_idx(:) = 0
-!           deallocate(mat%numden);  allocate(mat%numden(niso));  mat%numden(:)  = 0
-!           deallocate(mat%sablist); allocate(mat%sablist(niso)); mat%sablist(:) = 0
-!           if(.not. allocated(mat%iso_idx)) allocate(mat%iso_idx(nnuc))
-!           mat%iso_idx(:) = 0
-!       end if
-!    
-!       call MPI_BCAST(mat%ace_idx,niso,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-!       call MPI_BCAST(mat%numden,niso,MPI_REAL8,ii,MPI_COMM_WORLD,ierr)
-!       call MPI_BCAST(mat%iso_idx,nnuc,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-!    end do
-!    end do
+    if(icore==score .and. ncore > 1) print *, '   Broadcasting Number densities to MPI nodes...'
+    do ii = 0, ncore-1
+    do jj = 1, ngeom
+        imat = mpigeom(jj,ii)
+        if( imat == 0 ) cycle
+        mat => materials(imat)
+        call MPI_BCAST(mat%n_iso,1,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+        niso = mat%n_iso
+    
+        if ( icore /= ii ) then
+           deallocate(mat%ace_idx); allocate(mat%ace_idx(niso)); mat%ace_idx(:) = 0
+           deallocate(mat%numden);  allocate(mat%numden(niso));  mat%numden(:)  = 0
+           deallocate(mat%sablist); allocate(mat%sablist(niso)); mat%sablist(:) = 0
+           if(.not. allocated(mat%iso_idx)) allocate(mat%iso_idx(nnuc))
+           mat%iso_idx(:) = 0
+       end if
+    
+       call MPI_BCAST(mat%ace_idx,niso,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+       call MPI_BCAST(mat%numden,niso,MPI_REAL8,ii,MPI_COMM_WORLD,ierr)
+       call MPI_BCAST(mat%iso_idx,nnuc,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+    end do
+    end do
 
     call MPI_REDUCE(tot_flux, tmpflux, 1, MPI_DOUBLE_PRECISION, MPI_SUM, score, MPI_COMM_WORLD, ierr)
     tot_flux = tmpflux
@@ -2311,6 +2322,16 @@ module depletion_module
         if( allocated (flx) ) deallocate(flx)
         if( allocated (flx2) ) deallocate(flx2)
     endif
+
+
+    do i = 1, n_materials
+        if ( materials(i) % depletable ) then
+                print *, 'MAT:', trim(materials(i) % mat_name)
+                do j = 1, materials(i) % n_iso
+                    print *, icore, trim(materials(i) % mat_name), ace(materials(i) % ace_idx(j)) % zaid, materials(i)%numden(j) * barn
+                enddo
+        endif
+    enddo
      
     end subroutine depletion 
 

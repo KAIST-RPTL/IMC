@@ -461,7 +461,7 @@ contains
 		do i = 1, n_iso
 			micro_xs = getMicroXS( materials(p%material)%ace_idx(i), p%E)
 			! S(a,b)
-			call GET_SAB_MIC(materials(p%material),i,p%E,micro_xs)
+			call GET_SAB_MIC(materials(p%material),i,p%E,micro_xs,p%kT)
 			temp = temp + micro_xs(1)*materials(p%material)%numden(i)*barn
 			if ( rn < temp/macro_xs(1) ) then
 				iso = materials(p%material)%ace_idx(i)

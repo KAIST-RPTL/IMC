@@ -868,7 +868,7 @@ subroutine read_geom
             if ( .not. found ) then 
                 isize = size(universes(1:))
                 allocate(universes_temp(0:isize+1))
-                do j = 1, isize 
+                do j = 0, isize 
                     universes_temp(j) = universes(j)
                 enddo
                 obj_univ%univ_type = 0
@@ -2254,9 +2254,9 @@ end subroutine READ_CTRL
                     allocate(t_bulk(nth(1),nth(2),nth(3))); t_bulk = 0d0
                     allocate(t_clad(nth(1),nth(2),nth(3))); t_clad = 0d0
 
-                    inquire(file=trim(tgrid_fuel), exist=found)
+                    inquire(file=trim(directory)//trim(tgrid_fuel), exist=found)
                     if ( found ) then
-                        open(rd_tgrid, file=trim(tgrid_fuel), action='read', status='old')
+                        open(rd_tgrid, file=trim(directory)//trim(tgrid_fuel), action='read', status='old')
                         do k = 1, nth(3)
                             do j = 1, nth(2)
                                 read(rd_tgrid, *, iostat=File_Error) t_fuel(:,j,k)
@@ -2268,9 +2268,9 @@ end subroutine READ_CTRL
                         if(icore==score) print *, '    Fuel grid not exist: ', trim(tgrid_fuel)
                     endif
 
-                    inquire(file=trim(tgrid_clad), exist=found)
+                    inquire(file=trim(directory)//trim(tgrid_clad), exist=found)
                     if ( found ) then
-                        open(rd_tgrid, file=trim(tgrid_clad), action='read', status='old')
+                        open(rd_tgrid, file=trim(directory)//trim(tgrid_clad), action='read', status='old')
                         do k = 1, nth(3)
                             do j = 1, nth(2)
                                 read(rd_tgrid, *, iostat=File_Error) t_clad(:,j,k)
@@ -2282,9 +2282,9 @@ end subroutine READ_CTRL
                         if(icore==score) print *, '    Cladding grid not exist: ', trim(tgrid_clad)
                     endif
 
-                    inquire(file=trim(tgrid_cool), exist=found)
+                    inquire(file=trim(directory)//trim(tgrid_cool), exist=found)
                     if ( found ) then
-                        open(rd_tgrid, file=trim(tgrid_cool), action='read', status='old')
+                        open(rd_tgrid, file=trim(directory)//trim(tgrid_cool), action='read', status='old')
                         do k = 1, nth(3)
                             do j = 1, nth(2)
                                 read(rd_tgrid, *, iostat=File_Error) t_bulk(:,j,k)
@@ -2543,6 +2543,7 @@ end subroutine READ_CTRL
                         enddo
 				    endif	
 					if (CE_mat_ptr%temp == 0) CE_mat_ptr%temp = ace(CE_mat_ptr%ace_idx(1))%temp
+
                     ! 23/11/27: Assign Array SABLIST for S(a,b) and THERM
                     allocate( CE_mat_ptr % sablist ( CE_mat_ptr % n_iso ) ) 
                     CE_mat_ptr % sablist = 0
@@ -2552,15 +2553,15 @@ end subroutine READ_CTRL
                                 if(linklist(j)==ace(CE_mat_ptr % ace_idx(i)) % zaid) then
                                     sabidx = sablist(j)
                                     if(sabidx < 0) then
-                                        if (therm(-sabidx)%temp==0d0) then
-                                            therm_iso = therm_iso + 1
-                                            therm(therm_iso)%temp = CE_mat_ptr % temp
-                                            therm(therm_iso)%tag  = therm(-sablist(j)) % tag
-                                            therm(therm_iso)%iso_low = therm(-sablist(j))%iso_low
-                                            therm(therm_iso)%iso_high= therm(-sablist(j))%iso_high
-                                            therm(therm_iso)%issab = therm(-sablist(j))%issab
-                                            sabidx = -therm_iso
-                                        endif
+!                                        if (therm(-sabidx)%temp==0d0) then
+!                                            therm_iso = therm_iso + 1
+!                                            therm(therm_iso)%temp = CE_mat_ptr % temp
+!                                            therm(therm_iso)%tag  = therm(-sablist(j)) % tag
+!                                            therm(therm_iso)%iso_low = therm(-sablist(j))%iso_low
+!                                            therm(therm_iso)%iso_high= therm(-sablist(j))%iso_high
+!                                            therm(therm_iso)%issab = therm(-sablist(j))%issab
+!                                            sabidx = -therm_iso
+!                                        endif
                                             
                                         if( therm(-sabidx) % issab ) then ! S(a,b)
                                             t1 = sab(therm(-sabidx)%iso_low) % temp
@@ -2573,7 +2574,7 @@ end subroutine READ_CTRL
                                         if( t1 >= t2 ) then
                                             if(icore==score) print *, 'Earlier T should be smaller than later one'
                                             stop
-                                        elseif ( tt < t1 .or. tt > t2 ) then
+                                        elseif ( (tt < t1 .or. tt > t2) .and. tt /= 0d0 ) then
                                             if(icore==score) print *, 'Invalid Temperature for ', therm(therm_iso) % tag
                                             if(icore==score) print *, t1, '<=', tt, '<=', t2
                                             stop
