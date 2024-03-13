@@ -1628,15 +1628,9 @@ module depletion_module
             if ( DTMCBU ) &
                 call MPI_BCAST(materials(:)%flux,n_materials,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
             !Substitute burnup matrix element
-<<<<<<< HEAD
             !do imat = 1, n_materials
             do ii = 1, ngeom
                 imat = mpigeom(ii,icore)
-=======
-            do imat = 1, n_materials
-            !do ii = 1, ngeom
-                !imat = mpigeom(ii,icore)
->>>>>>> f4d2b40ea843b309b81bce460ef902062660dfb0
 
                 if(imat==0) cycle
                 if(.not. materials(imat)%depletable) cycle    !material imat is not burned

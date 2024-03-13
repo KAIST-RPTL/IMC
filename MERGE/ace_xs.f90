@@ -1566,10 +1566,7 @@ real(8) :: ipfac
 type(AceFormat), pointer :: ac
     !$OMP PARALLEL DO PRIVATE(i, r, iso, ac, idx, ipfac)
     do iso = 1, num_iso
-<<<<<<< HEAD
-=======
     !do iso = ista, iend
->>>>>>> f4d2b40ea843b309b81bce460ef902062660dfb0
         ! 1. Initialize Egrid: corresponding E points for each iso.
         ac => ace(iso)
         allocate(ac%UEG%Egrid(1:nueg))
