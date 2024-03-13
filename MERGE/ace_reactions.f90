@@ -125,12 +125,12 @@ subroutine collision_CE (p)
             call SAB_CE(p,iso,isab,micro_xs(2),micro_xs(6))
         elseif( p % yes_sab .and. isab < 0) then
             if(.not.allocated(therm)) print *, 'NOTHERM RX', materials(p%material)%sablist(:), p % yes_sab, isab
-            call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
-            !if( rang() > therm(-isab) % f ) then
-                !call SAB_CE(p, iso, therm(-isab) % iso_low, micro_xs(2), micro_xs(6))
-            !else
-                !call SAB_CE(p, iso, therm(-isab) % iso_high, micro_xs(2), micro_xs(6))
-            !endif
+            !call SAB_THERM_CE(p, iso, abs(isab), micro_xs(2), micro_xs(6))
+            if( rang() > therm(-isab) % f ) then
+                call SAB_CE(p, iso, therm(-isab) % iso_low, micro_xs(2), micro_xs(6))
+            else
+                call SAB_CE(p, iso, therm(-isab) % iso_high, micro_xs(2), micro_xs(6))
+            endif
         else
             call elastic_CE (p, iso)
         end if

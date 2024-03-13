@@ -1607,7 +1607,7 @@ module depletion_module
                 ULnorm = RealPower/(avg_power*eVtoJoule)
             else
                 ULnorm = RealPower * power_bu(istep_burnup) / (avg_power * eVtoJoule)
-                if(icore==score) print *, 'For BU from', burn_step(istep_burnup), '->', burn_step(istep_burnup+1), ', used power of', power_bu(istep_burnup) * RealPower ,'[MW]'
+            if(icore==score) print *, 'For BU from', burn_step(istep_burnup), '->', burn_step(istep_burnup+1), ', used power of', power_bu(istep_burnup) * RealPower ,'[MW]'
             endif
             if(ULnorm <= 0d0) goto 304
             call MPI_BCAST(ULnorm, 1, MPI_DOUBLE_PRECISION, score, MPI_COMM_WORLD, ierr)
@@ -1616,7 +1616,7 @@ module depletion_module
             !Substitute burnup matrix element
             do imat = 1, n_materials
             !do ii = 1, ngeom
-            !    imat = mpigeom(ii,icore)
+                !imat = mpigeom(ii,icore)
 
                 if(imat==0) cycle
                 if(.not. materials(imat)%depletable) cycle    !material imat is not burned
@@ -1815,7 +1815,7 @@ module depletion_module
                 if(DTMCBU) real_flux = mat % flux
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
-                if(icore==score) print *, 'FLUX of ', trim(mat%mat_name), real_flux * mat%vol, bstep_size
+                print *, 'FLUX of ', trim(mat%mat_name), real_flux * mat%vol, bstep_size
                 toteflux = sum(mat%eflux(0:nueg))
                 !Build burnup matrix with cross section obtained from MC calculation
                 bMat = bMat0*bstep_size

@@ -1659,8 +1659,8 @@ type(AceFormat), pointer :: ac
 call para_range(1, num_iso, ncore, icore, ista, iend)
 
     !$OMP PARALLEL DO PRIVATE(i, r, iso, ac, idx, ipfac)
-    !do iso = 1, num_iso
-    do iso = ista, iend
+    do iso = 1, num_iso
+    !do iso = ista, iend
         ! 1. Initialize Egrid: corresponding E points for each iso.
         ac => ace(iso)
         allocate(ac%UEG%Egrid(1:nueg))

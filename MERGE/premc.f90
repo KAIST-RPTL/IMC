@@ -39,8 +39,8 @@ subroutine premc
         if(icore == score) print *, '    Time to read CE_mat.inp [s]:', ttt1-ttt0
     endif
     ttt0 = omp_get_wtime() 
-    !call read_geom('geom.inp', 0)
-    call read_geom
+    call read_geom('geom.inp', 0)
+    !call read_geom
     ttt1 = omp_get_wtime()
     if(icore == score) print *, '    Time to read geom.inp [s]:', ttt1-ttt0
     if(tally_switch > 0) call read_tally
