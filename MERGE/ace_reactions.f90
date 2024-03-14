@@ -192,7 +192,7 @@ subroutine WHAT_TEMPERATURE(p)
         case(3); p%kT = t_bulk(ixyz(1),ixyz(2),ixyz(3))
         end select
         if( p % kT == 0d0 ) p%kT = materials( p % material ) % temp
-    elseif ( .not. materials(p%material)%DB .or. p%kT == 0 .or. (do_gmsh .and. .not. p%in_tet)) then 
+    elseif ( materials(p%material)%DB .or. p%kT == 0 .or. (do_gmsh .and. .not. p%in_tet)) then 
         p%kT = materials( p % material ) % temp
     end if
 
