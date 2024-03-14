@@ -2533,7 +2533,7 @@ end subroutine READ_CTRL
                                 CE_mat_ptr % fissionable = .true.
                         enddo
 				    endif	
-					if (CE_mat_ptr%temp == 0) CE_mat_ptr%temp = ace(CE_mat_ptr%ace_idx(1))%temp
+					if (CE_mat_ptr%temp == 0d0) CE_mat_ptr%temp = ace(CE_mat_ptr%ace_idx(1))%temp
                     CE_mat_ptr % ace_temp = ace ( CE_mat_ptr % ace_idx(1) ) % temp
 
                     ! 23/11/27: Assign Array SABLIST for S(a,b) and THERM
