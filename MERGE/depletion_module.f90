@@ -1826,7 +1826,7 @@ module depletion_module
                 if(DTMCBU) real_flux = mat % flux
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
-                print *, 'Flux of ', trim(mat%mat_name), real_flux, sum(yield_data(:,1))
+                print *, 'Flux of ', trim(mat%mat_name), real_flux
                 toteflux = sum(mat%eflux(0:nueg))
                 !Build burnup matrix with cross section obtained from MC calculation
                 bMat = bMat0*bstep_size
@@ -1890,10 +1890,8 @@ module depletion_module
                 DO_ISO: do mt_iso = 1,num_iso
                     !print *, 'ISO', mt_iso
                     iso = mt_iso
-                    print *, 'CHK1', ace(iso)%temp/K_B, mat%temp/K_B, mat % ace_temp / K_B
                     if( .not. mat % db .and. abs(ace(iso)%temp-mat%temp) > 1E-3 * K_B ) cycle
                     if( mat % db .and. abs(ace(iso)%temp-mat%ace_temp) > 1E-3 * K_B ) cycle
-                    print *, 'CHK2', ace(iso)%zaid, ace(iso)%temp/K_B
                     anum = ace(iso)%zaid/1000
                     mnum = (ace(iso)%zaid - anum*1000)
                     inum = 0
@@ -1907,7 +1905,6 @@ module depletion_module
                     nnum = mnum-anum
 
                     jnuc = nuclide(inum,nnum,anum)%idx
-                    print *, 'ISO:', jnuc, ace(iso)%zaid
                     if(jnuc==0) cycle
 
                     ! BUILD ISO-WISE FLUX
@@ -1941,7 +1938,6 @@ module depletion_module
                             endif
                         endif
                         !if(mt==N_NF .or. mt==N_2NF .or. mt==N_3NF) cycle
-                        print *, 'MT', ace(iso)%zaid, mt, rx,  ogxs
 
                         ! FIND DESTINATION
                         if(mt==18 .or. ace(iso)%TY(rx)==19) then ! In case of Fission
