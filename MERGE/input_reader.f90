@@ -2612,7 +2612,13 @@ end subroutine READ_CTRL
                         stop
                     endif
                     therm(therm_iso) % f = (tt - t1) / (t2 - t1)
-                    if(icore==score) print *, therm(therm_iso)%tag, ' Fraction: ', therm(therm_iso) % f
+                    if(icore==score) then
+                        if ( tt == 0 ) then
+                            print '(A,A,F5.1,A,F5.1)', therm(therm_iso)%tag, ': Temperature varies between', t1/K_B, '~', t2/K_B
+                        else
+                            print '(A,A,F5.3)', therm(therm_iso)%tag, ' Fraction: ', therm(therm_iso) % f
+                        endif
+                    endif
                 end if
                 
                 if (Char_Temp=="ENDD") Exit Read_Card_D
