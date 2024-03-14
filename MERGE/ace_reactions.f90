@@ -78,6 +78,7 @@ subroutine collision_CE (p)
         end if
         ! S(a,b)
         call GET_SAB_MIC(materials(p%material),i,p%E,micro_xs,p%kT)
+
         temp = temp + micro_xs(1)*materials(p%material)%numden(i)*barn
         ! print *, 'TST: ', trim( materials(p%material)%mat_name ), i, temp, macro_xs(1)
         if ( rn < temp/macro_xs(1) ) then
