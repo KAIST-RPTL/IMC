@@ -2534,6 +2534,7 @@ end subroutine READ_CTRL
                         enddo
 				    endif	
 					if (CE_mat_ptr%temp == 0) CE_mat_ptr%temp = ace(CE_mat_ptr%ace_idx(1))%temp
+                    CE_mat_ptr % ace_temp = ace ( CE_mat_ptr % ace_idx(1) ) % temp
 
                     ! 23/11/27: Assign Array SABLIST for S(a,b) and THERM
                     allocate( CE_mat_ptr % sablist ( CE_mat_ptr % n_iso ) ) 
@@ -2649,6 +2650,7 @@ end subroutine READ_CTRL
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, NSTEP_BURNUP
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
                     allocate(burn_step(0:NSTEP_BURNUP))
+                    allocate(power_bu(0:NSTEP_BURNUP)); power_bu = 1d0
                 case("BURNUP_TIME")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, burn_step(1)
@@ -2948,8 +2950,7 @@ end subroutine READ_CTRL
                 if(associated (Surfobj)) nullify(Surfobj)
 
                 case("POWER_EVOLUTION")
-                backspace(File_Number); allocate(power_bu( 0:nstep_burnup ) );
-                power_bu(0) = 1d0
+                backspace(File_Number);
                 read(File_Number, *, iostat=File_Error) Char_Temp, Equal, power_bu(1:nstep_burnup)
                 if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
                 end select Card_E_Inp

@@ -42,17 +42,6 @@ module material_header
 
         !(21/11/23) materialwise-fratio
         real(8), allocatable :: fratio(:,:)
-
-        !ogxs(:,1) = One-group Volume-integrated (n,g)  // mt 102 (ENDF)
-        !ogxs(:,2) = One-group Volume-integrated (n,2n) // mt 16 (ENDF)
-        !if idx_mt_iso is fissionable
-        !  ogxs(:,3) = One-group Volume-integrated (n,3n) // mt 17 (ENDF)
-        !  ogxs(:,4) = One-group Volume-integrated (n,f)  // mt 18 (ENDF)
-        !end if
-        !if idx_mt_iso is not fissionable
-        !  ogxs(:,3) = One-group Volume-integrated (n,alpha) // mt 107 (ENDF)
-        !  ogxs(:,4) = One-group Volume-integrated (n,p)     // mt 103 (ENDF)
-        !end if
         
         ! Isotopes for S(a,b)?
         logical :: sab = .false.
@@ -66,6 +55,8 @@ module material_header
         real(8), allocatable :: macro_ueg(:,:)
         logical, allocatable :: ures(:)
         integer, allocatable :: uresidx(:)
+
+        real(8) :: ace_temp
         
     end type Material_CE
     
