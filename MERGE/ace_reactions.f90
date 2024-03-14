@@ -64,22 +64,22 @@ subroutine collision_CE (p)
     rn = rang(); temp = 0; iso = materials(p%material)%n_iso; isab = 0
     do i = 1, materials(p%material)%n_iso
         dtemp = abs(p%kT-ace(materials(p%material)%ace_idx(i))%temp) 
-        !if( materials(p%material)%db ) print *, 'TEMP:', p%kT/K_B, dtemp/K_B, p%coord(1)%xyz(3)/1d0, p%E
-		
-        if ( materials(p%material)%db .and. dtemp > K_B .and. p%E < 1d0 ) then
-            ! On-the-fly Doppler broadening
-            call GET_OTF_DB_MIC(p%kT,materials(p%material)%ace_idx(i),p%E,micro_xs)
+        if ( materials(p%material)%sablist(i) /= 0 ) then
+            call GET_SAB_MIC(materials(p%material),i,p%E,micro_xs,p%kT)
         else
-            ! point-wise data at the given temperature
-            micro_xs = getMicroXS( materials(p%material)%ace_idx(i), p%E)
-            ! URR Region
-            if(materials(p%material)%numden(i) > ures_cut) &
-                call GET_URR_MICRO(materials(p%material)%ace_idx(i), p%E, micro_xs, p%urn)  
-        end if
+            if ( materials(p%material)%db .and. dtemp > K_B .and. p%E < 1d0 ) then
+                ! On-the-fly Doppler broadening
+                call GET_OTF_DB_MIC(p%kT,materials(p%material)%ace_idx(i),p%E,micro_xs)
+            else
+                ! point-wise data at the given temperature
+                micro_xs = getMicroXS( materials(p%material)%ace_idx(i), p%E)
+                ! URR Region
+                if(materials(p%material)%numden(i) > ures_cut) &
+                    call GET_URR_MICRO(materials(p%material)%ace_idx(i), p%E, micro_xs, p%urn)  
+            end if
+        endif
         ! S(a,b)
-        call GET_SAB_MIC(materials(p%material),i,p%E,micro_xs,p%kT)
         temp = temp + micro_xs(1)*materials(p%material)%numden(i)*barn
-        ! print *, 'TST: ', trim( materials(p%material)%mat_name ), i, temp, macro_xs(1)
         if ( rn < temp/macro_xs(1) ) then
             iso = materials(p%material)%ace_idx(i)
             isab = materials(p%material) % sablist(i)
