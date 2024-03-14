@@ -54,7 +54,7 @@ subroutine collision_CE (p)
         print *, 'KILLED'
         return
     endif
-    call WHAT_TEMPERATURE(p)
+    !call WHAT_TEMPERATURE(p)
 	
     if(do_ueg) then
         macro_xs = getMacroXS_UEG(materials(p%material), p%E,p%kT, p%urn)
@@ -64,6 +64,7 @@ subroutine collision_CE (p)
     rn = rang(); temp = 0; iso = materials(p%material)%n_iso; isab = 0
     do i = 1, materials(p%material)%n_iso
         dtemp = abs(p%kT-ace(materials(p%material)%ace_idx(i))%temp) 
+        !if( materials(p%material)%db ) print *, 'TEMP:', p%kT/K_B, dtemp/K_B, p%coord(1)%xyz(3)/1d0, p%E
 		
         if ( materials(p%material)%db .and. dtemp > K_B .and. p%E < 1d0 ) then
             ! On-the-fly Doppler broadening

@@ -15,7 +15,7 @@ module tracking
                                   MC_TRK, TALLY_SURF, MC_TRK_S, meshon_tet_vrc, mesh_power
     use ace_xs,             only: getMacroXS, getMacroXS_UEG
     use material_header,    only: materials, n_materials
-    use ace_reactions,      only: collision_CE
+    use ace_reactions,      only: collision_CE, WHAT_TEMPERATURE
     use FMFD,               only: FMFD_TRK, FMFD_COL, FMFD_SURF, fmfdon, &
                                   DTMCBU, DTMC_BU_COL, DTMC_BU_TRK
     use FMFD_header,        only: acc_skip
@@ -79,6 +79,7 @@ subroutine transport(p)
 	
     found_cell = .false.
     if (p%n_coord == 1) call find_cell(p, found_cell, i_cell)
+    !print *, 'PTCL', p % kT/K_B, p % coord(1) % xyz(3)
 	if (p%material < 1 .or. p%material > n_materials) then 
         ! print *, 'WTF happen? mat:', p%material
         p%alive = .false.
@@ -99,7 +100,7 @@ subroutine transport(p)
 		p%sqrtkT = sqrt(K_B * Tet(p%tet)%temperature ) 
 		p%kT = K_B * Tet(p%tet)%temperature 
 	elseif (E_mode == 1) then 
-		p%kT = materials(p%material)%temp
+        call WHAT_TEMPERATURE(p)
 	endif
 	
 	
