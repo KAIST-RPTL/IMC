@@ -1984,7 +1984,6 @@ module depletion_module
                                         !print *, 'FY', anum1, mnum1, yield_data(i,fy_midx)*ogxs,tmp_yield(i,:,fy_midx) 
                                 enddo
                                 !if(icore==score) print *, 'TSTING', jnuc,  bMat(nnuc,jnuc)
-                                print *, 'SUMFY', fy_midx, fssn_zai(fy_midx), sum(yield_data(1:nfp,fy_midx)), ogxs
 
                                 bMat(jnuc,jnuc) = bMat(jnuc,jnuc) - ogxs * bstep_size
                             endif

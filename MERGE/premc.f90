@@ -120,6 +120,9 @@ subroutine premc
     call setugrid
 
     call setDBPP(.false.)
+
+    ! Shrink material
+
     deallocate(ugrid)
     call setugrid
 
