@@ -986,7 +986,6 @@ subroutine GET_IERG_SABE(iso_,ierg_,erg)
     integer:: low, mid, high
 
     ab => sab(iso_)%itce
-    print *, 'ALLOC? ', allocated(ab%erg)
 
     ! binary search
     low = 1
