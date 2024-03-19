@@ -98,6 +98,14 @@ if(E_mode==0) return
     pt2 = pt2 + 4
   end do
   !print *,iso, trim(ace(iso)%library), ace(iso)%NXS(3), ace(iso)%JXS(21)+1, xss(ace(iso)%jxs(21))
+!
+!  if ( ace(iso) % zaid == 1001 ) then
+!      if ( icore == score ) then
+!        print *, "LOCA", ace(iso) % NXS(6), XSS( ace(iso) % JXS(14): ace(iso) % JXS(14) + ace(iso)%NXS(6)-1)
+!        print *, 'PHOT', XSS(ace(iso)%JXS(15)-1), XSS ( ace(iso) % JXS(15): ace(iso) % JXS(15) + ace(iso)% NXS(6)-1), XSS(ace(iso)%JXS(15)+1)
+!      endif
+!  endif
+
   
 
   call set_ESZ( iso, ace(iso)%NXS, ace(iso)%JXS )
