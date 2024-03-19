@@ -1830,8 +1830,8 @@ do i = 1, n_materials
             endif
         elseif( abs(materials(i) % temp - ace_tmp(materials(i)% ace_idx(iso)) % temp) > 1E-3 * K_B) then
             if(icore==score) print *, 'WARNING: Invalid Temperature for ', trim(materials(i)%mat_name), materials(i)%temp/K_B, ace_tmp(materials(i)%ace_idx(iso))%temp/K_B
-        else
-            if(icore==score) print '(A, A, A, F7.1, F7.1)', trim(materials(i)%mat_name), ': no adjust required for ', trim(ace_tmp(materials(i)%ace_idx(iso))%xslib), materials(i)%temp/K_B, ace_tmp(materials(i)%ace_idx(iso)) % temp / K_B
+!        else
+!            if(icore==score) print '(A, A, A, F7.1, F7.1)', trim(materials(i)%mat_name), ': no adjust required for ', trim(ace_tmp(materials(i)%ace_idx(iso))%xslib), materials(i)%temp/K_B, ace_tmp(materials(i)%ace_idx(iso)) % temp / K_B
         endif
     enddo
     if ( allocated ( ace_tmp ) ) then
