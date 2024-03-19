@@ -1826,7 +1826,7 @@ module depletion_module
                 if(DTMCBU) real_flux = mat % flux
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
-                print *, 'Flux of ', trim(mat%mat_name), real_flux
+                if (icore == score ) print *, 'Flux of ', trim(mat%mat_name), real_flux
                 toteflux = sum(mat%eflux(0:nueg))
                 !Build burnup matrix with cross section obtained from MC calculation
                 bMat = bMat0*bstep_size

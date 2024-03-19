@@ -294,7 +294,7 @@ end do TH
             do i = 1, size(surfaces)
                 if ( allocated(surfaces(i) % movement) ) then
                     call move_surf_para(surfaces(i), istep_burnup)
-                    if(icore==score) print *, 'PARA', trim(surfaces(i) % surf_id), surfaces(i) % parmtrs(:)
+                    if(icore==score) print *, 'Parameter: ', trim(surfaces(i) % surf_id), surfaces(i) % parmtrs(1)
                 endif
             enddo
             
