@@ -112,13 +112,13 @@ subroutine collision_CE (p)
     do i = 1, ace(iso)%NXS(5) !> through the reaction types...
         if (abs(ace(iso)%TY(i)) == 19) cycle 
         dtemp = abs(p % kT - ace(iso) % temp)
-        if( materials(p%material) % db .and. dtemp > K_B .and. p%E < 1d0 ) then
-            call GET_OTF_DB_MT(p%kT,iso,p%E,i,xs_noel)
-            noel = noel + xs_noel
-        else
+!        if( materials(p%material) % db .and. dtemp > K_B .and. p%E < 1d0 ) then
+!            call GET_OTF_DB_MT(p%kT,iso,p%E,i,xs_noel)
+!            noel = noel + xs_noel
+!        else
             noel = noel + ace(iso)%sig_MT(i)%cx(ierg) & 
                         + ipfac*(ace(iso)%sig_MT(i)%cx(ierg+1) - ace(iso)%sig_MT(i)%cx(ierg))
-        endif
+!        endif
     enddo 
 
     r = rang()*(noel+el)-el
@@ -750,11 +750,11 @@ subroutine notElastic_CE (p,iso,xn)
         if (ierg >= (sigmt%IE+sigmt%NE-1) .or. ierg < sigmt%IE  ) cycle 
         
         !> 2. calculate XS for the reaction type
-        if ( (p % kT - ace(iso) % temp) > 1e-2 * K_B ) then
-            call GET_OTF_DB_MT(p % kT, iso, p % E, i, sig_arr(i))
-        else
+!        if ( (p % kT - ace(iso) % temp) > 1e-2 * K_B ) then
+!            call GET_OTF_DB_MT(p % kT, iso, p % E, i, sig_arr(i))
+!        else
             sig_arr(i) = sigmt%cx(ierg) + ipfac*(sigmt%cx(ierg+1)-sigmt%cx(ierg))
-        endif
+!        endif
     enddo 
     
     
@@ -920,11 +920,11 @@ subroutine fissionSite_CE (p, iso, micro_xs)
             sigmt => ace(iso)%sig_MT(i)
             if (ierg >= (sigmt%IE+sigmt%NE-1) .or. ierg < sigmt%IE  ) cycle 
             !> 2. calculate XS for the reaction type
-            if ( (p % kT - ace(iso) % temp) > 1e-2 * K_B ) then
-                call GET_OTF_DB_MT(p % kT, iso, p % E, i, sig_arr(i))
-            else
+!            if ( (p % kT - ace(iso) % temp) > 1e-2 * K_B ) then
+!                call GET_OTF_DB_MT(p % kT, iso, p % E, i, sig_arr(i))
+!            else
                 sig_arr(i) = sigmt%cx(ierg) + ipfac*(sigmt%cx(ierg+1)-sigmt%cx(ierg))
-            endif
+!            endif
         enddo 
         
         
@@ -1814,11 +1814,11 @@ subroutine inElastic_CE (p,iso,xn)
         if (abs(ace(iso)%ty(i))==19 ) cycle
         sigmt => ace(iso)%sig_MT(i)
         if (ierg >= (sigmt%IE+sigmt%NE-1) .or. ierg < sigmt%IE  ) cycle 
-        if ( (p % kT - ace(iso) % temp) > 1e-2 * K_B ) then
-            call GET_OTF_DB_MT(p % kT, iso, p % E, i, sig_arr(i))
-        else
+!        if ( (p % kT - ace(iso) % temp) > 1e-2 * K_B ) then
+!            call GET_OTF_DB_MT(p % kT, iso, p % E, i, sig_arr(i))
+!        else
             sig_arr(i) = sigmt%cx(ierg) + ipfac*(sigmt%cx(ierg+1)-sigmt%cx(ierg))
-        endif
+!        endif
     enddo 
     
     
