@@ -2144,7 +2144,7 @@ module depletion_module
                 zai_idx(jnuc) ==  80160 .or. &
                 zai_idx(jnuc)/10000 == 64 .or. &
                 zai_idx(jnuc)/10000 >  88 .or. &
-                mat%full_numden(jnuc)>=1d15) ) then ! Simplified Version
+                mat%full_numden(jnuc)>=1d25) ) then ! Simplified Version
                 knuc = knuc + 1
                 mat % iso_idx(knuc) = jnuc
             elseif(mat%full_numden(jnuc)>0.d0) then
@@ -2171,7 +2171,7 @@ module depletion_module
                 zai_idx(mat % iso_idx(mt_iso)) ==  80160 .or. &
                 zai_idx(mat % iso_idx(mt_iso))/10000 == 64 .or. &
                 zai_idx(mat % iso_idx(mt_iso))/10000 >  88 .or. &
-                mat%full_numden(mat%iso_idx(mt_iso))>=1d15)) then ! Simplified Version
+                mat%full_numden(mat%iso_idx(mt_iso))>=1d25)) then ! Simplified Version
                 i = i + 1
                 mat%ace_idx(mt_iso) = tmp
                 mat%numden(mt_iso)  = mat%full_numden(mat % iso_idx(mt_iso))
