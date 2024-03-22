@@ -15,7 +15,7 @@ module tracking
                                   MC_TRK, TALLY_SURF, MC_TRK_S, meshon_tet_vrc, mesh_power
     use ace_xs,             only: getMacroXS, getMacroXS_UEG
     use material_header,    only: materials, n_materials
-    use ace_reactions,      only: collision_CE, WHAT_TEMPERATURE
+    use ace_reactions,      only: collision_CE, WHAT_TEMPERATURE, WHAT_DENSITY
     use FMFD,               only: FMFD_TRK, FMFD_COL, FMFD_SURF, fmfdon, &
                                   DTMCBU, DTMC_BU_COL, DTMC_BU_TRK
     use FMFD_header,        only: acc_skip
@@ -101,7 +101,9 @@ subroutine transport(p)
 		p%kT = K_B * Tet(p%tet)%temperature 
 	elseif (E_mode == 1) then 
         call WHAT_TEMPERATURE(p)
+        !call WHAT_DENSITY(p)
 	endif
+
 	
 	
     !> Surface distance(boundary)
@@ -125,6 +127,7 @@ subroutine transport(p)
         else
             macro_xs = getMacroXS(materials(p%material), p%E,p%kT,p%urn)
         endif
+        macro_xs = macro_xs * p % dens
 	    d_collision = -log(rang())/macro_xs(1)
         speedn = sqrt(2.d0*p%E*mevj/(m_u*m_n))*1.0d2 !> meter/sec
     endif 
