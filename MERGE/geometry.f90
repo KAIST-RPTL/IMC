@@ -565,6 +565,7 @@ module geometry
             ! list of cells (this would be for lists of neighbor cells)
             i_cell = universes(idx_univ)%cell(i)
             ! Move on to the next cell if the particle is not inside this cell
+
             if(cell_xyz(cells(i_cell), xyz)) then
                 found = .true.
                 exit
