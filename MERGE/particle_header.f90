@@ -95,6 +95,9 @@ module particle_header
         real(8)    :: sqrtkT        ! sqrt(k_Boltzmann * temperature) in MeV
         real(8)    :: last_sqrtKT   ! last temperature
         real(8)    :: kT            ! temperature in MeV
+
+        ! Density fraction
+        real(8)    :: dens          ! Density fraction
         
         ! Statistical data
         integer    :: n_collision   ! # of collisions
@@ -204,6 +207,8 @@ contains
 		this % in_tet = .false. 
 		this % tet = 0 
 		this % tet_prev = 0
+
+        this % dens = 1d0
 
 !        if(do_ifp) then
 !            allocate(this%delayedarr(1:latent))

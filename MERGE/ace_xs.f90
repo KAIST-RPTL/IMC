@@ -1,5 +1,6 @@
 module ace_xs
 
+
 use constants, only : barn
 use variables, only : E_mode, k_steady
 use material_header 
@@ -41,7 +42,9 @@ function getMacroXS_UEG(mat, erg, kT, urn) result (macro_xs)
         + ipfac * (mat % macro_ueg(ierg+1,:) - mat % macro_ueg(ierg,:)))
 
     ! 4. ADDITIONAL XS: URES
-    if(n_unr == 0) return
+    if(n_unr == 0) then
+        return
+    endif
     if(erg < Eumin .or. erg > Eumax) return
 
     do i = 1, n_unr

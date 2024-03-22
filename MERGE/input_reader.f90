@@ -1552,7 +1552,7 @@ end subroutine READ_CTRL
     subroutine Read_Card(File_Number,Card_Type)
 		use ENTROPY, only: en0, en1, nen, shannon
 		use TH_HEADER, only: th_on, th0, th1, th2, nth, dth, rr0, rr1, p_th, mth, &
-            t_bulk, t_clad, t_fuel, temp_grid_on
+            t_bulk, t_clad, t_fuel, temp_grid_on, rho_bulk
 		use FMFD_HEADER
 		use TALLY, only: n_type, ttally, meshon, tgroup, n_tgroup
         use PERTURBATION, only: perton
@@ -1616,6 +1616,7 @@ end subroutine READ_CTRL
 
         ! Temperature Grid
         character(50) :: tgrid_fuel, tgrid_clad, tgrid_cool !> File for temperature grid
+        character(50) :: rhogrid_cool                       !> File for density fraction grid
         logical :: found
         integer :: k
 
@@ -2234,15 +2235,20 @@ end subroutine READ_CTRL
 
                 case("TEMPERATURE_GRID")
                     backspace(File_Number)
-                    if ( .not. do_temp_grid ) do_temp_grid = .true.
-                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, tgrid_fuel, tgrid_clad, tgrid_cool
+					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, th0, th1, nth
+					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+					th2 = th1 - th0
+					dth = th2 / dble(nth)
+                    read(File_Number, *, iostat=File_Error) tgrid_fuel, tgrid_clad, tgrid_cool, rhogrid_cool
 
                     allocate(t_fuel(nth(1),nth(2),nth(3))); t_fuel = 0d0
                     allocate(t_bulk(nth(1),nth(2),nth(3))); t_bulk = 0d0
                     allocate(t_clad(nth(1),nth(2),nth(3))); t_clad = 0d0
+                    allocate(rho_bulk(nth(1), nth(2), nth(3))); rho_bulk = 1d0
 
                     inquire(file=trim(directory)//trim(tgrid_fuel), exist=found)
                     if ( found ) then
+                        if ( .not. temp_grid_on ) temp_grid_on = .true.
                         open(rd_tgrid, file=trim(directory)//trim(tgrid_fuel), action='read', status='old')
                         do k = 1, nth(3)
                             do j = 1, nth(2)
@@ -2257,6 +2263,7 @@ end subroutine READ_CTRL
 
                     inquire(file=trim(directory)//trim(tgrid_clad), exist=found)
                     if ( found ) then
+                        if ( .not. temp_grid_on ) temp_grid_on = .true.
                         open(rd_tgrid, file=trim(directory)//trim(tgrid_clad), action='read', status='old')
                         do k = 1, nth(3)
                             do j = 1, nth(2)
@@ -2271,6 +2278,7 @@ end subroutine READ_CTRL
 
                     inquire(file=trim(directory)//trim(tgrid_cool), exist=found)
                     if ( found ) then
+                        if ( .not. temp_grid_on ) temp_grid_on = .true.
                         open(rd_tgrid, file=trim(directory)//trim(tgrid_cool), action='read', status='old')
                         do k = 1, nth(3)
                             do j = 1, nth(2)
@@ -2279,11 +2287,24 @@ end subroutine READ_CTRL
                         enddo
                         t_bulk = t_bulk * K_B
                         close(rd_tgrid) 
+                        if(icore==score) print *, '    Using grid from: ', trim(tgrid_cool)
                     else
                         if(icore==score) print *, '    Coolant grid not exist: ', trim(tgrid_cool)
                     endif
 
-                    temp_grid_on = .true.
+                    inquire(file=trim(directory)//trim(rhogrid_cool), exist=found)
+                    if ( found ) then
+                        if ( .not. temp_grid_on ) temp_grid_on = .true.
+                        open(rd_tgrid, file=trim(directory)//trim(rhogrid_cool), action='read', status='old')
+                        do k = 1, nth(3)
+                            do j = 1, nth(2)
+                                read(rd_tgrid, *, iostat=File_Error) rho_bulk(:,j,k)
+                            enddo
+                        enddo
+                        close(rd_tgrid) 
+                    else
+                        if(icore==score) print *, '    Density grid not exist: ', trim(rhogrid_cool)
+                    endif
                     
                     if(Equal /='=') call Card_Error(Card_Type, Char_Temp)
 

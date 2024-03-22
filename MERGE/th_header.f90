@@ -19,6 +19,9 @@ module TH_HEADER
     real(8), allocatable:: t_bulk(:,:,:)    ! bulk coolant temperature
     real(8), allocatable:: t_save(:,:,:)    ! backup for convergence test
 
+    ! Coolant density [ fraction ]
+    real(8), allocatable :: rho_bulk(:,:,:) ! bulk density fraction
+
     logical :: do_temp_grid = .false.
 
     ! TH grid
