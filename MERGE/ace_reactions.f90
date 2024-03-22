@@ -173,7 +173,7 @@ end subroutine
 ! WHAT_TEMPERATURE
 ! =============================================================================
 subroutine WHAT_TEMPERATURE(p)
-    use TH_HEADER, only: t_fuel, t_clad, t_bulk, th_on, temp_grid_on
+    use TH_HEADER, only: t_fuel, t_clad, t_bulk, th_on, temp_grid_on, rho_bulk
     use TEMPERATURE, only: TH_INSIDE
     use CONSTANTS, only: k_b
     implicit none
@@ -188,13 +188,63 @@ subroutine WHAT_TEMPERATURE(p)
 
     if ( inside ) then
         select case(materials(p%material)%mat_type)
-        case(1); p%kT = t_fuel(ixyz(1),ixyz(2),ixyz(3))
-        case(2); p%kT = t_clad(ixyz(1),ixyz(2),ixyz(3))
-        case(3); p%kT = t_bulk(ixyz(1),ixyz(2),ixyz(3))
+        case(1)
+            if( allocated( t_fuel )) then
+                p%kT = t_fuel(ixyz(1),ixyz(2),ixyz(3))
+            else
+                p % kT = materials( p % material ) % temp
+            endif
+        case(2)
+            if( allocated( t_clad )) then
+                p%kT = t_clad(ixyz(1),ixyz(2),ixyz(3))
+            else
+                p % kT = materials( p % material ) % temp
+            endif
+        case(3)
+            if( allocated( t_bulk )) then
+                p%kT = t_bulk(ixyz(1),ixyz(2),ixyz(3))
+            else
+                p % kT = materials( p % material ) % temp
+            endif
+            if( allocated( rho_bulk )) then
+                p % dens = rho_bulk(ixyz(1), ixyz(2), ixyz(3))
+            else
+                p % dens = 1d0
+            endif
+        case default
+            p%kT = materials( p % material ) % temp
+            p%dens = 1d0
         end select
-        if( p % kT == 0d0 ) p%kT = materials( p % material ) % temp
+        !print *, 'PTCL', p % kT/K_B, materials(p%material)%temp/K_B, p%dens, materials(p%material)%mat_type
     elseif ( materials(p%material)%DB .or. p%kT == 0 .or. (do_gmsh .and. .not. p%in_tet)) then 
         p%kT = materials( p % material ) % temp
+    end if
+
+end subroutine
+
+! =============================================================================
+! WHAT_DENSITY: Fraction of density
+! =============================================================================
+subroutine WHAT_DENSITY(p)
+    use TH_HEADER, only: rho_bulk, th_on, temp_grid_on
+    use TEMPERATURE, only: TH_INSIDE
+    use CONSTANTS, only: k_b
+    implicit none
+    type(Particle), intent(inout):: p
+    integer:: ixyz(3)
+    logical:: inside
+
+    inside = .false.
+    if ( th_on .or. temp_grid_on ) then
+        call TH_INSIDE(p%coord(1)%xyz(:),ixyz,inside)
+    end if
+
+    if ( inside .and. allocated(rho_bulk)) then
+        select case(materials(p%material)%mat_type)
+            case(3); p%dens = rho_bulk(ixyz(1),ixyz(2),ixyz(3))
+        end select
+    else
+        p % dens = 1d0
     end if
 
 end subroutine
