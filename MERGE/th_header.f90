@@ -22,6 +22,12 @@ module TH_HEADER
     ! Coolant density [ fraction ]
     real(8), allocatable :: rho_bulk(:,:,:) ! bulk density fraction
 
+    ! BU-dependent
+    real(8), allocatable:: t_fuel_bu(:,:,:,:)    ! fuel temperature
+    real(8), allocatable:: t_clad_bu(:,:,:,:)    ! cladding temperature
+    real(8), allocatable:: t_bulk_bu(:,:,:,:)    ! bulk coolant temperature
+    real(8), allocatable :: rho_bulk_bu(:,:,:,:) ! bulk density fraction
+
     logical :: do_temp_grid = .false.
 
     ! TH grid
