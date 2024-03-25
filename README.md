@@ -4,7 +4,7 @@ iMC is in-house Monte Carlo neutron transport code, currently under development 
 iMC is based on Fortran90, supporting MPI- and OpenMP-based parallelization.
 
 **Inhyung Kim** and **Hyeontae Kim** are initial contributors of the code.
-**Inyup Kim** and **Taesuk Oh** are current (2023.06.27) developers of the code.
+**Inyup Kim**, **Taesuk Oh**, **Sunjoo Yoon**, and **Sangjin Lee** are current (2024.03.25) developers of the code.
 
 The code supports following features
 - Continuous and Multigroup transport
