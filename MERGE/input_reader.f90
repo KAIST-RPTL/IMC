@@ -1552,7 +1552,8 @@ end subroutine READ_CTRL
     subroutine Read_Card(File_Number,Card_Type)
 		use ENTROPY, only: en0, en1, nen, shannon
 		use TH_HEADER, only: th_on, th0, th1, th2, nth, dth, rr0, rr1, p_th, mth, &
-            t_bulk, t_clad, t_fuel, temp_grid_on, rho_bulk
+            t_bulk, t_clad, t_fuel, temp_grid_on, rho_bulk, &
+            t_fuel_bu, t_bulk_bu, t_clad_bu, rho_bulk_bu
 		use FMFD_HEADER
 		use TALLY, only: n_type, ttally, meshon, tgroup, n_tgroup
         use PERTURBATION, only: perton
@@ -2974,6 +2975,79 @@ end subroutine READ_CTRL
                 backspace(File_Number);
                 read(File_Number, *, iostat=File_Error) Char_Temp, Equal, power_bu(1:nstep_burnup)
                 if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
+
+                case("TEMPERATURE GRID")
+
+                allocate( t_fuel_bu ( nth(1), nth(2), nth(3), 0:nstep_burnup ) ); t_fuel_bu = 0d0
+                allocate( t_bulk_bu ( nth(1), nth(2), nth(3), 0:nstep_burnup ) ); t_bulk_bu = 0d0
+                allocate( t_clad_bu ( nth(1), nth(2), nth(3), 0:nstep_burnup ) ); t_clad_bu = 0d0
+                allocate( rho_bulk_bu (nth(1), nth(2), nth(3), 0:nstep_burnup ) ); rho_bulk_bu = 1d0
+
+                do i = 1, nstep_burnup
+                    read(File_Number, *, iostat=File_Error) tgrid_fuel, tgrid_clad, tgrid_cool, rhogrid_cool
+                    inquire(file=trim(directory)//trim(tgrid_fuel), exist=found)
+                    if ( found ) then
+                        if ( .not. temp_grid_on ) temp_grid_on = .true.
+                        open(rd_tgrid, file=trim(directory)//trim(tgrid_fuel), action='read', status='old')
+                        do k = 1, nth(3)
+                            do j = 1, nth(2)
+                                read(rd_tgrid, *, iostat=File_Error) t_fuel_bu(:,j,k,i)
+                            enddo
+                        enddo
+                        close(rd_tgrid) 
+                    else
+                        if(icore==score) print *, '    Fuel grid not exist: ', trim(tgrid_fuel)
+                    endif
+
+                    inquire(file=trim(directory)//trim(tgrid_clad), exist=found)
+                    if ( found ) then
+                        if ( .not. temp_grid_on ) temp_grid_on = .true.
+                        open(rd_tgrid, file=trim(directory)//trim(tgrid_clad), action='read', status='old')
+                        do k = 1, nth(3)
+                            do j = 1, nth(2)
+                                read(rd_tgrid, *, iostat=File_Error) t_clad_bu(:,j,k,i)
+                            enddo
+                        enddo
+                        close(rd_tgrid) 
+                    else
+                        if(icore==score) print *, '    Cladding grid not exist: ', trim(tgrid_clad)
+                    endif
+
+                    inquire(file=trim(directory)//trim(tgrid_cool), exist=found)
+                    if ( found ) then
+                        if ( .not. temp_grid_on ) temp_grid_on = .true.
+                        open(rd_tgrid, file=trim(directory)//trim(tgrid_cool), action='read', status='old')
+                        do k = 1, nth(3)
+                            do j = 1, nth(2)
+                                read(rd_tgrid, *, iostat=File_Error) t_bulk_bu(:,j,k,i)
+                            enddo
+                        enddo
+                        close(rd_tgrid) 
+                        if(icore==score) print *, '    Using grid from: ', trim(tgrid_cool)
+                    else
+                        if(icore==score) print *, '    Coolant grid not exist: ', trim(tgrid_cool)
+                    endif
+
+                    inquire(file=trim(directory)//trim(rhogrid_cool), exist=found)
+                    if ( found ) then
+                        if ( .not. temp_grid_on ) temp_grid_on = .true.
+                        open(rd_tgrid, file=trim(directory)//trim(rhogrid_cool), action='read', status='old')
+                        do k = 1, nth(3)
+                            do j = 1, nth(2)
+                                read(rd_tgrid, *, iostat=File_Error) rho_bulk_bu(:,j,k,i)
+                            enddo
+                        enddo
+                        close(rd_tgrid) 
+                    else
+                        if(icore==score) print *, '    Density grid not exist: ', trim(rhogrid_cool)
+                    endif
+                enddo
+
+                t_fuel_bu = t_fuel_bu * K_B
+                t_clad_bu = t_clad_bu * K_B
+                t_bulk_bu = t_bulk_bu * K_B
+
+
                 end select Card_E_Inp
                 if (Char_Temp=="ENDE") Exit Read_Card_E
             end do Read_Card_E

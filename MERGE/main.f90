@@ -10,7 +10,7 @@ use DEPLETION_MODULE
 use omp_lib
 use mpi
 use transient
-use TEMPERATURE, only: TEMP_DISTRIBUTE
+use TEMPERATURE, only: TEMP_DISTRIBUTE, TEMP_UPDATE_BU
 use TALLY, only: k_eff, tallyon
 use PCQS, only : n_pcqs_totcyc, solve_PKE, n_pcqs_act, PKE_init
 
@@ -305,6 +305,8 @@ end do TH
             enddo
     	    call draw_geometry()
         endif
+        call TEMP_UPDATE_BU(istep_burnup)
+
     else
         exit BURNUP
     end if

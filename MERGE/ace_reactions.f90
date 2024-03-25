@@ -111,6 +111,7 @@ subroutine collision_CE (p)
     ipfac = max(0.d0, min(1.d0,(p%E-ace(iso)%E(ierg))/(ace(iso)%E(ierg+1)-ace(iso)%E(ierg))))
     do i = 1, ace(iso)%NXS(5) !> through the reaction types...
         if (abs(ace(iso)%TY(i)) == 19) cycle 
+        if (ierg >= (ace(iso) % sig_MT(i) %IE+ ace(iso) % sig_MT(i) %NE-1) .or. ierg < ace(iso) % sig_MT(i) %IE  ) cycle 
         dtemp = abs(p % kT - ace(iso) % temp)
 !        if( materials(p%material) % db .and. dtemp > K_B .and. p%E < 1d0 ) then
 !            call GET_OTF_DB_MT(p%kT,iso,p%E,i,xs_noel)
@@ -215,6 +216,8 @@ subroutine WHAT_TEMPERATURE(p)
             p%kT = materials( p % material ) % temp
             p%dens = 1d0
         end select
+        if ( p % kT == 0d0 ) &
+            p % kT = materials( p % material ) % temp
         !print *, 'PTCL', p % kT/K_B, materials(p%material)%temp/K_B, p%dens, materials(p%material)%mat_type
     elseif ( materials(p%material)%DB .or. p%kT == 0 .or. (do_gmsh .and. .not. p%in_tet)) then 
         p%kT = materials( p % material ) % temp
