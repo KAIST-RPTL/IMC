@@ -2138,13 +2138,13 @@ module depletion_module
         mat % iso_idx = 0
         do jnuc=1, nnuc
             tmp = find_ACE_iso_idx_zaid(zaid=zai_idx(jnuc), temp=mat%temp)
-            if(mat%full_numden(jnuc)>=1d10 .and. tmp > 0) then 
-!            if( tmp /= 0 .and. (zai_idx(jnuc) == 541350 .or. &
-!                zai_idx(jnuc) == 621480 .or. &
-!                zai_idx(jnuc) ==  80160 .or. &
-!                zai_idx(jnuc)/10000 == 64 .or. &
-!                zai_idx(jnuc)/10000 >  88 .or. &
-!                mat%full_numden(jnuc)>=1d25) ) then ! Simplified Version
+            !if(mat%full_numden(jnuc)>=1d10 .and. tmp > 0) then 
+            if( tmp /= 0 .and. (zai_idx(jnuc) == 541350 .or. &
+                zai_idx(jnuc) == 621480 .or. &
+                zai_idx(jnuc) ==  80160 .or. &
+                zai_idx(jnuc)/10000 == 64 .or. &
+                zai_idx(jnuc)/10000 >  88 .or. &
+                mat%full_numden(jnuc)>=1d10) ) then ! Simplified Version
                 knuc = knuc + 1
                 mat % iso_idx(knuc) = jnuc
             elseif(mat%full_numden(jnuc)>0.d0) then
@@ -2164,14 +2164,14 @@ module depletion_module
         do mt_iso=1, mat % n_iso
             ! find ace_idx
             tmp = find_ACE_iso_idx_zaid(zaid = zai_idx(mat % iso_idx(mt_iso)), temp=mat%temp)
-            if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
-!            if( tmp /= 0 .and. ( &
-!                zai_idx(mat % iso_idx(mt_iso)) == 541350 .or. &
-!                zai_idx(mat % iso_idx(mt_iso)) == 621480 .or. &
-!                zai_idx(mat % iso_idx(mt_iso)) ==  80160 .or. &
-!                zai_idx(mat % iso_idx(mt_iso))/10000 == 64 .or. &
-!                zai_idx(mat % iso_idx(mt_iso))/10000 >  88 .or. &
-!                mat%full_numden(mat%iso_idx(mt_iso))>=1d25)) then ! Simplified Version
+            !if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
+            if( tmp /= 0 .and. ( &
+                zai_idx(mat % iso_idx(mt_iso)) == 541350 .or. &
+                zai_idx(mat % iso_idx(mt_iso)) == 621480 .or. &
+                zai_idx(mat % iso_idx(mt_iso)) ==  80160 .or. &
+                zai_idx(mat % iso_idx(mt_iso))/10000 == 64 .or. &
+                zai_idx(mat % iso_idx(mt_iso))/10000 >  88 .or. &
+                mat%full_numden(mat%iso_idx(mt_iso))>=1d10)) then ! Simplified Version
                 i = i + 1
                 mat%ace_idx(mt_iso) = tmp
                 mat%numden(mt_iso)  = mat%full_numden(mat % iso_idx(mt_iso))
@@ -2225,6 +2225,7 @@ module depletion_module
     if(icore==score) then
         do imat = 1,n_materials
         if(.not. materials(imat)%depletable .or. materials(imat)% n_iso == 0) cycle
+        if( materials(imat) % flux <= 0 .or. materials(imat) % vol == 0d0) cycle 
             mat => materials(imat)
             write(prt_bumat,*) ''
             write(prt_bumat,*) 'mat: ', mat%mat_name
