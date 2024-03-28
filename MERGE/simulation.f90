@@ -1471,7 +1471,7 @@ end subroutine
 		!call system("python /home/guest/HyeonTae/src_temp/15_Test/src_merge2/convert_ppm_to_jpg.py")
 		!call system("mv fig.jpg "//trim(plotlist(i_plot))//".jpg") 
 		write(*,*) " - ", trim(plotlist(i_plot)), ".jpg"
-		call system("python3.9 /home/guest/Inyup/convert_ppm_to_jpg.py "//trim(plottitle))
+		call system("python /home/guest/Inyup/convert_ppm_to_jpg.py "//trim(plottitle))
 
 		enddo 
 		!call system("python /home/guest/Inyup/convert_ppm_to_jpg.py")
