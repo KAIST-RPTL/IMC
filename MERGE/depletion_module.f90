@@ -2248,6 +2248,7 @@ module depletion_module
                     therm(iso)%temp/K_B, trim(therm(iso)%lib_low), ' ', trim(therm(iso)%lib_high)
             enddo
         endif
+        write(prt_restart, '(A, F14.4)') '% Restart at:', burn_step(istep_burnup+1)/86400d0
 
         do imat = 1, n_materials
             if ( materials(imat) % n_iso == 0 ) cycle

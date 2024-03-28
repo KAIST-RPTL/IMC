@@ -2976,7 +2976,7 @@ end subroutine READ_CTRL
                 read(File_Number, *, iostat=File_Error) Char_Temp, Equal, power_bu(1:nstep_burnup)
                 if(Equal/='=') call Card_Error(Card_Type, Char_Temp)
 
-                case("TEMPERATURE GRID")
+                case("TEMPERATURE_GRID")
 
                 allocate( t_fuel_bu ( nth(1), nth(2), nth(3), 0:nstep_burnup ) ); t_fuel_bu = 0d0
                 allocate( t_bulk_bu ( nth(1), nth(2), nth(3), 0:nstep_burnup ) ); t_bulk_bu = 0d0
