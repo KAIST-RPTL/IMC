@@ -2167,7 +2167,11 @@ module depletion_module
         do mt_iso=1, mat % n_iso
             ! find ace_idx
             tmp = find_ACE_iso_idx_zaid(zaid = zai_idx(mat % iso_idx(mt_iso)), temp=mat%temp)
+<<<<<<< HEAD
 !            if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
+=======
+            !if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
+>>>>>>> origin/JANE_IY
             if( tmp /= 0 .and. ( &
                 zai_idx(mat % iso_idx(mt_iso)) == 541350 .or. &
                 zai_idx(mat % iso_idx(mt_iso)) == 621480 .or. &
@@ -2228,6 +2232,7 @@ module depletion_module
     if(icore==score) then
         do imat = 1,n_materials
         if(.not. materials(imat)%depletable .or. materials(imat)% n_iso == 0) cycle
+        if( materials(imat) % flux <= 0 .or. materials(imat) % vol == 0d0) cycle 
             mat => materials(imat)
             write(prt_bumat,*) ''
             write(prt_bumat,*) 'mat: ', mat%mat_name
@@ -2250,6 +2255,7 @@ module depletion_module
                     therm(iso)%temp/K_B, trim(therm(iso)%lib_low), ' ', trim(therm(iso)%lib_high)
             enddo
         endif
+        write(prt_restart, '(A, F14.4)') '% Restart at:', burn_step(istep_burnup+1)/86400d0
 
         do imat = 1, n_materials
             if ( materials(imat) % n_iso == 0 ) cycle
