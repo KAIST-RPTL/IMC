@@ -662,7 +662,7 @@ subroutine BURNUP_MSG
 
     10 format(A45)
     11 format(A17,I4,A1,I4)
-    12 format(F14.2,A16,F6.2)
+    12 format(F14.2,A16,F8.2)
 
 end subroutine
 

@@ -1192,11 +1192,12 @@ module depletion_module
             implicit none
             integer, intent(in) :: iso
             real(8), intent(in) :: eflux_tmp(:)
-            real(8) :: eflux(0:nueg)
+            real(8), allocatable :: eflux(:)
             real(8), allocatable, intent(out) :: flux(:)
             integer :: i, n, idx
             real(8) :: g, erg
 
+            allocate( eflux (0:nueg) )
             eflux(0:nueg) = eflux_tmp(1:nueg+1)
 
             allocate(flux(0:n-1))
@@ -1221,6 +1222,8 @@ module depletion_module
                     flux(idx) = flux(idx) + eflux(i)
                 endif
             enddo FLX_LOOP
+
+            if ( allocated ( eflux ) ) deallocate( eflux ) 
 
             end subroutine
 
@@ -1625,9 +1628,9 @@ module depletion_module
             if ( DTMCBU ) &
                 call MPI_BCAST(materials(:)%flux,n_materials,MPI_REAL8,score,MPI_COMM_WORLD,ierr)
             !Substitute burnup matrix element
-            do imat = 1, n_materials
-!            do ii = 1, ngeom
-!                imat = mpigeom(ii,icore)
+!            do imat = 1, n_materials
+            do ii = 1, ngeom
+                imat = mpigeom(ii,icore)
 
                 if(imat==0) cycle
                 if(.not. materials(imat)%depletable) cycle    !material imat is not burned
@@ -2138,13 +2141,13 @@ module depletion_module
         mat % iso_idx = 0
         do jnuc=1, nnuc
             tmp = find_ACE_iso_idx_zaid(zaid=zai_idx(jnuc), temp=mat%temp)
-            if(mat%full_numden(jnuc)>=1d10 .and. tmp > 0) then 
-!            if( tmp /= 0 .and. (zai_idx(jnuc) == 541350 .or. &
-!                zai_idx(jnuc) == 621480 .or. &
-!                zai_idx(jnuc) ==  80160 .or. &
-!                zai_idx(jnuc)/10000 == 64 .or. &
-!                zai_idx(jnuc)/10000 >  88 .or. &
-!                mat%full_numden(jnuc)>=1d25) ) then ! Simplified Version
+            !if(mat%full_numden(jnuc)>=1d10 .and. tmp > 0) then 
+            if( tmp /= 0 .and. (zai_idx(jnuc) == 541350 .or. &
+                zai_idx(jnuc) == 621480 .or. &
+                zai_idx(jnuc) ==  80160 .or. &
+                zai_idx(jnuc)/10000 == 64 .or. &
+                zai_idx(jnuc)/10000 >  88 .or. &
+                mat%full_numden(jnuc)>=1d10) ) then ! Simplified Version
                 knuc = knuc + 1
                 mat % iso_idx(knuc) = jnuc
             elseif(mat%full_numden(jnuc)>0.d0) then
@@ -2164,14 +2167,14 @@ module depletion_module
         do mt_iso=1, mat % n_iso
             ! find ace_idx
             tmp = find_ACE_iso_idx_zaid(zaid = zai_idx(mat % iso_idx(mt_iso)), temp=mat%temp)
-            if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
-!            if( tmp /= 0 .and. ( &
-!                zai_idx(mat % iso_idx(mt_iso)) == 541350 .or. &
-!                zai_idx(mat % iso_idx(mt_iso)) == 621480 .or. &
-!                zai_idx(mat % iso_idx(mt_iso)) ==  80160 .or. &
-!                zai_idx(mat % iso_idx(mt_iso))/10000 == 64 .or. &
-!                zai_idx(mat % iso_idx(mt_iso))/10000 >  88 .or. &
-!                mat%full_numden(mat%iso_idx(mt_iso))>=1d25)) then ! Simplified Version
+!            if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
+            if( tmp /= 0 .and. ( &
+                zai_idx(mat % iso_idx(mt_iso)) == 541350 .or. &
+                zai_idx(mat % iso_idx(mt_iso)) == 621480 .or. &
+                zai_idx(mat % iso_idx(mt_iso)) ==  80160 .or. &
+                zai_idx(mat % iso_idx(mt_iso))/10000 == 64 .or. &
+                zai_idx(mat % iso_idx(mt_iso))/10000 >  88 .or. &
+                mat%full_numden(mat%iso_idx(mt_iso))>=1d10)) then ! Simplified Version
                 i = i + 1
                 mat%ace_idx(mt_iso) = tmp
                 mat%numden(mt_iso)  = mat%full_numden(mat % iso_idx(mt_iso))
@@ -2193,28 +2196,28 @@ module depletion_module
 
 
     ! data sharing
-!    if(icore==score .and. ncore > 1) print *, '   Broadcasting Number densities to MPI nodes...'
-!    do ii = 0, ncore-1
-!    do jj = 1, ngeom
-!        imat = mpigeom(jj,ii)
-!        if( imat == 0 ) cycle
-!        mat => materials(imat)
-!        call MPI_BCAST(mat%n_iso,1,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-!        niso = mat%n_iso
-!    
-!        if ( icore /= ii ) then
-!           deallocate(mat%ace_idx); allocate(mat%ace_idx(niso)); mat%ace_idx(:) = 0
-!           deallocate(mat%numden);  allocate(mat%numden(niso));  mat%numden(:)  = 0
-!           deallocate(mat%sablist); allocate(mat%sablist(niso)); mat%sablist(:) = 0
-!           if(.not. allocated(mat%iso_idx)) allocate(mat%iso_idx(nnuc))
-!           mat%iso_idx(:) = 0
-!       end if
-!    
-!       call MPI_BCAST(mat%ace_idx,niso,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-!       call MPI_BCAST(mat%numden,niso,MPI_REAL8,ii,MPI_COMM_WORLD,ierr)
-!       call MPI_BCAST(mat%iso_idx,nnuc,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
-!    end do
-!    end do
+    if(icore==score .and. ncore > 1) print *, '   Broadcasting Number densities to MPI nodes...'
+    do ii = 0, ncore-1
+    do jj = 1, ngeom
+        imat = mpigeom(jj,ii)
+        if( imat == 0 ) cycle
+        mat => materials(imat)
+        call MPI_BCAST(mat%n_iso,1,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+        niso = mat%n_iso
+    
+        if ( icore /= ii ) then
+           deallocate(mat%ace_idx); allocate(mat%ace_idx(niso)); mat%ace_idx(:) = 0
+           deallocate(mat%numden);  allocate(mat%numden(niso));  mat%numden(:)  = 0
+           deallocate(mat%sablist); allocate(mat%sablist(niso)); mat%sablist(:) = 0
+           if(.not. allocated(mat%iso_idx)) allocate(mat%iso_idx(nnuc))
+           mat%iso_idx(:) = 0
+       end if
+    
+       call MPI_BCAST(mat%ace_idx,niso,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+       call MPI_BCAST(mat%numden,niso,MPI_REAL8,ii,MPI_COMM_WORLD,ierr)
+       call MPI_BCAST(mat%iso_idx,nnuc,MPI_INTEGER,ii,MPI_COMM_WORLD,ierr)
+    end do
+    end do
 
     call MPI_REDUCE(tot_flux, tmpflux, 1, MPI_DOUBLE_PRECISION, MPI_SUM, score, MPI_COMM_WORLD, ierr)
     tot_flux = tmpflux
