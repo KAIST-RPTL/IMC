@@ -196,7 +196,8 @@ subroutine premc
 	
     !===========================================================================
     !Draw geometry 
-	call draw_geometry()
+    if( icore == score ) call draw_geometry()
+    call MPI_BARRIER(core, ierr)
 
     ! 23/12/01 : DBRC application
     if(n_iso0K > 0) then

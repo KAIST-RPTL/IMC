@@ -655,14 +655,30 @@ end subroutine
 ! BURNUP_MSG
 ! =============================================================================
 subroutine BURNUP_MSG
-    write(*,10), '   =========================================='
-    write(*,11), '      Burnup step', istep_burnup, '/',nstep_burnup
-    write(*,12), burn_step(istep_burnup)/86400.d0, ' CUMULATIVE DAYS', power_bu(istep_burnup)*1d2
-    write(*,10), '   =========================================='
+    if( preco == 0 ) then
+        write(*,10), '   =========================================='
+        write(*,11), '      Burnup step', istep_burnup, '/',nstep_burnup
+        write(*,12), burn_step(istep_burnup)/86400.d0, ' CUMULATIVE DAYS', power_bu(istep_burnup)*1d2
+        write(*,10), '   =========================================='
+    elseif ( preco == 1 ) then
+        if ( porc == nporc ) then
+            write(*,10), '   =========================================='
+            write(*,111), '      Burnup step', istep_burnup, '/',nstep_burnup,' Corrector step'
+            write(*,12), burn_step(istep_burnup)/86400.d0, ' CUMULATIVE DAYS', power_bu(istep_burnup)*1d2
+            write(*,10), '   =========================================='
+        else
+            write(*,10), '   =========================================='
+            write(*,111), '      Burnup step', istep_burnup, '/',nstep_burnup, ' Predictor step'
+            write(*,12), burn_step(istep_burnup)/86400.d0, ' CUMULATIVE DAYS', power_bu(istep_burnup)*1d2
+            write(*,10), '   =========================================='
+        endif
+    endif
+
 
     10 format(A45)
     11 format(A17,I4,A1,I4)
     12 format(F14.2,A16,F8.2)
+    111 format(A17,I4,A1,I4,A)
 
 end subroutine
 

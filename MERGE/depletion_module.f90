@@ -1612,13 +1612,15 @@ module depletion_module
 !                end if
             end do
             end if
-            if (icore==score) then 
-                write(prt_bumat, '(a45)')         '   =========================================='
-                write(prt_bumat, '(a17,i4)')     '      Burnup step', istep_burnup+1
-                write(prt_bumat, '(f14.2,a16)') burn_step(istep_burnup+1)/86400.d0, ' CUMULATIVE DAYS'
-                write(prt_bumat, '(a45)')         '   =========================================='
+
+            if ( preco == 0 .or. (preco == 1 .and. porc == nporc) ) then
+                if (icore==score) then 
+                    write(prt_bumat, '(a45)')         '   =========================================='
+                    write(prt_bumat, '(a17,i4)')     '      Burnup step', istep_burnup+1
+                    write(prt_bumat, '(f14.2,a16)') burn_step(istep_burnup+1)/86400.d0, ' CUMULATIVE DAYS'
+                    write(prt_bumat, '(a45)')         '   =========================================='
+                endif 
             endif 
-            
             !Normalization constant to be real power
             ULnorm = RealPower * power_bu(istep_burnup) / (avg_power * eVtoJoule)
             if(icore==score) print *, 'For BU from', burn_step(istep_burnup), '->', burn_step(istep_burnup+1), ', used power of', power_bu(istep_burnup) * RealPower ,'[MW]'
@@ -1836,29 +1838,27 @@ module depletion_module
                 
                 if(preco == 1) then ! CE/LI
                     if(porc <= nporc) then ! Predictor: save
-                        if(.not. allocated(mat % ogxs1)) then
-                            allocate(mat % ogxs1(num_iso, 1:7))
-                            mat % ogxs1 = 0d0
-                        endif
-                        if(.not. allocated(mat % ace_idx1)) then
-                            allocate(mat % ace_idx1(mat%n_iso))
-                            mat % ace_idx1 = 0d0
-                        endif
-                        if(.not. allocated(mat % eflux1)) then
-                            allocate(mat % eflux1(nueg))
-                            mat % eflux1 = 0d0
-                        endif
-
-                        mat % flux1 = real_flux + mat % flux1
-                        mat % eflux1 = mat % eflux + mat % eflux1
-                        mat % ogxs1(:,:) = mat % ogxs(:,:) + mat % ogxs1(:,:)
-                        mat % ace_idx1(:) = mat % ace_idx(:) + mat % ace_idx1(:)
+!                        if(.not. allocated(mat % ogxs1)) then
+!                            allocate(mat % ogxs1(num_iso, 1:7))
+!                            mat % ogxs1 = 0d0
+!                        endif
+!                        if(.not. allocated(mat % ace_idx1)) then
+!                            allocate(mat % ace_idx1(mat%n_iso))
+!                            mat % ace_idx1 = 0d0
+!                        endif
+!                        if(.not. allocated(mat % eflux1)) then
+!                            allocate(mat % eflux1(nueg))
+!                            mat % eflux1 = 0d0
+!                        endif
+!
+!                        mat % flux1 = real_flux + mat % flux1
+!                        mat % eflux1 = mat % eflux + mat % eflux1
+!                        mat % ogxs1(:,:) = mat % ogxs(:,:) + mat % ogxs1(:,:)
+!                        mat % ace_idx1(:) = mat % ace_idx(:) + mat % ace_idx1(:)
                         mat % full_numden1 = mat % full_numden
+                        bstep_size = bstep_size * 5d-1
 
                     elseif(porc == nporc) then ! Corrector: load
-                        real_flux = (real_flux + mat % flux1) * 0.5d0
-                        mat % eflux = (mat % eflux + mat % eflux1) * 0.5d0
-                        mat % ogxs  = (mat % ogxs  + mat % ogxs1) * 0.5d0
                         mat % full_numden = mat % full_numden1
                     endif
 
@@ -2167,11 +2167,7 @@ module depletion_module
         do mt_iso=1, mat % n_iso
             ! find ace_idx
             tmp = find_ACE_iso_idx_zaid(zaid = zai_idx(mat % iso_idx(mt_iso)), temp=mat%temp)
-<<<<<<< HEAD
-!            if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
-=======
             !if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
->>>>>>> origin/JANE_IY
             if( tmp /= 0 .and. ( &
                 zai_idx(mat % iso_idx(mt_iso)) == 541350 .or. &
                 zai_idx(mat % iso_idx(mt_iso)) == 621480 .or. &
@@ -2229,86 +2225,88 @@ module depletion_module
 
     call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
-    if(icore==score) then
-        do imat = 1,n_materials
-        if(.not. materials(imat)%depletable .or. materials(imat)% n_iso == 0) cycle
-        if( materials(imat) % flux <= 0 .or. materials(imat) % vol == 0d0) cycle 
-            mat => materials(imat)
-            write(prt_bumat,*) ''
-            write(prt_bumat,*) 'mat: ', mat%mat_name
-            write(prt_bumat,*) ''
-            do mt_iso = 1, mat%n_iso
-            if ( mat % ace_idx(mt_iso) > 0) write(prt_bumat, '(a15,e14.5)') ace(mat%ace_idx(mt_iso))%xslib, mat%numden(mt_iso)*barn 
-            enddo
-            write(prt_bumat, *) 'Num isotope', i
-            write(prt_bumat, *) ''
-        enddo
-    endif
-
-    if(icore==score .and. allocated(burnup_restart)) then
-        write(depidx, '(i3)') istep_burnup + 1
-        open(prt_restart, file='./CE_mat_'//trim(adjustl(trim(depidx)))//'.inp', action = 'write', status='replace')
-        write(prt_restart, *) 'CARD D'
-        if( allocated(therm) ) then
-            do iso = 1, size(therm) 
-                write(prt_restart, *) 'THERM ', adjustl(trim(therm(iso)%tag)),&
-                    therm(iso)%temp/K_B, trim(therm(iso)%lib_low), ' ', trim(therm(iso)%lib_high)
+    if( preco == 0 .or. (preco == 1 .and. porc == nporc) ) then
+        if(icore==score) then
+            do imat = 1,n_materials
+            if(.not. materials(imat)%depletable .or. materials(imat)% n_iso == 0) cycle
+            if( materials(imat) % flux <= 0 .or. materials(imat) % vol == 0d0) cycle 
+                mat => materials(imat)
+                write(prt_bumat,*) ''
+                write(prt_bumat,*) 'mat: ', mat%mat_name
+                write(prt_bumat,*) ''
+                do mt_iso = 1, mat%n_iso
+                if ( mat % ace_idx(mt_iso) > 0) write(prt_bumat, '(a15,e14.5)') ace(mat%ace_idx(mt_iso))%xslib, mat%numden(mt_iso)*barn 
+                enddo
+                write(prt_bumat, *) 'Num isotope', i
+                write(prt_bumat, *) ''
             enddo
         endif
-        write(prt_restart, '(A, F14.4)') '% Restart at:', burn_step(istep_burnup+1)/86400d0
-
-        do imat = 1, n_materials
-            if ( materials(imat) % n_iso == 0 ) cycle
-            write(prt_restart, *) 'MAT'
-            !mat_name
-            write(prt_restart, *) 'mat_name = ', trim(materials(imat) % mat_name)
-            !density_gpcc: Use data from ISOTOPES
-            write(prt_restart, *) 'density_gpcc =', sum(materials(imat)%numden)
-            !fissionable
-            if(materials(imat) % fissionable) &
-                write(prt_restart, *) 'fissionable = T'
-            !depletable
-            if(materials(imat) % depletable) &
-                write(prt_restart, *) 'depletable = T'
-            !doppler
-            if(materials(imat) % db) then
-                write(prt_restart, *) 'doppler = T'
-                write(prt_restart, *) 'temperature = ', materials(imat) % temp/K_B
-            endif
-            if(ANY(materials(imat) % sablist/=0)) then ! If any is sablist
-                do iso = 1, materials(imat) % n_iso
-                    isab = materials(imat) % sablist(iso)
-                    if( isab > 0 ) then ! S(a,b)
-                        write(prt_restart, *) 'sab = ',trim(sab(isab)%xslib), ace(materials(imat)%ace_idx(iso)) % zaid
-                    elseif (isab < 0) then ! Therm
-                        write(prt_restart, *) 'moder = ',trim(therm(-isab)%tag), ace(materials(imat)%ace_idx(iso)) % zaid
-                    endif
+    
+        if(icore==score .and. allocated(burnup_restart)) then
+            write(depidx, '(i3)') istep_burnup + 1
+            open(prt_restart, file='./CE_mat_'//trim(adjustl(trim(depidx)))//'.inp', action = 'write', status='replace')
+            write(prt_restart, *) 'CARD D'
+            if( allocated(therm) ) then
+                do iso = 1, size(therm) 
+                    write(prt_restart, *) 'THERM ', adjustl(trim(therm(iso)%tag)),&
+                        therm(iso)%temp/K_B, trim(therm(iso)%lib_low), ' ', trim(therm(iso)%lib_high)
                 enddo
             endif
-            !vol
-            if( materials(imat) % vol > 0 ) write(prt_restart, *) 'vol = ', materials(imat) % vol
-            !n_iso
-            write(prt_restart, *) 'n_iso = ', materials(imat) % n_iso
-            !isotopes
-            write(prt_restart, *) 'isotopes = ', &
-                ace(materials(imat)%ace_idx(1))%xslib, materials(imat)%numden(1)
-                do iso = 2, materials(imat) % n_iso
-                    write(prt_restart, *) ace(materials(imat)%ace_idx(iso))%xslib, materials(imat)%numden(iso)
-                enddo
-!            if( allocated(materials(imat) % full_numden) ) then
-!                !n_full_iso
-!                write(prt_restart, *) 'n_full_iso = ', count(materials(imat)%full_numden > 0d0) 
-!                !full_numden
-!                write(prt_restart, *) 'full_numden = ', zai_idx(1), materials(imat)%full_numden(1)
-!                do iso = 2, nnuc
-!                    if(materials(imat) % full_numden(iso) > 0d0) &
-!                        write(prt_restart, *) zai_idx(iso), materials(imat)%full_numden(iso)
-!                enddo
-!            endif
-            write(prt_restart, *) 'END_MAT'
-        enddo
-        write(prt_restart, *) 'ENDD'
-        close(prt_restart)
+            write(prt_restart, '(A, F14.4)') '% Restart at:', burn_step(istep_burnup+1)/86400d0
+    
+            do imat = 1, n_materials
+                if ( materials(imat) % n_iso == 0 ) cycle
+                write(prt_restart, *) 'MAT'
+                !mat_name
+                write(prt_restart, *) 'mat_name = ', trim(materials(imat) % mat_name)
+                !density_gpcc: Use data from ISOTOPES
+                write(prt_restart, *) 'density_gpcc =', sum(materials(imat)%numden)
+                !fissionable
+                if(materials(imat) % fissionable) &
+                    write(prt_restart, *) 'fissionable = T'
+                !depletable
+                if(materials(imat) % depletable) &
+                    write(prt_restart, *) 'depletable = T'
+                !doppler
+                if(materials(imat) % db) then
+                    write(prt_restart, *) 'doppler = T'
+                    write(prt_restart, *) 'temperature = ', materials(imat) % temp/K_B
+                endif
+                if(ANY(materials(imat) % sablist/=0)) then ! If any is sablist
+                    do iso = 1, materials(imat) % n_iso
+                        isab = materials(imat) % sablist(iso)
+                        if( isab > 0 ) then ! S(a,b)
+                            write(prt_restart, *) 'sab = ',trim(sab(isab)%xslib), ace(materials(imat)%ace_idx(iso)) % zaid
+                        elseif (isab < 0) then ! Therm
+                            write(prt_restart, *) 'moder = ',trim(therm(-isab)%tag), ace(materials(imat)%ace_idx(iso)) % zaid
+                        endif
+                    enddo
+                endif
+                !vol
+                if( materials(imat) % vol > 0 ) write(prt_restart, *) 'vol = ', materials(imat) % vol
+                !n_iso
+                write(prt_restart, *) 'n_iso = ', materials(imat) % n_iso
+                !isotopes
+                write(prt_restart, *) 'isotopes = ', &
+                    ace(materials(imat)%ace_idx(1))%xslib, materials(imat)%numden(1)
+                    do iso = 2, materials(imat) % n_iso
+                        write(prt_restart, *) ace(materials(imat)%ace_idx(iso))%xslib, materials(imat)%numden(iso)
+                    enddo
+    !            if( allocated(materials(imat) % full_numden) ) then
+    !                !n_full_iso
+    !                write(prt_restart, *) 'n_full_iso = ', count(materials(imat)%full_numden > 0d0) 
+    !                !full_numden
+    !                write(prt_restart, *) 'full_numden = ', zai_idx(1), materials(imat)%full_numden(1)
+    !                do iso = 2, nnuc
+    !                    if(materials(imat) % full_numden(iso) > 0d0) &
+    !                        write(prt_restart, *) zai_idx(iso), materials(imat)%full_numden(iso)
+    !                enddo
+    !            endif
+                write(prt_restart, *) 'END_MAT'
+            enddo
+            write(prt_restart, *) 'ENDD'
+            close(prt_restart)
+        endif
     endif
 
     ! PRECO ROUTINE
@@ -2316,12 +2314,12 @@ module depletion_module
     istep_burnup = istep_burnup + 1
     if( preco == 0 ) then
     elseif( preco == 1 ) then
-        if( porc == 1 ) then
+        if( porc == 0 ) then
             if(istep_burnup < nstep_burnup) &
                 istep_burnup = istep_burnup - 1
-            porc = 2
-        elseif( porc == 2 ) then
-            porc = 1
+            porc = 1 
+        elseif( porc == 1 ) then
+            porc = 0
         endif
     elseif( preco == 2 ) then
         stepsize0 = bstep_size
