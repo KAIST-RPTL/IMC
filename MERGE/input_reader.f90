@@ -2873,6 +2873,13 @@ end subroutine READ_CTRL
                         preco = 2
                     end select
 
+                    if ( preco == 1 ) then
+                        if (icore==score) print *, 'PRECO: CE/LI'
+
+                    elseif ( preco == 2 ) then
+                        if (icore==score) print *, 'PRECO: CE/LI'
+
+                    endif
                 case("DTMC_BU")
                     if ( .not. fmfdon ) cycle
                     if ( .not. do_burn ) cycle
