@@ -2986,9 +2986,13 @@ end subroutine READ_CTRL
                 case("TEMPERATURE_GRID")
 
                 allocate( t_fuel_bu ( nth(1), nth(2), nth(3), 0:nstep_burnup ) ); t_fuel_bu = 0d0
+                if ( allocated( t_fuel ) ) t_fuel_bu(:,:,:,0) = t_fuel
                 allocate( t_bulk_bu ( nth(1), nth(2), nth(3), 0:nstep_burnup ) ); t_bulk_bu = 0d0
+                if ( allocated( t_bulk ) ) t_bulk_bu(:,:,:,0) = t_bulk
                 allocate( t_clad_bu ( nth(1), nth(2), nth(3), 0:nstep_burnup ) ); t_clad_bu = 0d0
+                if ( allocated( t_clad ) ) t_clad_bu(:,:,:,0) = t_clad
                 allocate( rho_bulk_bu (nth(1), nth(2), nth(3), 0:nstep_burnup ) ); rho_bulk_bu = 1d0
+                if ( allocated( rho_bulk ) ) rho_bulk_bu(:,:,:,0) = rho_bulk
 
                 do i = 1, nstep_burnup
                     read(File_Number, *, iostat=File_Error) tgrid_fuel, tgrid_clad, tgrid_cool, rhogrid_cool
@@ -3002,8 +3006,9 @@ end subroutine READ_CTRL
                             enddo
                         enddo
                         close(rd_tgrid) 
+                        if(icore==score) print '(F10.2,A,A)', burn_step(i)/86400d0, 'days:    using Fuel T from:   ', trim(tgrid_fuel)
                     else
-                        if(icore==score) print *, '    Fuel grid not exist: ', trim(tgrid_fuel)
+                        if(icore==score) print '(F10.2,A,A)', burn_step(i)/86400d0, 'days:    Fuel grid not exist: ', trim(tgrid_fuel)
                     endif
 
                     inquire(file=trim(directory)//trim(tgrid_clad), exist=found)
@@ -3016,8 +3021,9 @@ end subroutine READ_CTRL
                             enddo
                         enddo
                         close(rd_tgrid) 
+                        if(icore==score) print '(F10.2,A,A)', burn_step(i)/86400d0, 'days:    using Clad T from:   ', trim(tgrid_clad)
                     else
-                        if(icore==score) print *, '    Cladding grid not exist: ', trim(tgrid_clad)
+                        if(icore==score) print '(F10.2,A,A)', burn_step(i)/86400d0, 'days:    Clad grid not exist: ', trim(tgrid_clad)
                     endif
 
                     inquire(file=trim(directory)//trim(tgrid_cool), exist=found)
@@ -3030,9 +3036,9 @@ end subroutine READ_CTRL
                             enddo
                         enddo
                         close(rd_tgrid) 
-                        if(icore==score) print *, '    Using grid from: ', trim(tgrid_cool)
+                        if(icore==score) print '(F10.2,A,A)', burn_step(i)/86400d0, 'days:    using Cool T from:   ', trim(tgrid_cool)
                     else
-                        if(icore==score) print *, '    Coolant grid not exist: ', trim(tgrid_cool)
+                        if(icore==score) print '(F10.2,A,A)', burn_step(i)/86400d0, 'days:    Cool grid not exist: ', trim(tgrid_cool)
                     endif
 
                     inquire(file=trim(directory)//trim(rhogrid_cool), exist=found)
@@ -3045,8 +3051,9 @@ end subroutine READ_CTRL
                             enddo
                         enddo
                         close(rd_tgrid) 
+                        if(icore==score) print '(F10.2,A,A)', burn_step(i)/86400d0, 'days:    using Cool dens. from:     ', trim(tgrid_cool)
                     else
-                        if(icore==score) print *, '    Density grid not exist: ', trim(rhogrid_cool)
+                        if(icore==score) print '(F10.2,A,A)', burn_step(i)/86400d0, 'days:    Cool dens. grid not exist: ', trim(tgrid_cool)
                     endif
                 enddo
 

@@ -299,11 +299,11 @@ end do TH
             enddo
             
             write(buid, '(i3)') istep_burnup
-            do i = 1, size(plotlist)
-                plotlist(i) = plotlist(i)//trim(buid)
-                if(icore==score) print *, 'PLOT ID:', i, trim(plotlist(i)), buid
-            enddo
-    	    call draw_geometry()
+!            do i = 1, size(plotlist)
+!                plotlist(i) = trim(plotlist(i))//trim(buid)
+!                if(icore==score) print *, 'PLOT ID:', i, trim(plotlist(i)), buid
+!            enddo
+!    	    call draw_geometry()
         endif
         call TEMP_UPDATE_BU(istep_burnup)
 
@@ -655,6 +655,7 @@ end subroutine
 ! BURNUP_MSG
 ! =============================================================================
 subroutine BURNUP_MSG
+
     if( preco == 0 ) then
         write(*,10), '   =========================================='
         write(*,11), '      Burnup step', istep_burnup, '/',nstep_burnup
@@ -673,7 +674,6 @@ subroutine BURNUP_MSG
             write(*,10), '   =========================================='
         endif
     endif
-
 
     10 format(A45)
     11 format(A17,I4,A1,I4)

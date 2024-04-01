@@ -600,6 +600,7 @@ end function
 subroutine TEMP_UPDATE_BU(istep_burnup)
 implicit none
 integer, intent(in) :: istep_burnup
+if(icore==score) print *, 'CHK;', allocated(t_fuel_bu), temp_grid_on
 if( .not. allocated( t_fuel_bu ) ) return
 if( .not. temp_grid_on ) return
 
@@ -607,6 +608,7 @@ t_fuel = t_fuel_bu(:,:,:, istep_burnup)
 t_clad = t_clad_bu(:,:,:, istep_burnup)
 t_bulk = t_bulk_bu(:,:,:, istep_burnup)
 rho_bulk = rho_bulk_bu(:,:,:, istep_burnup)
+print *, 'TBULK', t_bulk, rho_bulk
 if (icore==score) print *, 'Updated temperature grids'
 end subroutine
 
