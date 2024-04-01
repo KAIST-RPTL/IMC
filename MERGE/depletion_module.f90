@@ -2666,7 +2666,8 @@ module depletion_module
             
             if (materials(imat)%depletable .and. .not. restart) then
                 allocate(materials(imat)%full_numden(1:nnuc))
-                if ( preco == 1 ) allocate(materials(imat)%full_numden1(1:nnuc))
+                if ( preco == 1 .and. .not. allocated(materials(imat)%full_numden1)) &
+                    allocate(materials(imat)%full_numden1(1:nnuc))
                 materials(imat)%full_numden = 0.d0     !Initialize number density
             
                 do mt_iso = 1, materials(imat)%n_iso
