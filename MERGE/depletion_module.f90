@@ -1509,7 +1509,7 @@ module depletion_module
             !deallocate(nucexist)
 
             !Initialize material independent burnup matrix
-            if(istep_burnup==0) then
+            if(istep_burnup==0 .and. .not. allocated( bMat )) then
             allocate(bMat(1:nnuc,1:nnuc))   !2-D burnup matrix : row to column transition
             allocate(bMat0(1:nnuc,1:nnuc)) !2-D burnup matrix : row to column transition (material independent)
             bMat0 = 0.d0; bMat = 0d0
@@ -2079,6 +2079,7 @@ module depletion_module
         deallocate(yield_data)
 
         ! WRITE BURNUP MATRIX (OPTIONAL)
+        if( preco == 0 .or. (preco == 1 .and. porc == nporc) ) then
         if(bumat_print)then
         
             write(fileid,'(i3)') istep_burnup
@@ -2098,6 +2099,7 @@ module depletion_module
                     if(bMat(knuc2,knuc1)/=0.d0) write(bumat_test,*) 'A1(',knuc2,',',knuc1,')=',bMat(knuc2,knuc1)/bstep_size,';'
                 enddo
             enddo
+        endif
         endif
         !print *, 'B4 CRAM', imat, materials(imat) % mat_name, icore
         !Solve the burnup matrix equation 
