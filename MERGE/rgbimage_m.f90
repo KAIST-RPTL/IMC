@@ -46,7 +46,7 @@ module rgbimage_m
 	real(8), allocatable, dimension(:) :: plt_dx, plt_dy, plt_dz
 	integer, allocatable, dimension(:) :: plt_nx, plt_ny, plt_nz
 	integer :: n_plot = 0
-	character(20), allocatable :: plotlist(:)
+	character(40), allocatable :: plotlist(:)
 	integer, allocatable :: plottype(:)
  
  

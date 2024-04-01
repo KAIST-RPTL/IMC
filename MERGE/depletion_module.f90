@@ -202,6 +202,7 @@ module depletion_module
     real(8) :: stepsize0
 
     logical, allocatable :: burnup_restart(:)
+    real(8) :: efps = 0d0
 
     contains 
 
@@ -1616,6 +1617,7 @@ module depletion_module
                 write(prt_bumat, '(a45)')         '   =========================================='
                 write(prt_bumat, '(a17,i4)')     '      Burnup step', istep_burnup+1
                 write(prt_bumat, '(f14.2,a16)') burn_step(istep_burnup+1)/86400.d0, ' CUMULATIVE DAYS'
+                write(prt_bumat, '(f14.2,a)')               efps/86400d0, ' EFPDs'
                 write(prt_bumat, '(a45)')         '   =========================================='
             endif 
             
@@ -2147,7 +2149,7 @@ module depletion_module
                 zai_idx(jnuc) ==  80160 .or. &
                 zai_idx(jnuc)/10000 == 64 .or. &
                 zai_idx(jnuc)/10000 >  88 .or. &
-                mat%full_numden(jnuc)>=1d10) ) then ! Simplified Version
+                mat%full_numden(jnuc)>=1d13) ) then ! Simplified Version
                 knuc = knuc + 1
                 mat % iso_idx(knuc) = jnuc
             elseif(mat%full_numden(jnuc)>0.d0) then
@@ -2167,18 +2169,14 @@ module depletion_module
         do mt_iso=1, mat % n_iso
             ! find ace_idx
             tmp = find_ACE_iso_idx_zaid(zaid = zai_idx(mat % iso_idx(mt_iso)), temp=mat%temp)
-<<<<<<< HEAD
-!            if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
-=======
             !if (tmp /= 0 .and. mat%full_numden(mat % iso_idx(mt_iso))>=1d10) then 
->>>>>>> origin/JANE_IY
             if( tmp /= 0 .and. ( &
                 zai_idx(mat % iso_idx(mt_iso)) == 541350 .or. &
                 zai_idx(mat % iso_idx(mt_iso)) == 621480 .or. &
                 zai_idx(mat % iso_idx(mt_iso)) ==  80160 .or. &
                 zai_idx(mat % iso_idx(mt_iso))/10000 == 64 .or. &
                 zai_idx(mat % iso_idx(mt_iso))/10000 >  88 .or. &
-                mat%full_numden(mat%iso_idx(mt_iso))>=1d10)) then ! Simplified Version
+                mat%full_numden(mat%iso_idx(mt_iso))>=1d13)) then ! Simplified Version
                 i = i + 1
                 mat%ace_idx(mt_iso) = tmp
                 mat%numden(mt_iso)  = mat%full_numden(mat % iso_idx(mt_iso))
@@ -2613,6 +2611,7 @@ module depletion_module
         ! TESTING for NFY
 
         bstep_size = burn_step(istep_burnup+1) - burn_step(istep_burnup) 
+        if( istep_burnup > 0 ) efps = efps + (burn_step(istep_burnup) - burn_step(istep_burnup-1)) * power_bu(i)
         avg_power = 0.d0
         tot_mass = 0.d0; tot_fmass = 0.d0
         !> Xe equilibrium

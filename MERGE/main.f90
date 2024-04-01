@@ -299,11 +299,11 @@ end do TH
             enddo
             
             write(buid, '(i3)') istep_burnup
-            do i = 1, size(plotlist)
-                plotlist(i) = plotlist(i)//trim(buid)
-                if(icore==score) print *, 'PLOT ID:', i, trim(plotlist(i)), buid
-            enddo
-    	    call draw_geometry()
+!            do i = 1, size(plotlist)
+!                plotlist(i) = trim(plotlist(i))//trim(buid)
+!                if(icore==score) print *, 'PLOT ID:', i, trim(plotlist(i)), buid
+!            enddo
+!    	    call draw_geometry()
         endif
         call TEMP_UPDATE_BU(istep_burnup)
 
@@ -658,6 +658,7 @@ subroutine BURNUP_MSG
     write(*,10), '   =========================================='
     write(*,11), '      Burnup step', istep_burnup, '/',nstep_burnup
     write(*,12), burn_step(istep_burnup)/86400.d0, ' CUMULATIVE DAYS', power_bu(istep_burnup)*1d2
+    write(*, '(f14.2,a)')               efps/86400d0, ' EFPDs'
     write(*,10), '   =========================================='
 
     10 format(A45)
