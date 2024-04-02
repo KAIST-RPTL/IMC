@@ -1553,7 +1553,7 @@ end subroutine READ_CTRL
 		use ENTROPY, only: en0, en1, nen, shannon
 		use TH_HEADER, only: th_on, th0, th1, th2, nth, dth, rr0, rr1, p_th, mth, &
             t_bulk, t_clad, t_fuel, temp_grid_on, rho_bulk, &
-            t_fuel_bu, t_bulk_bu, t_clad_bu, rho_bulk_bu
+            t_fuel_bu, t_bulk_bu, t_clad_bu, rho_bulk_bu, cool_dens
 		use FMFD_HEADER
 		use TALLY, only: n_type, ttally, meshon, tgroup, n_tgroup
         use PERTURBATION, only: perton
@@ -2233,6 +2233,11 @@ end subroutine READ_CTRL
                 case("DO_IFP")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ifp
+
+
+                case("BASE_COOL_DENS")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, cool_dens
 
                 case("TEMPERATURE_GRID")
                     backspace(File_Number)
