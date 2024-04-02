@@ -608,7 +608,9 @@ t_fuel = t_fuel_bu(:,:,:, istep_burnup)
 t_clad = t_clad_bu(:,:,:, istep_burnup)
 t_bulk = t_bulk_bu(:,:,:, istep_burnup)
 rho_bulk = rho_bulk_bu(:,:,:, istep_burnup)
-print *, 'TBULK', t_bulk, rho_bulk
+if( icore == score ) print *, 'TFUEL', t_fuel/K_B
+if( icore == score ) print *, 'TCOOL', t_bulk/K_B
+if( icore == score ) print *, 'RHOCOOL', cool_dens, rho_bulk
 if (icore==score) print *, 'Updated temperature grids'
 end subroutine
 

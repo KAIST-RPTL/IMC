@@ -141,6 +141,7 @@ recursive subroutine read_geom(path, geom_nest)
             endif
             if ( do_burn ) then
                 bumat_name = trim(title)//'_bumat.out'
+                if(icore==score) print *, 'Burnup list: ', trim(bumat_name)
             endif
 
 		case ('GMSH')
@@ -1553,7 +1554,7 @@ end subroutine READ_CTRL
 		use ENTROPY, only: en0, en1, nen, shannon
 		use TH_HEADER, only: th_on, th0, th1, th2, nth, dth, rr0, rr1, p_th, mth, &
             t_bulk, t_clad, t_fuel, temp_grid_on, rho_bulk, &
-            t_fuel_bu, t_bulk_bu, t_clad_bu, rho_bulk_bu
+            t_fuel_bu, t_bulk_bu, t_clad_bu, rho_bulk_bu, cool_dens
 		use FMFD_HEADER
 		use TALLY, only: n_type, ttally, meshon, tgroup, n_tgroup
         use PERTURBATION, only: perton
@@ -2234,6 +2235,10 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ifp
 
+                case("BASE_COOL_DENS")
+                    backspace(File_Number)
+                    read(File_Number, *, iostat=File_Error) Char_Temp, Equal, cool_dens
+
                 case("TEMPERATURE_GRID")
                     backspace(File_Number)
 					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, th0, th1, nth
@@ -2256,6 +2261,7 @@ end subroutine READ_CTRL
                                 read(rd_tgrid, *, iostat=File_Error) t_fuel(:,j,k)
                             enddo
                         enddo
+                        if(icore==score) print *, 'T fuel:', t_fuel(:,:,:)
                         t_fuel = t_fuel * K_B
                         close(rd_tgrid) 
                     else
@@ -2286,6 +2292,7 @@ end subroutine READ_CTRL
                                 read(rd_tgrid, *, iostat=File_Error) t_bulk(:,j,k)
                             enddo
                         enddo
+                        if(icore==score) print *, 'T cool: ', t_bulk(:,:,:)
                         t_bulk = t_bulk * K_B
                         close(rd_tgrid) 
                         if(icore==score) print *, '    Using grid from: ', trim(tgrid_cool)
@@ -2302,6 +2309,7 @@ end subroutine READ_CTRL
                                 read(rd_tgrid, *, iostat=File_Error) rho_bulk(:,j,k)
                             enddo
                         enddo
+                        if(icore==score) print *, 'T dens: ', rho_bulk(:,:,:)
                         close(rd_tgrid) 
                     else
                         if(icore==score) print *, '    Density grid not exist: ', trim(rhogrid_cool)
@@ -3005,6 +3013,7 @@ end subroutine READ_CTRL
                                 read(rd_tgrid, *, iostat=File_Error) t_fuel_bu(:,j,k,i)
                             enddo
                         enddo
+                        t_fuel_bu(:,:,:,i) = t_fuel_bu(:,:,:,i) * K_B
                         close(rd_tgrid) 
                         if(icore==score) print '(F10.2,A,A)', burn_step(i)/86400d0, 'days:    using Fuel T from:   ', trim(tgrid_fuel)
                     else
@@ -3020,6 +3029,7 @@ end subroutine READ_CTRL
                                 read(rd_tgrid, *, iostat=File_Error) t_clad_bu(:,j,k,i)
                             enddo
                         enddo
+                        t_clad_bu(:,:,:,i) = t_clad_bu(:,:,:,i)
                         close(rd_tgrid) 
                         if(icore==score) print '(F10.2,A,A)', burn_step(i)/86400d0, 'days:    using Clad T from:   ', trim(tgrid_clad)
                     else
@@ -3035,6 +3045,7 @@ end subroutine READ_CTRL
                                 read(rd_tgrid, *, iostat=File_Error) t_bulk_bu(:,j,k,i)
                             enddo
                         enddo
+                        t_bulk_bu(:,:,:,i) = t_bulk_bu(:,:,:,i) * K_B
                         close(rd_tgrid) 
                         if(icore==score) print '(F10.2,A,A)', burn_step(i)/86400d0, 'days:    using Cool T from:   ', trim(tgrid_cool)
                     else
@@ -3056,11 +3067,6 @@ end subroutine READ_CTRL
                         if(icore==score) print '(F10.2,A,A)', burn_step(i)/86400d0, 'days:    Cool dens. grid not exist: ', trim(tgrid_cool)
                     endif
                 enddo
-
-                t_fuel_bu = t_fuel_bu * K_B
-                t_clad_bu = t_clad_bu * K_B
-                t_bulk_bu = t_bulk_bu * K_B
-
 
                 end select Card_E_Inp
                 if (Char_Temp=="ENDE") Exit Read_Card_E

@@ -70,7 +70,9 @@ BURNUP : do
     endif
     if ( do_burn ) then
         call INIT_BURNUP
-        if (icore==score) call BURNUP_MSG
+        if (icore==score) then
+            call BURNUP_MSG
+        endif
     end if
 	
 	if( tally_switch > 0 .and. icore == score .and. .not. do_transient) then
@@ -290,9 +292,10 @@ end do TH
 	    time_dep_done = omp_get_wtime()
         !if ( istep_burnup == 1 ) call setDBPP(.true.)
         if ( istep_burnup > nstep_burnup ) exit BURNUP
-        if ( do_surf_mv ) then
+        if ( do_surf_mv .and. istep_burnup > 0 ) then
             do i = 1, size(surfaces)
                 if ( allocated(surfaces(i) % movement) ) then
+                    if(icore==score) print *, 'MOVE:', surfaces(i)%movement(istep_burnup), surfaces(i)%movement
                     call move_surf_para(surfaces(i), istep_burnup)
                     if(icore==score) print *, 'Parameter: ', trim(surfaces(i) % surf_id), surfaces(i) % parmtrs(1)
                 endif

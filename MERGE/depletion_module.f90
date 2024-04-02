@@ -1621,6 +1621,16 @@ module depletion_module
                     write(prt_bumat, '(a45)')         '   =========================================='
                 endif 
             endif 
+
+            if( preco == 1 ) then
+                if ( porc < nporc ) then
+                    bstep_size = bstep_size * 5d-1
+                    if(icore==score) print *, 'Predictor step', bstep_size/86400d0, porc, nporc
+                elseif ( porc == nporc ) then
+                    if(icore==score) print *, 'Corrector step', bstep_size/86400d0, porc, nporc
+                endif
+            endif
+
             !Normalization constant to be real power
             ULnorm = RealPower * power_bu(istep_burnup) / (avg_power * eVtoJoule)
             if(icore==score) print *, 'For BU from', burn_step(istep_burnup), '->', burn_step(istep_burnup+1), ', used power of', power_bu(istep_burnup) * RealPower ,'[MW]'
@@ -1834,30 +1844,10 @@ module depletion_module
                 if (icore == score ) print *, 'Flux of ', trim(mat%mat_name), real_flux
                 toteflux = sum(mat%eflux(0:nueg))
                 !Build burnup matrix with cross section obtained from MC calculation
-                bMat = bMat0*bstep_size
                 
                 if(preco == 1) then ! CE/LI
-                    if(porc <= nporc) then ! Predictor: save
-!                        if(.not. allocated(mat % ogxs1)) then
-!                            allocate(mat % ogxs1(num_iso, 1:7))
-!                            mat % ogxs1 = 0d0
-!                        endif
-!                        if(.not. allocated(mat % ace_idx1)) then
-!                            allocate(mat % ace_idx1(mat%n_iso))
-!                            mat % ace_idx1 = 0d0
-!                        endif
-!                        if(.not. allocated(mat % eflux1)) then
-!                            allocate(mat % eflux1(nueg))
-!                            mat % eflux1 = 0d0
-!                        endif
-!
-!                        mat % flux1 = real_flux + mat % flux1
-!                        mat % eflux1 = mat % eflux + mat % eflux1
-!                        mat % ogxs1(:,:) = mat % ogxs(:,:) + mat % ogxs1(:,:)
-!                        mat % ace_idx1(:) = mat % ace_idx(:) + mat % ace_idx1(:)
+                    if(porc < nporc) then ! Predictor: save
                         mat % full_numden1 = mat % full_numden
-                        bstep_size = bstep_size * 5d-1
-
                     elseif(porc == nporc) then ! Corrector: load
                         mat % full_numden = mat % full_numden1
                     endif
@@ -1885,8 +1875,7 @@ module depletion_module
                     endif
                 endif
 
-
-
+                bMat = bMat0*bstep_size
 
                 !$OMP PARALLEL DO &
                 !$OMP PRIVATE(iso, anum, mnum, nnum, inum, jnuc, flx, flx2, mt, ogxs, ogxs1, fy_midx, anum1, nnum1, mnum1, inum1, knuc, a1, m1, n1, ism, zai, pn, dn, tn, an, a3n, nn, addn)  
