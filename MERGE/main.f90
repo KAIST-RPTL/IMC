@@ -33,6 +33,7 @@ character(100) :: filename
 real(8) :: kavg, kstd
 character(80) :: dfile, dfile1
 character(3) :: buid
+logical :: interp
 
 !> Preparation for parallelization ===============================================
 !call omp_set_num_threads(14)
@@ -302,13 +303,15 @@ end do TH
             enddo
             
             write(buid, '(i3)') istep_burnup
-!            do i = 1, size(plotlist)
-!                plotlist(i) = trim(plotlist(i))//trim(buid)
-!                if(icore==score) print *, 'PLOT ID:', i, trim(plotlist(i)), buid
-!            enddo
+            do i = 1, size(plotlist)
+                plotlist(i) = adjustl(trim(plotlist(i)))//trim(buid)
+                if(icore==score) print *, 'PLOT ID:', i, trim(plotlist(i)), buid
+            enddo
 !    	    call draw_geometry()
         endif
-        call TEMP_UPDATE_BU(istep_burnup)
+        interp = .false.
+        if ( preco == 1 .and. porc == nporc ) interp = .true.
+        call TEMP_UPDATE_BU(istep_burnup, interp)
 
     else
         exit BURNUP
@@ -665,7 +668,7 @@ subroutine BURNUP_MSG
         write(*,12), burn_step(istep_burnup)/86400.d0, ' CUMULATIVE DAYS', power_bu(istep_burnup)*1d2
         write(*,10), '   =========================================='
     elseif ( preco == 1 ) then
-        if ( porc == nporc ) then
+        if ( porc == 0 ) then
             write(*,10), '   =========================================='
             write(*,111), '      Burnup step', istep_burnup, '/',nstep_burnup,' Corrector step'
             write(*,12), burn_step(istep_burnup)/86400.d0, ' CUMULATIVE DAYS', power_bu(istep_burnup)*1d2
@@ -738,9 +741,10 @@ if ( icore == score ) then
     write(*,*), '   Simulation of Burnup Step Terminated...'
     write(*,10), "    - Elapsed time    : ", &
         time4 - time3, 'sec', (time4-time3)/60, 'min'
-    write(*,11), "    - Step Final keff : ", &
-        AVG(k_eff(bat,n_inact+1:n_totcyc)), "+/-", &
-        PCM(STD_M(k_eff(bat,n_inact+1:n_totcyc)))
+    if( porc == 0 ) &
+        write(*,11), "    - Step Final keff : ", &
+            AVG(k_eff(bat,n_inact+1:n_totcyc)), "+/-", &
+            PCM(STD_M(k_eff(bat,n_inact+1:n_totcyc)))
     write(*,*)
     
     if(do_ifp) then

@@ -951,7 +951,6 @@ subroutine BASE_FMFD_CALCULATION(bat,cyc,phi1)
         else
             call D_PHAT_CALCULATION
             call PFMFD_MATRIX
-            write(*,*) 'PFMFD', sum(fmDh)
         endif 
         if ( zigzagon ) call SET_ZERO_M
         call POWER(k_eff)
@@ -960,7 +959,7 @@ subroutine BASE_FMFD_CALCULATION(bat,cyc,phi1)
 
     ! weight update
     call WEIGHT_UPDATE(bat,cyc,k_eff)
-    if(iscore) print *, 'keff_nopert', k_eff
+    if(iscore .and. perton ) print *, 'keff_nopert', k_eff
    
     ! error quantification by 1st order perturbation
     tt1 = MPI_WTIME()

@@ -250,7 +250,7 @@ subroutine transport(p)
         call MC_TRK(p%E,p%wgt,distance,macro_xs,i_xyz)
     
     !> Burn-up Tally ========================================================================
-    call tally_burnup (p%material, distance, p%wgt, p%E)
+    call tally_burnup (p%material, distance, p%wgt, p%E, p%kT)
 
 
     

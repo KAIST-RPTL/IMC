@@ -1554,7 +1554,7 @@ end subroutine READ_CTRL
 		use ENTROPY, only: en0, en1, nen, shannon
 		use TH_HEADER, only: th_on, th0, th1, th2, nth, dth, rr0, rr1, p_th, mth, &
             t_bulk, t_clad, t_fuel, temp_grid_on, rho_bulk, &
-            t_fuel_bu, t_bulk_bu, t_clad_bu, rho_bulk_bu, cool_dens
+            t_fuel_bu, t_bulk_bu, t_clad_bu, rho_bulk_bu, cool_dens, symm
 		use FMFD_HEADER
 		use TALLY, only: n_type, ttally, meshon, tgroup, n_tgroup
         use PERTURBATION, only: perton
@@ -1941,6 +1941,11 @@ end subroutine READ_CTRL
 					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
 					th2 = th1 - th0
 					dth = th2 / dble(nth)
+				case("SYMMETRY")
+					backspace(File_Number)
+					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, symm
+					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+                
 				case("TH_RAD")
 					if ( .not. th_on ) cycle
 					backspace(File_Number)
@@ -2256,7 +2261,7 @@ end subroutine READ_CTRL
                     if ( found ) then
                         if ( .not. temp_grid_on ) temp_grid_on = .true.
                         open(rd_tgrid, file=trim(directory)//trim(tgrid_fuel), action='read', status='old')
-                        do k = 1, nth(3)
+                        do k = nth(3), 1, -1
                             do j = 1, nth(2)
                                 read(rd_tgrid, *, iostat=File_Error) t_fuel(:,j,k)
                             enddo
@@ -2272,7 +2277,7 @@ end subroutine READ_CTRL
                     if ( found ) then
                         if ( .not. temp_grid_on ) temp_grid_on = .true.
                         open(rd_tgrid, file=trim(directory)//trim(tgrid_clad), action='read', status='old')
-                        do k = 1, nth(3)
+                        do k = nth(3), 1, -1
                             do j = 1, nth(2)
                                 read(rd_tgrid, *, iostat=File_Error) t_clad(:,j,k)
                             enddo
@@ -2287,7 +2292,7 @@ end subroutine READ_CTRL
                     if ( found ) then
                         if ( .not. temp_grid_on ) temp_grid_on = .true.
                         open(rd_tgrid, file=trim(directory)//trim(tgrid_cool), action='read', status='old')
-                        do k = 1, nth(3)
+                        do k = nth(3), 1, -1
                             do j = 1, nth(2)
                                 read(rd_tgrid, *, iostat=File_Error) t_bulk(:,j,k)
                             enddo
@@ -2304,7 +2309,7 @@ end subroutine READ_CTRL
                     if ( found ) then
                         if ( .not. temp_grid_on ) temp_grid_on = .true.
                         open(rd_tgrid, file=trim(directory)//trim(rhogrid_cool), action='read', status='old')
-                        do k = 1, nth(3)
+                        do k = nth(3), 1, -1
                             do j = 1, nth(2)
                                 read(rd_tgrid, *, iostat=File_Error) rho_bulk(:,j,k)
                             enddo
@@ -3008,7 +3013,7 @@ end subroutine READ_CTRL
                     if ( found ) then
                         if ( .not. temp_grid_on ) temp_grid_on = .true.
                         open(rd_tgrid, file=trim(directory)//trim(tgrid_fuel), action='read', status='old')
-                        do k = 1, nth(3)
+                        do k = nth(3), 1, -1
                             do j = 1, nth(2)
                                 read(rd_tgrid, *, iostat=File_Error) t_fuel_bu(:,j,k,i)
                             enddo
@@ -3024,7 +3029,7 @@ end subroutine READ_CTRL
                     if ( found ) then
                         if ( .not. temp_grid_on ) temp_grid_on = .true.
                         open(rd_tgrid, file=trim(directory)//trim(tgrid_clad), action='read', status='old')
-                        do k = 1, nth(3)
+                        do k = nth(3), 1, -1
                             do j = 1, nth(2)
                                 read(rd_tgrid, *, iostat=File_Error) t_clad_bu(:,j,k,i)
                             enddo
@@ -3040,7 +3045,7 @@ end subroutine READ_CTRL
                     if ( found ) then
                         if ( .not. temp_grid_on ) temp_grid_on = .true.
                         open(rd_tgrid, file=trim(directory)//trim(tgrid_cool), action='read', status='old')
-                        do k = 1, nth(3)
+                        do k = nth(3), 1, -1
                             do j = 1, nth(2)
                                 read(rd_tgrid, *, iostat=File_Error) t_bulk_bu(:,j,k,i)
                             enddo
@@ -3056,7 +3061,7 @@ end subroutine READ_CTRL
                     if ( found ) then
                         if ( .not. temp_grid_on ) temp_grid_on = .true.
                         open(rd_tgrid, file=trim(directory)//trim(rhogrid_cool), action='read', status='old')
-                        do k = 1, nth(3)
+                        do k = nth(3), 1, -1
                             do j = 1, nth(2)
                                 read(rd_tgrid, *, iostat=File_Error) rho_bulk_bu(:,j,k,i)
                             enddo
