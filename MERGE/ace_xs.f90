@@ -299,15 +299,15 @@ function getMicroXS (iso, erg) result (micro_xs)
     
 end function
 
-function getxs (mt_ENDF,iso, erg, ierg)
+function getxs (mt_ENDF,iso, erg, ierg, kT)
     integer, intent(in) :: mt_ENDF, iso
     real(8), intent(in) :: erg
+    real(8), intent(in) :: kT
     real(8) :: getxs
     real(8) :: ipfac
     integer :: i, iMT
     integer, optional :: ierg
     type (CrossSectionDataForm), pointer :: sigmt
-    
     
     ! 1. Find MT index 
     iMT = 0; getxs = 0.0d0
@@ -318,6 +318,11 @@ function getxs (mt_ENDF,iso, erg, ierg)
         endif 
     enddo 
     if (iMT == 0) return  ! no such reaction 
+    
+    if ( erg < 1d0 .and. (kT-ace(iso)%temp) > 1d-3 * K_B ) then
+        call GET_OTF_DB_MT(kT, iso, erg, iMT, getxs)
+        return
+    endif
     
     ! 2. Find erg grid index 
     if (.not. present(ierg)) then 

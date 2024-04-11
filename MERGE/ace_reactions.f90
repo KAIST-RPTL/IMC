@@ -174,7 +174,7 @@ end subroutine
 ! WHAT_TEMPERATURE
 ! =============================================================================
 subroutine WHAT_TEMPERATURE(p)
-    use TH_HEADER, only: t_fuel, t_clad, t_bulk, th_on, temp_grid_on, rho_bulk
+    use TH_HEADER, only: t_fuel, t_clad, t_bulk, th_on, temp_grid_on, rho_bulk, cool_dens
     use TEMPERATURE, only: TH_INSIDE
     use CONSTANTS, only: k_b
     implicit none
@@ -208,7 +208,7 @@ subroutine WHAT_TEMPERATURE(p)
                 p % kT = materials( p % material ) % temp
             endif
             if( allocated( rho_bulk )) then
-                p % dens = rho_bulk(ixyz(1), ixyz(2), ixyz(3))
+                p % dens = rho_bulk(ixyz(1), ixyz(2), ixyz(3))/cool_dens
             else
                 p % dens = 1d0
             endif

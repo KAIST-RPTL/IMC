@@ -52,4 +52,7 @@ module TH_HEADER
     real(8):: rr0, rr1              ! radius to fuel and clad
     integer:: npp                   ! No. of nodes that the power produces
 
+    real(8):: cool_dens = 1d0
+    integer:: symm = 1
+
 end module

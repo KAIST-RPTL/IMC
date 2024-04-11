@@ -6,7 +6,7 @@ module depletion_module
     use constants
     use ace_header, only: ace, find_ACE_iso_idx_zaid, num_iso, Emin, Emax, nueg, ueggrid, therm, sab
     use ace_module, only: set_ace_iso
-    use ace_xs,     only: getxs, getierg, getiueg, setueg
+    use ace_xs,     only: getxs, getierg, getiueg, setueg, GET_OTF_DB_MIC
     use material_header
     use FMFD_HEADER, only: DTMCBU, buflux, bukapa
     use mpi 
@@ -1155,6 +1155,7 @@ module depletion_module
                 integer :: i, j, ii, k
                 integer :: ierg
                 real(8) :: erg
+                real(8) :: kT
                 real(8), allocatable :: rcvbuf(:,:)
                 ! EFLUX option
                 if(.not. do_burn) return
@@ -1171,7 +1172,7 @@ module depletion_module
                             
                             erg = Emin*10.d0**((dble(k)-0.5d0)*gdelta)
                             call getierg(i,ierg,erg)
-                            XS((i-1)*numrx+j,k) = getxs(iso=i,mt_ENDF=RXMT(j),erg=erg,ierg=ierg)
+                            XS((i-1)*numrx+j,k) = getxs(iso=i,mt_ENDF=RXMT(j),erg=erg,ierg=ierg, kT=kT)
                             !if(icore==score) write(*,'(I6,I4,F10.3,F10.3,I6)') ace(i)%ZAID, ace(i)%MT(ii), XS((i-1)*numrx+j,k), erg, ierg
                             enddo
                         endif
@@ -1244,50 +1245,106 @@ module depletion_module
             end select
             endfunction
 
-            function buildogxs_e2(iso, rx, flux_tmp, flux2_tmp)
+            function buildogxs_e2(iso, rx, flux_tmp, flux2_tmp, kT)
+            use ace_xs, only: GET_OTF_DB_MIC, GET_OTF_DB_MT
             implicit none
             real(8) :: buildogxs_e2
             integer, intent(in) :: iso, rx
-            real(8), intent(in) :: flux_tmp(:), flux2_tmp(:)
-            real(8) :: flux(0:ace(iso)%NXS(3)), flux2(0:ace(iso)%NXS(3))
-            integer :: mt, i
+            real(8), intent(in) :: flux_tmp(:), flux2_tmp(:), kT
+            real(8), allocatable :: flux(:), flux2(:)
+            integer :: mt, i, ista, iend
+            real(8) :: xs1(6)
+            real(8), allocatable :: xs(:)
+
+            allocate ( flux ( 0: ace(iso) % NXS(3) ) )
+            allocate ( flux2( 0: ace(iso) % NXS(3) ) )
             flux(0:ace(iso)%NXS(3)) = flux_tmp(1:ace(iso)%NXS(3)+1)
             flux2(0:ace(iso)%NXS(3))= flux2_tmp(1:ace(iso)%NXS(3)+1)
             mt = ace(iso) % MT(rx)
             buildogxs_e2 = 0d0
-            select case(mt)
-            case(N_GAMMA)
-                buildogxs_e2 = flux(0) * ace(iso) % sigd(1)
-                do i = 1, ace(iso) % NXS(3)-1
-                    buildogxs_e2 = buildogxs_e2 + &
-                        flux(i) * ace(iso) % sigd(i) + &
-                        (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sigd(i+1)-ace(iso)%sigd(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
-                    !buildogxs_e2 = buildogxs_e2 + flux(i) * (ace(iso)%sigd(i)+ace(iso)%sigd(i+1))*5d-1
-                enddo
-                buildogxs_e2 = buildogxs_e2 + flux(ace(iso)%NXS(3)) * ace(iso)%sigd(ace(iso)%NXS(3))
 
-
+            select case (mt)
+            case(N_GAMMA) ! sigd
+                allocate(xs  (1 : ace(iso) % nxs(3)) )
+                xs = ace(iso) % sigd(:)
+                if ( kT - ace(iso) % temp > 1e-3 * K_B ) then
+                    do i = 1, ace(iso) % NXS(3)
+                        if ( ace(iso) % E(i) > 1d0 ) exit
+                        call GET_OTF_DB_MIC(kT, iso, ace(iso) % E(i), xs1)
+                        xs ( i ) = xs1(3) - xs1(4)
+                    enddo
+                endif
             case(N_FISSION)
-                buildogxs_e2 = flux(0) * ace(iso) % sigf(1)
-                do i = 1, ace(iso) % NXS(3)-1
-                    buildogxs_e2 = buildogxs_e2 + &
-                        flux(i) * ace(iso) % sigf(i) + &
-                        (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sigf(i+1)-ace(iso)%sigf(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
-                    !buildogxs_e2 = buildogxs_e2 + flux(i) * (ace(iso)%sigf(i)+ace(iso)%sigf(i+1))*5d-1
-                enddo
-                buildogxs_e2 = buildogxs_e2 + flux(ace(iso)%NXS(3)) * ace(iso)%sigf(ace(iso)%NXS(3))
+                if ( .not. allocated( ace(iso) % sigf ) ) return
+                allocate(xs  (1 : ace(iso) % nxs(3)) )
+                xs = ace(iso) % sigf(:)
+                if ( kT - ace(iso) % temp > 1e-3 * K_B ) then
+                    do i = 1, ace(iso) % NXS(3)
+                        if ( ace(iso) % E(i) > 1d0 ) exit
+                        call GET_OTF_DB_MIC(kT, iso, ace(iso) % E(i), xs1)
+                        xs ( i ) = xs1(4)
+                    enddo
+                endif
             case default
-                if(rx == 0) return
-                !do i = ace(iso) % sig_MT(rx) % IE, ace(iso) % sig_MT(rx) % IE + ace(iso) % sig_MT(rx) % NE-2
-                buildogxs_e2 = flux(0) * ace(iso) % sig_MT(rx) % cx(1)
-                do i = 1, ace(iso) % NXS(3)-1
-                    buildogxs_e2 = buildogxs_e2 + &
-                        flux(i) * ace(iso) % sig_MT(rx) % cx(i) + &
-                        (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sig_MT(rx)%cx(i+1)-ace(iso)%sig_MT(rx)%cx(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
-                    !buildogxs_e2 = buildogxs_e2 + flux(i) * (ace(iso)%sig_MT(rx)%cx(i)+ace(iso)%sig_MT(rx)%cx(i+1))*5d-1
-                enddo
-                buildogxs_e2 = buildogxs_e2 + flux(ace(iso)%NXS(3)) * ace(iso)%sig_MT(rx)%cx(ace(iso)%NXS(3))
+                allocate(xs (1 : ace(iso)%sig_MT(rx)%IE + ace(iso)%sig_MT(rx)%NE-1))
+                xs = ace(iso) % sig_MT(rx) % cx(:)
+                if ( kT - ace(iso) % temp > 1e-3 * K_B ) then
+                    do i = ace(iso) % sig_MT(rx) % IE, ace(iso) % sig_MT(rx) % NE + ace(iso) % sig_MT(rx) % IE - 1
+                        if ( ace(iso) % E(i) > 1d0 ) exit
+                        call GET_OTF_DB_MT(kT, iso, ace(iso) % E(i), rx, xs(i))
+                    enddo
+                endif
             end select
+!
+!            select case(mt)
+!            case(N_GAMMA)
+!                buildogxs_e2 = flux(0) * ace(iso) % sigd(1)
+!                do i = 1, ace(iso) % NXS(3)-1
+!                    buildogxs_e2 = buildogxs_e2 + &
+!                        flux(i) * ace(iso) % sigd(i) + &
+!                        (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sigd(i+1)-ace(iso)%sigd(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
+!                enddo
+!                buildogxs_e2 = buildogxs_e2 + flux(ace(iso)%NXS(3)) * ace(iso)%sigd(ace(iso)%NXS(3))
+!
+!            case(N_FISSION)
+!                buildogxs_e2 = flux(0) * ace(iso) % sigf(1)
+!                do i = 1, ace(iso) % NXS(3)-1
+!                    buildogxs_e2 = buildogxs_e2 + &
+!                        flux(i) * ace(iso) % sigf(i) + &
+!                        (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sigf(i+1)-ace(iso)%sigf(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
+!                enddo
+!                buildogxs_e2 = buildogxs_e2 + flux(ace(iso)%NXS(3)) * ace(iso)%sigf(ace(iso)%NXS(3))
+!            case default
+!                if(rx == 0) return
+!                buildogxs_e2 = flux(0) * ace(iso) % sig_MT(rx) % cx(1)
+!                do i = 1, ace(iso) % NXS(3)-1
+!                    buildogxs_e2 = buildogxs_e2 + &
+!                        flux(i) * ace(iso) % sig_MT(rx) % cx(i) + &
+!                        (flux2(i)-ace(iso)%E(i)*flux(i)) * (ace(iso)%sig_MT(rx)%cx(i+1)-ace(iso)%sig_MT(rx)%cx(i))/ (ace(iso)%E(i+1)-ace(iso)%E(i))
+!                enddo
+!                buildogxs_e2 = buildogxs_e2 + flux(ace(iso)%NXS(3)) * ace(iso)%sig_MT(rx)%cx(ace(iso)%NXS(3))
+!            end select
+
+            if ( mt == N_GAMMA .or. mt == N_FISSION ) then
+                ista = 1; iend = ace(iso) % NXS(3)
+            else
+                ista = ace(iso)%sig_MT(rx)%IE
+                iend = ace(iso)%sig_MT(rx)%IE + ace(iso)%sig_MT(rx)%NE - 1
+            endif
+
+            buildogxs_e2 = flux(0) * xs(1)
+            do i = ista, iend-1
+                buildogxs_e2 = buildogxs_e2 + &
+                flux(i) * xs(i) + &
+                (flux2(i)-ace(iso)%E(i)*flux(i)) * (xs(i+1)-xs(i)) / (ace(iso)%E(i+1)-ace(iso)%E(i))
+            enddo
+            buildogxs_e2 = buildogxs_e2 + &
+            sum(flux(iend:ace(iso)%NXS(3))) * xs(iend)
+
+            if ( allocated( xs )) deallocate( xs ) 
+            if ( allocated( flux )) deallocate( flux )
+            if ( allocated( flux2)) deallocate( flux2)
+
             endfunction
 
             function buildogxs_bias(iso, rx, flux, flux2)
@@ -1621,6 +1678,16 @@ module depletion_module
                     write(prt_bumat, '(a45)')         '   =========================================='
                 endif 
             endif 
+
+            if( preco == 1 ) then
+                if ( porc < nporc ) then
+                    bstep_size = bstep_size * 5d-1
+                    if(icore==score) print *, 'Predictor step', bstep_size/86400d0, porc, nporc
+                elseif ( porc == nporc ) then
+                    if(icore==score) print *, 'Corrector step', bstep_size/86400d0, porc, nporc
+                endif
+            endif
+
             !Normalization constant to be real power
             ULnorm = RealPower * power_bu(istep_burnup) / (avg_power * eVtoJoule)
             if(icore==score) print *, 'For BU from', burn_step(istep_burnup), '->', burn_step(istep_burnup+1), ', used power of', power_bu(istep_burnup) * RealPower ,'[MW]'
@@ -1831,33 +1898,13 @@ module depletion_module
                 if(DTMCBU) real_flux = mat % flux
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
-                if (icore == score ) print *, 'Flux of ', trim(mat%mat_name), real_flux
+                print *, 'Flux of ', trim(mat%mat_name), real_flux, mat % avgkT/ K_B
                 toteflux = sum(mat%eflux(0:nueg))
                 !Build burnup matrix with cross section obtained from MC calculation
-                bMat = bMat0*bstep_size
                 
                 if(preco == 1) then ! CE/LI
-                    if(porc <= nporc) then ! Predictor: save
-!                        if(.not. allocated(mat % ogxs1)) then
-!                            allocate(mat % ogxs1(num_iso, 1:7))
-!                            mat % ogxs1 = 0d0
-!                        endif
-!                        if(.not. allocated(mat % ace_idx1)) then
-!                            allocate(mat % ace_idx1(mat%n_iso))
-!                            mat % ace_idx1 = 0d0
-!                        endif
-!                        if(.not. allocated(mat % eflux1)) then
-!                            allocate(mat % eflux1(nueg))
-!                            mat % eflux1 = 0d0
-!                        endif
-!
-!                        mat % flux1 = real_flux + mat % flux1
-!                        mat % eflux1 = mat % eflux + mat % eflux1
-!                        mat % ogxs1(:,:) = mat % ogxs(:,:) + mat % ogxs1(:,:)
-!                        mat % ace_idx1(:) = mat % ace_idx(:) + mat % ace_idx1(:)
+                    if(porc < nporc) then ! Predictor: save
                         mat % full_numden1 = mat % full_numden
-                        bstep_size = bstep_size * 5d-1
-
                     elseif(porc == nporc) then ! Corrector: load
                         mat % full_numden = mat % full_numden1
                     endif
@@ -1885,8 +1932,7 @@ module depletion_module
                     endif
                 endif
 
-
-
+                bMat = bMat0*bstep_size
 
                 !$OMP PARALLEL DO &
                 !$OMP PRIVATE(iso, anum, mnum, nnum, inum, jnuc, flx, flx2, mt, ogxs, ogxs1, fy_midx, anum1, nnum1, mnum1, inum1, knuc, a1, m1, n1, ism, zai, pn, dn, tn, an, a3n, nn, addn)  
@@ -1923,7 +1969,10 @@ module depletion_module
                         if(abs(ace(iso)%TY(rx))==1 .and. .not.(mt==N_NA .or. mt==N_NF .or. mt==N_NA .or. mt==N_N3A .or. mt==N_NP .or. mt==N_N2A .or. mt==N_ND .or. mt==N_NT .or. mt==N_N3HE .or. mt==N_ND2A .or. mt==N_NT2A .or. mt==N_N2P .or. mt==N_NPA .or. mt==N_NDA .or. mt==N_NPD .or. mt==N_NPT .or. mt==N_NDT .or. mt==N_NP3HE .or. mt==N_ND3HE .or. mt==N_NT3HE .or. mt==N_NTA .or. mt==N_N3P)) cycle ! Maybe inelastic?
                         if(mt == 4 .or. mt > 200) cycle ! Inelastic and Damage
                         ! TALLY OGXS
-                        if(do_iso_ueg) ogxs = buildogxs_e2(iso, rx, flx, flx2) * barn
+                        if(do_iso_ueg) then
+                            ogxs = buildogxs_e2(iso, rx, flx, flx2, mat % avgkT) * barn
+                            if(icore==score) print *, trim(mat % mat_name), ' OGXS:', ace(iso)%zaid, ace(iso)%MT(rx), ogxs/barn, buildogxs_e2(iso, rx, flx, flx2, ace(iso)%temp)
+                        endif
                         !deallocate(flx, flx2)
 
                         if(do_rx_tally) then
@@ -2317,8 +2366,7 @@ module depletion_module
     if( preco == 0 ) then
     elseif( preco == 1 ) then
         if( porc == 0 ) then
-            if(istep_burnup < nstep_burnup) &
-                istep_burnup = istep_burnup - 1
+            istep_burnup = istep_burnup - 1
             porc = 1 
         elseif( porc == 1 ) then
             porc = 0
@@ -2421,9 +2469,9 @@ module depletion_module
     ! ===================================================================
     !         Tally burnup parameters 
     ! ===================================================================
-    subroutine tally_burnup (imat, distance, wgt, erg)
+    subroutine tally_burnup (imat, distance, wgt, erg, kT)
         integer, intent(in) :: imat  ! material index (p%material) 
-        real(8), intent(in) :: distance, wgt, erg
+        real(8), intent(in) :: distance, wgt, erg, kT
         integer :: iso, mt_iso
         integer :: i, ierg
         integer :: fy_midx, diff, tmp, Xe_ptr
@@ -2432,7 +2480,7 @@ module depletion_module
         integer :: nE, eg
 
         type (Material_CE), pointer :: mat
-        real(8) :: micro_f, micro_d, micro_a, ipfac
+        real(8) :: micro_f, micro_d, micro_a, ipfac, micro_xs(6)
         real(8) :: micro_2n, micro_3n, micro_4n, micro_p
         !real(8) :: dep_ogxs(7)
         integer :: anum, mnum, inum, nnum !atomic number, mass number, isomer state, neutron number of nuclide
@@ -2451,6 +2499,7 @@ module depletion_module
         mat => materials(imat)
         
         !$omp atomic
+        mat%avgkT   = mat%avgkT   + wgt*distance*kT ! Flux-normalized temperature
         mat%flux = mat%flux + wgt*distance !Volume-integrated flux tally (not normalized)
         if(do_iso_ueg) then
             if(erg > ueggrid(nueg) .or. erg < ueggrid(1)) return
@@ -2473,24 +2522,31 @@ module depletion_module
             do iso = 1,num_iso
                call getierg(iso,ierg,erg)
                ipfac = max(0.d0, min(1.d0,(erg-ace(iso)%E(ierg))/(ace(iso)%E(ierg+1)-ace(iso)%E(ierg))))
-               micro_d = ace(iso)%sigd(ierg) + ipfac*(ace(iso)%sigd(ierg+1)-ace(iso)%sigd(ierg))
-               micro_f = 0.d0
-               !FISSIONABLE
-               if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then
-                   micro_f = ace(iso)%sigf(ierg) + ipfac*(ace(iso)%sigf(ierg+1)-ace(iso)%sigf(ierg))
+                if( (kT-ace(iso) % temp) > 1d-3 * K_B .and. mat % db ) then
+                   call GET_OTF_DB_MIC(kT, iso, erg, micro_xs) 
+                   micro_d = micro_xs(3) - micro_xs(4)
+                   micro_f = 0d0
+                   if( allocated(ace(iso) % sigf) ) micro_f = micro_xs(4)
+                else
+                   micro_d = ace(iso)%sigd(ierg) + ipfac*(ace(iso)%sigd(ierg+1)-ace(iso)%sigd(ierg))
+                   micro_f = 0.d0
+                   !FISSIONABLE
+                   if(ace(iso)%jxs(21)/=0 .or. allocated(ace(iso)%sigf)) then
+                       micro_f = ace(iso)%sigf(ierg) + ipfac*(ace(iso)%sigf(ierg+1)-ace(iso)%sigf(ierg))
+                   endif
                endif
                !$OMP ATOMIC
                mat%ogxs(iso,1) = mat%ogxs(iso,1) + micro_d*wgt*distance*barn
                !$OMP ATOMIC
-               mat%ogxs(iso,2) = mat%ogxs(iso,2) + getxs(N_2N,iso,erg,ierg)*wgt*distance*barn
+               mat%ogxs(iso,2) = mat%ogxs(iso,2) + getxs(N_2N,iso,erg,ierg,kT)*wgt*distance*barn
                !$OMP ATOMIC
-               mat%ogxs(iso,3) = mat%ogxs(iso,3) + getxs(N_3N,iso,erg,ierg)*wgt*distance*barn
+               mat%ogxs(iso,3) = mat%ogxs(iso,3) + getxs(N_3N,iso,erg,ierg,kT)*wgt*distance*barn
                !$OMP ATOMIC
-               mat%ogxs(iso,4) = mat%ogxs(iso,4) + getxs(N_4N,iso,erg,ierg)*wgt*distance*barn
+               mat%ogxs(iso,4) = mat%ogxs(iso,4) + getxs(N_4N,iso,erg,ierg,kT)*wgt*distance*barn
                !$OMP ATOMIC
-               mat%ogxs(iso,5) = mat%ogxs(iso,5) + getxs(N_P,iso,erg,ierg)*wgt*distance*barn
+               mat%ogxs(iso,5) = mat%ogxs(iso,5) + getxs(N_P,iso,erg,ierg,kT)*wgt*distance*barn
                !$OMP ATOMIC
-               mat%ogxs(iso,6) = mat%ogxs(iso,6) + getxs(N_A,iso,erg,ierg)*wgt*distance*barn
+               mat%ogxs(iso,6) = mat%ogxs(iso,6) + getxs(N_A,iso,erg,ierg,kT)*wgt*distance*barn
                !$OMP ATOMIC
                mat%ogxs(iso,7) = mat%ogxs(iso,7) + micro_f*wgt*distance*barn
 
@@ -2605,6 +2661,7 @@ module depletion_module
             materials(imat)%flux = 0.0d0 
             materials(imat)%eflux = 0D0
             materials(imat)%e2flux= 0d0
+            materials(imat)%avgkT = 0d0
             !materials(imat)%pwr = 0.0d0 
             materials(imat)%ogxs(:,:) = 0.0d0
             !allocate(materials(imat)%full_numden(nnuc))
@@ -2663,6 +2720,7 @@ module depletion_module
             allocate(materials(imat)%e2flux(0:nueg))
             materials(imat)%eflux(:) = 0.d0
             materials(imat)%e2flux(:)= 0d0
+            materials(imat)%avgkT = 0d0
 
             if(allocated(materials(imat)%full_numden)) restart = .true.
             
@@ -2784,6 +2842,9 @@ module depletion_module
             materials(imat)%flux = rcvbuf / (dble(n_act) * materials(imat)%vol)
             if ( isnan(materials(imat)%flux) .or. materials(imat)%flux < 0) &
                 materials(imat) % flux = 0d0
+            call MPI_ALLREDUCE(materials(imat)%avgkT, rcvbuf, 1, MPI_DOUBLE_PRECISION, & 
+                            MPI_SUM, core, ierr)
+            materials(imat)%avgkT = rcvbuf / (dble(n_act)*materials(imat)%vol) / materials(imat)%flux
 
             val = dble(n_act) * materials(imat)%flux * materials(imat)%vol
 
