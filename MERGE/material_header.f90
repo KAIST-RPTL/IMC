@@ -57,6 +57,7 @@ module material_header
         integer, allocatable :: uresidx(:)
 
         real(8) :: ace_temp
+        real(8) :: avgkT
         
     end type Material_CE
     

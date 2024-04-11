@@ -54,4 +54,7 @@ module TH_HEADER
 
     real(8):: cool_dens = 1d0
 
+    integer:: symm = 1
+
+
 end module

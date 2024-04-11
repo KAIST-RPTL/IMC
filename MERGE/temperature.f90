@@ -80,11 +80,20 @@ end subroutine
 subroutine TH_INSIDE(xyz,j_xyz,inside_th)
     real(8), intent(in):: xyz(3)
     integer, intent(out):: j_xyz(3)
+    real(8):: xyz_(3)
     logical:: inside_th
     integer:: ij
 
     inside_th = .true.
-    j_xyz  = TH_ID(xyz(:))
+    if ( symm == 1 ) then
+        xyz_ = xyz
+    elseif ( symm == 4 ) then
+        xyz_(1) = th0(1) + abs(xyz(1)-th0(1))
+        xyz_(2) = th0(2) + abs(xyz(2)-th0(2))
+        xyz_(3) = xyz(3)
+    endif
+
+    j_xyz  = TH_ID(xyz_(:))
     do ij = 1, 3
         if ( j_xyz(ij) < 1 .or. nth(ij) < j_xyz(ij) ) then
             inside_th = .false.
@@ -597,19 +606,29 @@ function T2C(t_b)
 
 end function
 
-subroutine TEMP_UPDATE_BU(istep_burnup)
+subroutine TEMP_UPDATE_BU(istep_burnup, interp)
+use ace_xs, only: setDBPP
 implicit none
 integer, intent(in) :: istep_burnup
-if(icore==score) print *, 'CHK;', allocated(t_fuel_bu), temp_grid_on
+logical, intent(in) :: interp
 if( .not. allocated( t_fuel_bu ) ) return
 if( .not. temp_grid_on ) return
 
-t_fuel = t_fuel_bu(:,:,:, istep_burnup)
-t_clad = t_clad_bu(:,:,:, istep_burnup)
-t_bulk = t_bulk_bu(:,:,:, istep_burnup)
-rho_bulk = rho_bulk_bu(:,:,:, istep_burnup)
-print *, 'TBULK', t_bulk, rho_bulk
-if (icore==score) print *, 'Updated temperature grids'
+if ( interp ) then
+    t_fuel = (t_fuel_bu(:,:,:, istep_burnup) + t_fuel_bu(:,:,:, istep_burnup+1)) * 5d-1
+    t_clad = (t_clad_bu(:,:,:, istep_burnup) + t_clad_bu(:,:,:, istep_burnup+1)) * 5d-1
+    t_bulk = (t_bulk_bu(:,:,:, istep_burnup) + t_bulk_bu(:,:,:, istep_burnup+1)) * 5d-1
+    rho_bulk = (rho_bulk_bu(:,:,:, istep_burnup) + rho_bulk_bu(:,:,:, istep_burnup+1)) * 5d-1
+else
+    t_fuel = t_fuel_bu(:,:,:, istep_burnup)
+    t_clad = t_clad_bu(:,:,:, istep_burnup)
+    t_bulk = t_bulk_bu(:,:,:, istep_burnup)
+    rho_bulk = rho_bulk_bu(:,:,:, istep_burnup)
+endif
+if( icore == score ) print *, 'TFUEL', t_fuel/K_B
+if( icore == score ) print *, 'TCOOL', t_bulk/K_B
+if( icore == score ) print *, 'RHOCOOL', cool_dens, rho_bulk
+if (icore==score) print '(A, L2, I3)', 'Updated temperature grids', interp, istep_burnup
 end subroutine
 
 end module

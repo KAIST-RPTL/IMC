@@ -33,6 +33,7 @@ character(100) :: filename
 real(8) :: kavg, kstd
 character(80) :: dfile, dfile1
 character(3) :: buid
+logical :: interp
 
 !> Preparation for parallelization ===============================================
 !call omp_set_num_threads(14)
@@ -70,7 +71,9 @@ BURNUP : do
     endif
     if ( do_burn ) then
         call INIT_BURNUP
-        if (icore==score) call BURNUP_MSG
+        if (icore==score) then
+            call BURNUP_MSG
+        endif
     end if
 	
 	if( tally_switch > 0 .and. icore == score .and. .not. do_transient) then
@@ -290,22 +293,25 @@ end do TH
 	    time_dep_done = omp_get_wtime()
         !if ( istep_burnup == 1 ) call setDBPP(.true.)
         if ( istep_burnup > nstep_burnup ) exit BURNUP
-        if ( do_surf_mv ) then
+        if ( do_surf_mv .and. istep_burnup > 0 ) then
             do i = 1, size(surfaces)
                 if ( allocated(surfaces(i) % movement) ) then
+                    if(icore==score) print *, 'MOVE:', surfaces(i)%movement(istep_burnup), surfaces(i)%movement
                     call move_surf_para(surfaces(i), istep_burnup)
                     if(icore==score) print *, 'Parameter: ', trim(surfaces(i) % surf_id), surfaces(i) % parmtrs(1)
                 endif
             enddo
             
             write(buid, '(i3)') istep_burnup
-!            do i = 1, size(plotlist)
-!                plotlist(i) = trim(plotlist(i))//trim(buid)
-!                if(icore==score) print *, 'PLOT ID:', i, trim(plotlist(i)), buid
-!            enddo
+            do i = 1, size(plotlist)
+                plotlist(i) = adjustl(trim(plotlist(i)))//trim(buid)
+                if(icore==score) print *, 'PLOT ID:', i, trim(plotlist(i)), buid
+            enddo
 !    	    call draw_geometry()
         endif
-        call TEMP_UPDATE_BU(istep_burnup)
+        interp = .false.
+        if ( preco == 1 .and. porc == nporc ) interp = .true.
+        call TEMP_UPDATE_BU(istep_burnup, interp)
 
     else
         exit BURNUP
@@ -662,7 +668,7 @@ subroutine BURNUP_MSG
         write(*,12), burn_step(istep_burnup)/86400.d0, ' CUMULATIVE DAYS', power_bu(istep_burnup)*1d2
         write(*,10), '   =========================================='
     elseif ( preco == 1 ) then
-        if ( porc == nporc ) then
+        if ( porc == 0 ) then
             write(*,10), '   =========================================='
             write(*,111), '      Burnup step', istep_burnup, '/',nstep_burnup,' Corrector step'
             write(*,12), burn_step(istep_burnup)/86400.d0, ' CUMULATIVE DAYS', power_bu(istep_burnup)*1d2
@@ -735,9 +741,10 @@ if ( icore == score ) then
     write(*,*), '   Simulation of Burnup Step Terminated...'
     write(*,10), "    - Elapsed time    : ", &
         time4 - time3, 'sec', (time4-time3)/60, 'min'
-    write(*,11), "    - Step Final keff : ", &
-        AVG(k_eff(bat,n_inact+1:n_totcyc)), "+/-", &
-        PCM(STD_M(k_eff(bat,n_inact+1:n_totcyc)))
+    if( porc == 0 ) &
+        write(*,11), "    - Step Final keff : ", &
+            AVG(k_eff(bat,n_inact+1:n_totcyc)), "+/-", &
+            PCM(STD_M(k_eff(bat,n_inact+1:n_totcyc)))
     write(*,*)
     
     if(do_ifp) then
