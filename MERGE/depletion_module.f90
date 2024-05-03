@@ -1971,7 +1971,6 @@ module depletion_module
                         ! TALLY OGXS
                         if(do_iso_ueg) then
                             ogxs = buildogxs_e2(iso, rx, flx, flx2, mat % avgkT) * barn
-                            if(icore==score) print *, trim(mat % mat_name), ' OGXS:', ace(iso)%zaid, ace(iso)%MT(rx), ogxs/barn, buildogxs_e2(iso, rx, flx, flx2, ace(iso)%temp)
                         endif
                         !deallocate(flx, flx2)
 

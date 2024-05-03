@@ -96,6 +96,10 @@ subroutine collision_CE (p)
     enddo
 
     !> Collision estimator
+    if( isnan( macro_xs(4)/macro_xs(1) ) ) then
+        print *, 'WTF?:', trim(materials(p%material)%mat_name), p%E, p%kT/K_B
+        macro_xs(4) = 0d0; macro_xs(1) = 1d0;
+    endif
     !$OMP ATOMIC
     k_col = k_col + p%wgt * macro_xs(4)/macro_xs(1)
 

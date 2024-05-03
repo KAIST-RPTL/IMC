@@ -124,33 +124,33 @@ subroutine premc
     call setDBPP(.false.)
 
     ! Shrink material
-    if( do_burn ) then
-        do imat = 1, n_materials
-            if ( .not. materials(imat) % depletable ) cycle
-            niso = count( materials(imat) % numden > 0d0 )
-    
-            materials(imat) % n_iso = niso
-            allocate( numden (niso) )
-            allocate( sablist(niso) )
-            allocate( aceidx (niso) )
-    
-            cnt = 0
-            do i = 1, materials(imat) % n_iso
-                if ( materials(imat) % numden(i) > 0d0 ) then
-                    cnt = cnt + 1
-                    numden(cnt) = materials(imat) % numden(i)
-                    sablist(cnt)= materials(imat) % sablist(i)
-                    aceidx(cnt) = materials(imat) % ace_idx(i)
-                endif
-            enddo
-    
-            if ( cnt /= niso ) print *, 'WTF?', trim(materials(imat)%mat_name), cnt, niso
-    
-            call move_alloc ( numden, materials(imat) % numden ) 
-            call move_alloc ( sablist, materials(imat) % sablist ) 
-            call move_alloc ( aceidx, materials(imat) % ace_idx ) 
-        enddo
-    endif
+!    if( do_burn ) then
+!        do imat = 1, n_materials
+!            if ( .not. materials(imat) % depletable ) cycle
+!            niso = count( materials(imat) % numden > 0d0 )
+!    
+!            materials(imat) % n_iso = niso
+!            allocate( numden (niso) )
+!            allocate( sablist(niso) )
+!            allocate( aceidx (niso) )
+!    
+!            cnt = 0
+!            do i = 1, materials(imat) % n_iso
+!                if ( materials(imat) % numden(i) > 0d0 ) then
+!                    cnt = cnt + 1
+!                    numden(cnt) = materials(imat) % numden(i)
+!                    sablist(cnt)= materials(imat) % sablist(i)
+!                    aceidx(cnt) = materials(imat) % ace_idx(i)
+!                endif
+!            enddo
+!    
+!            if ( cnt /= niso ) print *, 'WTF?', trim(materials(imat)%mat_name), cnt, niso
+!    
+!            call move_alloc ( numden, materials(imat) % numden ) 
+!            call move_alloc ( sablist, materials(imat) % sablist ) 
+!            call move_alloc ( aceidx, materials(imat) % ace_idx ) 
+!        enddo
+!    endif
 
     deallocate(ugrid)
     call setugrid

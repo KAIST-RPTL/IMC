@@ -702,7 +702,7 @@ subroutine setuegrid
     call quicksort(tmpgrid_3, 1, pt)
     if(icore==score) print *, 'TMPGRID', tmpgrid_3(1:10)
 
-    allocate(tmpgrid_4(0:idx+pt2))
+    allocate(tmpgrid_4(0:pt))
     idx = 0
     tmpgrid_4   = 0d0
     do i = 1, pt

@@ -3089,6 +3089,10 @@ end subroutine READ_CTRL
         if(.not. (do_iso_ueg) ) do_rx_tally = .true.
         
         RealPower = Nominal_Power
+
+        do i = 1, nstep_burnup
+            if(icore==score) print *, 'BD:', burn_step(i)/86400d0, power_bu(i)
+        enddo
         
     end subroutine Read_Card
 

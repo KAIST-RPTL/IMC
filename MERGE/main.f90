@@ -310,7 +310,7 @@ end do TH
 !    	    call draw_geometry()
         endif
         interp = .false.
-        if ( preco == 1 .and. porc == nporc ) interp = .true.
+        ! if ( preco == 1 .and. porc == nporc ) interp = .true.
         call TEMP_UPDATE_BU(istep_burnup, interp)
 
     else
