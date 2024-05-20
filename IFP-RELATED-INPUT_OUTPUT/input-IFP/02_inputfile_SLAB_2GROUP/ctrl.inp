@@ -1,0 +1,22 @@
+CARD A : Control_Card 
+	Energy_mode   			= 0
+	Nominal_Power           = 1.0
+	nugrid					= 8192
+	
+	history_per_cycle		= 1E5
+	Number_inactive			= 100
+	Number_active			= 200
+	
+	Transient				= F  1  PCQS
+	
+	% --- TALLY OPTIONS
+	TALLY_MESH              = T
+	ENTROPY	   			    = 0.0 0.0 0.0 50.0 1.0 1.0  25  1  1
+	MESH_GRID				= 0.0 0.0 0.0 50.0 1.0 1.0  25  1  1
+	
+	% --- IFP RELATED (ALSO SUPPORTS MG CASE NOW)
+	DO_IFP              = T
+	LATENT_LONG         = 20
+	MESH_ADJOINT_IFP    = T
+	MESH_ADJOINT_GRID   = 0.0 0.0 0.0 50.0 1.0 1.0  25  1  1
+ENDA
