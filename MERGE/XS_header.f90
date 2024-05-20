@@ -13,7 +13,7 @@ module XS_header
       
     end type 
     type(MG_XS), allocatable, target :: XS_MG(:), XS_MG_temp(:)
-    type(MG_XS), pointer              :: XS_MG_ptr
+    type(MG_XS), pointer             :: XS_MG_ptr
     integer :: n_group     !> 0 if CE mode
     
 	

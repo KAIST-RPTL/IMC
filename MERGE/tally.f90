@@ -4,8 +4,9 @@ module tally
     use constants
     use particle_header, only : Particle
     use FMFD_HEADER, only: dfm, fm0, fm1, dcm, p_dep_mc, p_dep_dt
-    use VARIABLES, only: n_inact, curr_cyc, do_gmsh, do_burn
-    
+    use VARIABLES
+    USE XS_header, ONLY: n_group
+	
     implicit none
     
     
@@ -134,23 +135,58 @@ subroutine SET_MC_TALLY
 
     allocate(k_eff(n_batch,n_totcyc))
     if ( tallyon ) then
-        allocate(MC_tally(n_batch,n_act,n_type, &
-                          n_tgroup,nfm(1),nfm(2),nfm(3)))
-        allocate(MC_thread(n_type,n_tgroup,nfm(1),nfm(2),nfm(3)))
-!        allocate(MC_sthread(2,n_tgroup,nfm(1),nfm(2),nfm(3),6))
-!        allocate(MC_scatth(n_tgroup,n_tgroup,nfm(1),nfm(2),nfm(3)))
-!        allocate(MC_stally(n_batch,n_act,2,n_tgroup,nfm(1),nfm(2),nfm(3),6))
-!        allocate(MC_scat(n_batch,n_act,n_tgroup,n_tgroup,nfm(1),nfm(2),nfm(3)))
-        MC_tally = 0
-        MC_thread = 0
-!        MC_sthread = 0
-!        MC_scatth = 0
-!        MC_stally = 0
-!        MC_scat = 0
-
+		! --- MESH_GRID information not specified / Alter tallyon -> .FALSE.
+		IF(nfm(1) == 0 .OR. nfm(2) == 0 .OR. nfm(3) == 0) THEN
+			IF(icore == score) WRITE(*,'(A)') '(WARNING) TALLY_MESH is .TRUE. w/o provision of MESH_GRID information'
+			tallyon = .FALSE.
+		! --- MESH GRID INFORMATION given
+		ELSE
+			allocate(MC_tally (n_batch,n_act,n_type,n_tgroup,nfm(1),nfm(2),nfm(3)))
+			allocate(MC_thread(              n_type,n_tgroup,nfm(1),nfm(2),nfm(3)))
+			MC_tally  = 0
+			MC_thread = 0
+		END IF
     end if
+end subroutine SET_MC_TALLY
 
-end subroutine
+! =============================================================================
+! SET_MC_TALLY_ADJ
+! =============================================================================
+SUBROUTINE SET_MC_TALLY_ADJ
+	use VARIABLES, only: icore, score, do_IFP, do_IFP_LONG, nfm_adj, E_mode
+	IMPLICIT NONE
+	IF((tally_adj_flux .EQ. .TRUE.) .AND. (tally_adj_spect .EQ. .TRUE.)) THEN
+		IF(icore == score) WRITE(*,'(A)') '(WARNING) tally_adj_flux and tally_adj_spect cannot be supported at the same time (at the moment...)' 
+		STOP
+	END IF
+	!> RELATED TO TALLYING ADJ_FLUX
+	IF(tally_adj_flux) THEN
+		IF(nfm_adj(1) == 0 .OR. nfm_adj(2) == 0 .OR. nfm_adj(3) == 0) THEN
+			WRITE(*,'(A)') '(WARNING) tally_adj_flux is .TRUE. w/o provision of MESH_ADJ_GRID information'
+			STOP
+		END IF
+		IF(E_mode == 1) THEN
+			IF(icore == score) WRITE(*,'(A)') '(WARNING) AT THE MOMENT, ADJOINT FLUX DISTRIBUTION CALCULATION FOR C.E. Monte-Carlo NOT SUPPORTED'
+			STOP
+		ELSE
+			num_adj_group = n_group
+		END IF
+		if(icore==score) print '(A30)', '    ADJOINT DISTRIBUTION TALLY PERFORMED...' 
+		do_IFP_LONG = .TRUE.
+	!> RELATED TO TALLYING ADJ SPECTRUM
+	ELSE IF(tally_adj_spect) THEN
+		if(icore==score) print '(A30)', '    ADJOINT SPECTRUM     TALLY PERFORMED...' 
+		do_IFP_LONG = .TRUE.
+	ELSE
+		do_IFP_LONG = .FALSE.
+	END IF
+	IF(do_IFP_LONG) THEN
+		IF(NOT(do_IFP)) THEN
+			IF(icore == score) WRITE(*,'(A)') '(WARNING) TALLYING ADJOINT SPECTRUM DEMANDS IFP OPTION TO BE TRUE'
+			STOP
+		END IF
+	END IF	
+END SUBROUTINE SET_MC_TALLY_ADJ
 
 ! =============================================================================
 ! MESH_DISTANCE
@@ -223,6 +259,75 @@ subroutine MESH_DISTANCE (p,i_xyz,d_mesh,inside_mesh,income_mesh,i_surf)
 end subroutine
 
 ! =============================================================================
+! MESH_DISTANCE ADJOINT
+! =============================================================================
+subroutine MESH_DISTANCE_ADJ (p,i_xyz,d_mesh,inside_mesh,income_mesh,i_surf)
+    type(particle), intent(in) :: p
+    integer, intent(inout) :: i_xyz(3)
+    real(8), intent(inout) :: d_mesh
+    logical, intent(inout) :: inside_mesh 
+    integer, intent(inout) :: income_mesh
+    integer, intent(inout) :: i_surf
+    real(8) :: xyz(3), uvw(3), xyz1(3)
+    real(8) :: d_temp(6)
+    integer :: ij
+    
+    ! Find lattice index in FM grid
+    xyz(:) = p%coord(1)%xyz(:)
+    uvw(:) = p%coord(1)%uvw(:)
+    i_xyz  = AM_ID(p%coord(1)%xyz(:))
+    
+    ! the particle is inside the FM grid
+    inside_mesh = INSIDE_ADJ(xyz)
+    income_mesh = 0
+
+    if ( inside_mesh ) then
+        d_temp(1) = ((dfm_adj(1)*(i_xyz(1)-1)+fm0_adj(1))-xyz(1))/uvw(1)   ! x0
+        d_temp(2) = ((dfm_adj(1)*(i_xyz(1)  )+fm0_adj(1))-xyz(1))/uvw(1)   ! x1
+        d_temp(3) = ((dfm_adj(2)*(i_xyz(2)-1)+fm0_adj(2))-xyz(2))/uvw(2)   ! y0
+        d_temp(4) = ((dfm_adj(2)*(i_xyz(2)  )+fm0_adj(2))-xyz(2))/uvw(2)   ! y1
+        d_temp(5) = ((dfm_adj(3)*(i_xyz(3)-1)+fm0_adj(3))-xyz(3))/uvw(3)   ! z0
+        d_temp(6) = ((dfm_adj(3)*(i_xyz(3)  )+fm0_adj(3))-xyz(3))/uvw(3)   ! z1
+        
+        do ij = 1, 6
+        if ( d_temp(ij) > 0 .and. d_mesh > d_temp(ij) ) then
+            d_mesh = d_temp(ij)
+            i_surf = ij
+        end if
+        end do
+
+    ! the particle is outside the FM grid
+    else
+        d_temp(1) = (fm0_adj(1)-xyz(1))/uvw(1)   ! x0
+        d_temp(2) = (fm1_adj(1)-xyz(1))/uvw(1)   ! x1
+        d_temp(3) = (fm0_adj(2)-xyz(2))/uvw(2)   ! x0
+        d_temp(4) = (fm1_adj(2)-xyz(2))/uvw(2)   ! y1
+        d_temp(5) = (fm0_adj(3)-xyz(3))/uvw(3)   ! z0
+        d_temp(6) = (fm1_adj(3)-xyz(3))/uvw(3)   ! z1
+
+        do ij = 1, 6
+        if ( d_temp(ij) > 0 .and. d_mesh > d_temp(ij) ) then
+            xyz1(:) = xyz(:) + d_temp(ij)*uvw(:)
+            select case(ij)
+            case(1,2)
+                if ( xyz1(2) < fm0_adj(2) .or. fm1_adj(2) < xyz1(2) ) cycle
+                if ( xyz1(3) < fm0_adj(3) .or. fm1_adj(3) < xyz1(3) ) cycle
+            case(3,4)
+                if ( xyz1(3) < fm0_adj(3) .or. fm1_adj(3) < xyz1(3) ) cycle
+                if ( xyz1(1) < fm0_adj(1) .or. fm1_adj(1) < xyz1(1) ) cycle
+            case(5,6)
+                if ( xyz1(1) < fm0_adj(1) .or. fm1_adj(1) < xyz1(1) ) cycle
+                if ( xyz1(2) < fm0_adj(2) .or. fm1_adj(2) < xyz1(2) ) cycle
+            end select
+            i_xyz = AM_ID(xyz1)
+            d_mesh = d_temp(ij)
+            income_mesh = ij
+        end if
+        end do
+    end if
+end subroutine MESH_DISTANCE_ADJ
+
+! =============================================================================
 ! FM_ID finds the x, y, z indice in the fine mesh grid
 ! =============================================================================
 function FM_ID(fmxyz) result(fmid)
@@ -232,6 +337,16 @@ function FM_ID(fmxyz) result(fmid)
     fmid(:) = floor((fmxyz(:)-fm0(:))/dfm(:))+1
 
 end function
+
+! =============================================================================
+! AM_ID finds the x, y, z indice in the ADJOINT MESH grid
+! =============================================================================
+function AM_ID(fmxyz) result(fmid)
+	IMPLICIT NONE
+    real(8), intent(in):: fmxyz(:)  ! coordinate
+    integer:: fmid(3)               ! indice
+    fmid(:) = floor((fmxyz(:)-fm0_adj(:))/dfm_adj(:))+1
+end function AM_ID
 
 ! =============================================================================
 ! CM_ID finds the x, y, z indice in the fine mesh grid
@@ -263,7 +378,56 @@ function INSIDE(fmxyz) result(inside_mesh)
 end function
 
 ! =============================================================================
-! 
+! INSED_ADJ finds the x, y, z indice in the FMFD mesh grid
+! =============================================================================
+function INSIDE_ADJ(fmxyz) result(inside_mesh_ADJ)
+	IMPLICIT NONE
+    real(8), intent(in):: fmxyz(:)  ! coordinate
+    LOGICAL:: inside_mesh_ADJ
+    integer:: ij
+    inside_mesh_ADJ = .true.
+    do ij = 1, 3
+        if ( fmxyz(ij) < fm0_adj(ij) .or. fmxyz(ij) >= fm1_adj(ij) ) then
+            inside_mesh_ADJ = .false.
+            exit
+        end if
+    end do
+end function INSIDE_ADJ
+
+! =============================================================================
+! OUT_OF_ZZ_ADJ (Determines whether the node index is out of ADJ ZZ-boundary)
+! =============================================================================
+function OUT_OF_ZZ_ADJ(io,jo)
+    logical:: OUT_OF_ZZ_ADJ
+    integer, intent(in):: io, jo
+    integer:: mo, no
+    
+    if ( .not. zigzag_adjflux ) then
+        OUT_OF_ZZ_ADJ = .false.
+        return
+    end if
+	IF((io <= 0) .OR. (io > nfm_adj(1)) .OR. (jo <= 0) .OR. (jo > nfm_adj(2))) THEN
+		OUT_OF_ZZ_ADJ = .TRUE.
+		RETURN
+	END IF
+    OUT_OF_ZZ_ADJ = .false.
+    do mo = 1, zz_div_adj
+    if ( zzf0_adj(mo) < io .and. io <= zzf0_adj(mo+1) ) then
+        no = mo
+        exit
+    end if
+    end do
+
+    if ( zzf1_adj(no) < jo .and. jo <= zzf2_adj(no) ) then
+        OUT_OF_ZZ_ADJ = .false.
+    else
+        OUT_OF_ZZ_ADJ = .true.
+    end if
+
+end function OUT_OF_ZZ_ADJ
+
+! =============================================================================
+! INITIALIZE MC_THREAD 
 ! =============================================================================
 subroutine TALLY_THREAD_INITIAL(cyc)
     implicit none
@@ -273,9 +437,7 @@ subroutine TALLY_THREAD_INITIAL(cyc)
     if ( cyc > n_inact ) then
     acyc = cyc - n_inact
     MC_thread = 0D0
-    MC_tally  = 0D0
-!    MC_sthread = 0D0
-!    MC_scatth = 0D0
+    ! (MUTED) MC_tally  = 0D0 --- 안그러면 사이클마다 MC_tally 값이 0이 되버림 
     end if
 
 end subroutine
@@ -298,18 +460,17 @@ subroutine MC_TRK(E0,wgt,distance,macro_xs,id)
     if ( curr_cyc <= n_inact ) return
     flux = wgt * distance
     do ii = 1, n_type
-    select case(ttally(ii))
-    case(1,11); xs = macro_xs(1)                ! total
-    case(2,12); xs = macro_xs(2)                ! absorption
-    case(3,13); xs = macro_xs(3)                ! fission
-    case(4,14); xs = macro_xs(4)                ! nu fission
-    case(5,15); xs = macro_xs(5)                ! k fission
-    case(6,16); xs = 0                          ! scattering
-    case default; xs = 1D0                      ! flux (type = 0)
-    end select
-    MC_thread(ii,E2G(E0),id(1),id(2),id(3)) = & 
-    MC_thread(ii,E2G(E0),id(1),id(2),id(3)) + flux * xs
-	
+		select case(ttally(ii))
+			case(1,11); xs = macro_xs(1)                ! total
+			case(2,12); xs = macro_xs(2)                ! absorption
+			case(3,13); xs = macro_xs(3)                ! fission
+			case(4,14); xs = macro_xs(4)                ! nu fission
+			case(5,15); xs = macro_xs(5)                ! k fission
+			case(6,16); xs = 0                          ! scattering
+			case default; xs = 1D0                      ! flux (type = 0)
+		end select
+		MC_thread(ii,E2G(E0),id(1),id(2),id(3)) = & 
+		MC_thread(ii,E2G(E0),id(1),id(2),id(3)) + flux * xs
     end do
     
 end subroutine
@@ -473,7 +634,35 @@ function E2G(ee)
     end if
     end do
 
-end function
+end function E2G
+
+! =============================================================================
+! FUNCTION FOR MAPPING ENERGY TO GROUP (FOR SPECTRUM TALLY)
+! =============================================================================
+FUNCTION E2G_SPECTRUM(ee)
+    integer:: E2G_SPECTRUM
+    real(8), intent(in):: ee
+    integer:: ii
+	! --- IF THE GIVEN ENERGY EXCEEDS THE LARGEST ENERGY RANGE VALUE
+	IF(ee > egroup_spect(1)) THEN
+		E2G_SPECTRUM = 0
+		RETURN
+	END IF
+	! --- IF THE GIVEN ENERGY IS BELOW THE SMALLEST ENERGY RANGE VALUE
+	IF(ee < egroup_spect(n_egroup_spect)) THEN
+		E2G_SPECTRUM = 0
+		RETURN		
+	END IF
+	! --- LOWEST ENERGY RANGE BIN INDEX (제공된 에너지 군의 최소값 보다 작을 시)
+    E2G_SPECTRUM = n_egroup_spect - 1
+	! --- egroup_spect descends in its value
+    do ii = 1, n_egroup_spect-1, 1
+    if ( ee > egroup_spect(ii) ) then
+        E2G_SPECTRUM = ii-1
+        return
+    end if
+    end do
+END FUNCTION E2G_SPECTRUM
 
 ! =============================================================================
 ! NORM_TALLY normalizes cycle-wise FMFD parameters
@@ -491,13 +680,8 @@ subroutine NORM_TALLY(bat,cyc)
     !> gather thread tally parameters
     MC_tally(bat,acyc,:,:,:,:,:) = &
     MC_tally(bat,acyc,:,:,:,:,:) + MC_thread(:,:,:,:,:)
-!    MC_stally(bat,acyc,:,:,:,:,:,:) = &
-!    MC_stally(bat,acyc,:,:,:,:,:,:) + MC_sthread(:,:,:,:,:,:)
-!    MC_scat(bat,acyc,:,:,:,:,:) = &
-!    MC_scat(bat,acyc,:,:,:,:,:) + MC_scatth(:,:,:,:,:)
 
 end subroutine
-
 
 ! =============================================================================
 ! PROCESS_FMFD deals with MPI process and average quantities
@@ -522,52 +706,24 @@ subroutine PROCESS_TALLY(bat,cyc)
     ! data gathering
     allocate(MC_temp0(n_type,n_tgroup,nfm(1),nfm(2),nfm(3)))
     allocate(MC_temp1(n_type,n_tgroup,nfm(1),nfm(2),nfm(3)))
-!    allocate(MC_stemp0(2,n_tgroup,nfm(1),nfm(2),nfm(3),6))
-!    allocate(MC_stemp1(2,n_tgroup,nfm(1),nfm(2),nfm(3),6))
-!    allocate(MC_temps0(n_tgroup,n_tgroup,nfm(1),nfm(2),nfm(3)))
-!    allocate(MC_temps1(n_tgroup,n_tgroup,nfm(1),nfm(2),nfm(3)))
     MC_temp0  = MC_tally(bat,acyc,:,:,:,:,:)
-	
-	
-	
     MC_temp1  = 0D0
-!    MC_stemp0 = MC_stally(bat,acyc,:,:,:,:,:,:)
-!    MC_stemp1 = 0D0
-!    MC_temps0 = MC_scat(bat,acyc,:,:,:,:,:)
-!    MC_temps1 = 0D0
+
     dsize = nfm(1)*nfm(2)*nfm(3)*n_type*n_tgroup
     call MPI_REDUCE(MC_temp0(:,:,:,:,:),MC_temp1(:,:,:,:,:), &
                     dsize,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
-!    dsize = nfm(1)*nfm(2)*nfm(3)*2*n_tgroup*6
-!    call MPI_REDUCE(MC_stemp0(:,:,:,:,:,:),MC_stemp1(:,:,:,:,:,:), &
-!                    dsize,15,MPI_SUM,score,0,ierr)
-!    dsize = nfm(1)*nfm(2)*nfm(3)*n_tgroup*n_tgroup
-!    call MPI_REDUCE(MC_temps0(:,:,:,:,:),MC_temps1(:,:,:,:,:), &
-!                    dsize,15,MPI_SUM,score,0,ierr)
 
     if ( icore == score ) then
-!    do ii = 1, n_tgroup
-!    MC_scat(bat,acyc,:,ii,:,:,:) = &
-!    MC_temps1(:,ii,:,:,:) / MC_temp1(n_type,:,:,:,:)
-!    end do
-    MC_tally(bat,acyc,:,:,:,:,:) = MC_temp1(:,:,:,:,:)/(dble(ngen)*v_fm)
-	 
-	 
-!    do ii = 1, 6
-!    MC_stally(bat,acyc,:,:,:,:,:,ii) = &
-!        MC_stemp1(:,:,:,:,:,ii) / (dble(ngen) * a_fm(ii))
-!    end do
+		MC_tally(bat,acyc,:,:,:,:,:) = MC_temp1(:,:,:,:,:)/(dble(ngen)*v_fm)
     end if
-!    deallocate(MC_temp0,MC_temp1,MC_stemp0,MC_stemp1,MC_temps0,MC_temps1)
     deallocate(MC_temp0,MC_temp1)
 
     if ( icore == score ) then
-    do ii = 1, n_type
-    if ( ttally(ii) > 10 ) &
-    MC_tally(bat,acyc,ii,:,:,:,:) = &
-    MC_tally(bat,acyc,ii,:,:,:,:) / MC_tally(bat,acyc,n_type,:,:,:,:)
-    end do
-	
+		do ii = 1, n_type
+		if ( ttally(ii) > 10 ) &
+		MC_tally(bat,acyc,ii,:,:,:,:) = &
+		MC_tally(bat,acyc,ii,:,:,:,:) / MC_tally(bat,acyc,n_type,:,:,:,:)
+		end do
     end if
 
     if ( do_burn .and. icore == score .and. ttally(1) == 5 ) &

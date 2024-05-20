@@ -78,5 +78,27 @@ module randoms
     !return
     !end subroutine
 
+	! --- FROM array [1,2,...M] select n elements (indexes) randomly
+	SUBROUTINE pick_random_indexes(arr_in,my_M,my_n)
+		INTEGER, INTENT(INOUT) :: arr_in(my_n)
+		INTEGER, INTENT(IN)    :: my_M
+		INTEGER, INTENT(IN)    :: my_n
+		INTEGER, ALLOCATABLE   :: arr_idx(:)
+		INTEGER :: i,j,n,m,k,temp
+		! --- RADNOMLY SHUFFLE THE ARRAY
+		ALLOCATE(arr_idx(my_M))
+		arr_idx = [(i, i =1,my_M)]
+		n = 1
+		m = my_M
+		DO k = 1,2
+			DO i = 1,m
+				j = n + FLOOR((m+1-n)*rang())
+				temp = arr_idx(j)
+				arr_idx(j) = arr_idx(i)
+				arr_idx(i) = temp
+			END DO
+		END DO
+		arr_in = arr_idx(1:my_n)
+	END SUBROUTINE pick_random_indexes
 
 end module 

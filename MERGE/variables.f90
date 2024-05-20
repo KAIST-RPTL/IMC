@@ -83,6 +83,62 @@ implicit none
     real(8) :: denom,  gen_numer, gen_prompt, beta_numer(8), lam_denom(8),denom_prompt
     real(8), allocatable :: betaarr(:,:), genarr(:), alphaarr(:), lamarr(:,:), betad(:,:)
 
+	! *** TSOH (IFP-BASED ADJOINT DISTRIBUTION CALCULATION) *** !
+
+	! IFP ADJOINT DISTRIBUTION / SPATIAL & ENERGY SEPARATELY TREATED
+	! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	! (*) FOR SPATIAL ADJOINT DISTRIBUTION (APPLICABLE ONLY FOR x,y,z geometry)
+	! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	! -> FOR MG: GROUP-WISE ADJOINT DISTRIBUTION
+	! -> FOR CE: NOT SUPPORTED AT THE MOMENT...
+	! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	! (*) FOR ADJOINT SPECTRUM
+	! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	! -> FOR MG: GROUP-WISE ADJOINT SPECTRUM
+	! -> FOR CE: USER-DEFINED ENERGY GROUP EMPLOYED
+	LOGICAL :: do_IFP_LONG     = .FALSE.
+	LOGICAL :: tally_adj_flux  = .FALSE.
+	LOGICAL :: meshon_adjflux  = .FALSE.
+	LOGICAL :: tally_for_spect = .FALSE.
+	LOGICAL :: tally_adj_spect = .FALSE.
+	INTEGER :: latent_long = 20
+	INTEGER, PARAMETER :: nainfo_src = 20
+	
+	!> RELATED TO ADJOINT FLUX DISTRIBUTION TALLY
+	INTEGER :: num_adj_group  = 1   ! # OF ADJ GROUP FOR SPATIAL TALLYING
+    real(8) :: fm0_adj(3)           ! (x0,y0,z0)
+    real(8) :: fm1_adj(3)           ! (x1,y1,z1)
+    real(8) :: fm2_adj(3)           ! (x1-x0,y1-y0,z1-z0)
+    integer :: nfm_adj(3) = 0       ! (nx,ny,nz)
+    real(8) :: dfm_adj(3)           ! (dx,dy,dz)
+	
+	REAL(8), ALLOCATABLE :: adj_phi_cyc_VEC(:)       ! VECTORIZED adj_phi_cyc (x,y,z,g) order
+	REAL(8), ALLOCATABLE :: FOR_phi_cyc_VEC(:)       ! VECTORIZED FOR_phi_cyc (x,y,z,g) order
+	REAL(8), ALLOCATABLE :: adj_phi_cyc    (:,:,:,:) !       #group (adj), node_x, node_y, node_z
+	REAL(8), ALLOCATABLE :: FOR_phi_cyc    (:,:,:,:) !       #group (FOR), node_x, node_y, node_z
+ 	REAL(8), ALLOCATABLE :: adj_phi      (:,:,:,:,:) ! #cyc, #group (adj), node_x, node_y, node_z
+	REAL(8), ALLOCATABLE :: FOR_phi      (:,:,:,:,:) ! #cyc, #group (FOR), node_x, node_y, node_z
+	
+	REAL(8), ALLOCATABLE :: adj_phi_STORE(:,:,:,:)   !       #group (adj), node_x, node_y, node_z
+	
+	LOGICAL :: zigzag_adjflux = .FALSE.
+	INTEGER :: n_zz_adj       = 0
+	INTEGER :: zz_div_adj     = 0
+	INTEGER, ALLOCATABLE :: zzf0_adj(:)
+	INTEGER, ALLOCATABLE :: zzf1_adj(:)
+	INTEGER, ALLOCATABLE :: zzf2_adj(:)
+
+	!> RELATED TO ADJOINT SPECTRUM TALLY
+	INTEGER :: idx_egroup     = 1                 ! INDEX FOR ENERGY GROUP STRUCTURE (1: SERPENT 70group / 2: LANL 30group / 3: HELIOS 70group)
+	INTEGER :: n_egroup_spect                     ! NUMBER OF ENERGY GROUP STRUCTURE
+	REAL(8), ALLOCATABLE :: egroup_spect    (:)   ! ENERGY GROUP STRUCTURE                  [SIZE: n_egroup_spect]
+	REAL(8), ALLOCATABLE :: egroup_spect_bin(:)   ! ENERGY GROUP STRUCTURE (MID VALUE; BIN) [SIZE: n_egroup_spect-1]
+	REAL(8), ALLOCATABLE :: FOR_phi_ene_cyc (:)   ! ENERGY SPECTRUM (ENERGY GROUP BIN-WISE) [SIZE: n_egroup_spect-1]
+	REAL(8), ALLOCATABLE :: FOR_phi_ene     (:,:) ! ENERGY SPECTRUM (ENERGY GROUP BIN-WISE) [SIZE: n_egroup_spect-1]
+	
+	REAL(8), ALLOCATABLE :: adj_phi_ene_cyc(:) ! ENERGY SPECTRUM (ENERGY GROUP BIN-WISE) [SIZE: n_egroup_spect-1]
+	REAL(8), ALLOCATABLE :: adj_phi_ene  (:,:) ! ENERGY SPECTRUM (ENERGY GROUP BIN-WISE) [SIZE: n_egroup_spect-1]
+
     ! MSR parameter
     real(8), allocatable :: fuel_speed(:), active_mesh(:), fuel_stay_time(:)
     real(8) :: fuel_bulk_speed
@@ -96,9 +152,7 @@ implicit none
     real(8), allocatable :: core_prec(:,:,:)
     integer :: MSR_leak, MSR_leak0
 
-    ! MODIFIED ( Oct. 29 2023 )
-    ! Modified for RZ
-
+    ! MODIFIED ( Oct. 29 2023 ) / Modified for RZ
     integer :: nr, nz
     real(8) :: axial_axis(2)
     real(8), allocatable :: velocity_r(:,:), velocity_z(:,:) !> nr, nz
