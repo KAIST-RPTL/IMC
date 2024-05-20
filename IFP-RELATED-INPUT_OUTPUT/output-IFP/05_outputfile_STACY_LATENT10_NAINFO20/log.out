@@ -1,0 +1,910 @@
+ ctrl.inp :: CARD A is being read...
+    CTRL  READ COMPLETE..
+    Continuous Energy Mode...
+    CE_mat.inp :: CARD D is being read...
+    Number of Defined MAT:           3
+     S(a,b) lib:            1 /home/codes/serpent_data/endf71/hh2o.71t_0293
+     S(a,b) lib:            2 /home/codes/serpent_data/endf71/hh2o.71t_0350
+ lwtr1                Fraction:   0.000000000000000E+000
+           1 /home/codes/serpent_data/endf71/1001.710nc
+           2 /home/codes/serpent_data/endf71/7014.710nc
+          WARNING :: NYD block exists
+           3 /home/codes/serpent_data/endf71/8016.710nc
+          WARNING :: NYD block exists
+           4 /home/codes/serpent_data/endf71/92234.710nc
+           5 /home/codes/serpent_data/endf71/92235.710nc
+           6 /home/codes/serpent_data/endf71/92236.710nc
+           7 /home/codes/serpent_data/endf71/92238.710nc
+           8 /home/codes/serpent_data/endf71/6000.710nc
+          WARNING :: NYD block exists
+           9 /home/codes/serpent_data/endf71/14028.710nc
+          WARNING :: NYD block exists
+          10 /home/codes/serpent_data/endf71/14029.710nc
+          WARNING :: NYD block exists
+          11 /home/codes/serpent_data/endf71/14030.710nc
+          WARNING :: NYD block exists
+          12 /home/codes/serpent_data/endf71/25055.710nc
+          WARNING :: NYD block exists
+          13 /home/codes/serpent_data/endf71/15031.710nc
+          WARNING :: NYD block exists
+          14 /home/codes/serpent_data/endf71/16032.710nc
+          15 /home/codes/serpent_data/endf71/16033.710nc
+          16 /home/codes/serpent_data/endf71/16034.710nc
+          17 /home/codes/serpent_data/endf71/16036.710nc
+          18 /home/codes/serpent_data/endf71/28058.710nc
+          WARNING :: NYD block exists
+          19 /home/codes/serpent_data/endf71/28060.710nc
+          WARNING :: NYD block exists
+          20 /home/codes/serpent_data/endf71/28061.710nc
+          WARNING :: NYD block exists
+          21 /home/codes/serpent_data/endf71/28062.710nc
+          WARNING :: NYD block exists
+          22 /home/codes/serpent_data/endf71/28064.710nc
+          WARNING :: NYD block exists
+          23 /home/codes/serpent_data/endf71/24050.710nc
+          WARNING :: NYD block exists
+          24 /home/codes/serpent_data/endf71/24052.710nc
+          WARNING :: NYD block exists
+          25 /home/codes/serpent_data/endf71/24053.710nc
+          WARNING :: NYD block exists
+          26 /home/codes/serpent_data/endf71/24054.710nc
+          WARNING :: NYD block exists
+          27 /home/codes/serpent_data/endf71/26054.710nc
+          WARNING :: NYD block exists
+          28 /home/codes/serpent_data/endf71/26056.710nc
+          WARNING :: NYD block exists
+          29 /home/codes/serpent_data/endf71/26057.710nc
+          WARNING :: NYD block exists
+          30 /home/codes/serpent_data/endf71/26058.710nc
+    CE MAT READ COMPLETE...
+     Time to read CE_mat.inp [s]:   3.91651010513306     
+    geom.inp :: GEOMETRY CARD is being read..., LOOP #:           0
+ Surf #:           7
+ Cell #:           9
+ Univ #:           0
+ Latt #:           0
+ Reading is done...
+ Surf #:           7
+ Cell #:           9
+ Univ #:           0
+ Latt #:           0
+ Step2 is done...
+ Surf #:           7
+ Cell #:           9
+ Univ #:           0
+ Latt #:           0
+ Step3 is done...
+ Surf #:           7
+ Cell #:           9
+ Univ #:           0
+ Latt #:           0
+ Step4 is done...
+ Surf #:           7
+ Cell #:           9
+ Univ #:           0
+ Latt #:           0
+ Step5 is done...
+ Surf #:           7
+ Cell #:           9
+ Univ #:           0
+ Latt #:           0
+ TST2
+ Surf #:           7
+ Cell #:           9
+ Univ #:           0
+ Latt #:           0
+    GEOM  READ COMPLETE..
+     Time to read geom.inp [s]:  2.221107482910156E-003
+    ADJOINT SPECTRUM     TALLY
+    Setting ugrid...
+    Setting ugrid...
+   UEG XS set for 16036.80c  17/  30
+   UEG XS set for 1001.80c   1/  30
+   UEG XS set for 28062.80c  21/  30
+   UEG XS set for 26057.80c  29/  30
+   UEG XS set for 28061.80c  20/  30
+   UEG XS set for 16032.80c  14/  30
+   UEG XS set for 26058.80c  30/  30
+   UEG XS set for 92235.80c   5/  30
+   UEG XS set for 14030.80c  11/  30
+   UEG XS set for 26056.80c  28/  30
+   UEG XS set for 15031.80c  13/  30
+   UEG XS set for 8016.80c   3/  30
+   UEG XS set for 7014.80c   2/  30
+   UEG XS set for 28060.80c  19/  30
+   UEG XS set for 92234.80c   4/  30
+   UEG XS set for 14029.80c  10/  30
+   UEG XS set for 25055.80c  12/  30
+   UEG XS set for 24050.80c  23/  30
+   UEG XS set for 24052.80c  24/  30
+   UEG XS set for 92238.80c   7/  30
+   UEG XS set for 26054.80c  27/  30
+   UEG XS set for 14028.80c   9/  30
+   UEG XS set for 24054.80c  26/  30
+   UEG XS set for 16034.80c  16/  30
+   UEG XS set for 28064.80c  22/  30
+   UEG XS set for 16033.80c  15/  30
+   UEG XS set for 28058.80c  18/  30
+   UEG XS set for 6000.80c   8/  30
+   UEG XS set for 92236.80c   6/  30
+   UEG XS set for 24053.80c  25/  30
+    Initializing Source...
+    Source Initializing Complete...
+ 
+ 
+  > Num of Threads per Node          40
+  > Num of MPI Nodes                 11
+  > Num of Histories per Cycle   400000
+  > Skip Cycles:  100  /  Active Cycles:  500
+ 
+  > m-PRUP is OFF
+  > FMFD is OFF
+ 
+    Transport Simulation Starts...
+       1     2.25 sec   0.00000  |  keff  0.96585
+       2     1.75 sec   0.00000  |  keff  0.97570
+       3     1.76 sec   0.00000  |  keff  0.98347
+       4     1.77 sec   0.00000  |  keff  0.98805
+       5     1.83 sec   0.00000  |  keff  0.99291
+       6     1.79 sec   0.00000  |  keff  0.99482
+       7     1.81 sec   0.00000  |  keff  0.99616
+       8     1.76 sec   0.00000  |  keff  0.99586
+       9     1.79 sec   0.00000  |  keff  0.99524
+      10     1.76 sec   0.00000  |  keff  0.99613
+      11     1.79 sec   0.00000  |  keff  0.99300
+      12     1.80 sec   0.00000  |  keff  0.99516
+      13     1.80 sec   0.00000  |  keff  0.99220
+      14     1.76 sec   0.00000  |  keff  0.99295
+      15     1.80 sec   0.00000  |  keff  0.99332
+      16     1.81 sec   0.00000  |  keff  0.99213
+      17     1.76 sec   0.00000  |  keff  0.99494
+      18     1.80 sec   0.00000  |  keff  0.99572
+      19     1.78 sec   0.00000  |  keff  0.99625
+      20     1.76 sec   0.00000  |  keff  0.99509
+      21     1.81 sec   0.00000  |  keff  0.99528
+      22     1.81 sec   0.00000  |  keff  0.99202
+      23     1.81 sec   0.00000  |  keff  0.99407
+      24     1.78 sec   0.00000  |  keff  0.99916
+      25     1.81 sec   0.00000  |  keff  0.99733
+      26     1.73 sec   0.00000  |  keff  0.99485
+      27     1.77 sec   0.00000  |  keff  0.99431
+      28     1.81 sec   0.00000  |  keff  0.99482
+      29     1.78 sec   0.00000  |  keff  0.99355
+      30     1.76 sec   0.00000  |  keff  0.99668
+      31     1.77 sec   0.00000  |  keff  0.99699
+      32     1.78 sec   0.00000  |  keff  0.99360
+      33     1.79 sec   0.00000  |  keff  0.99380
+      34     1.79 sec   0.00000  |  keff  0.99523
+      35     1.73 sec   0.00000  |  keff  0.99449
+      36     1.80 sec   0.00000  |  keff  0.99249
+      37     1.79 sec   0.00000  |  keff  0.99539
+      38     1.76 sec   0.00000  |  keff  0.99222
+      39     1.81 sec   0.00000  |  keff  0.99570
+      40     1.76 sec   0.00000  |  keff  0.99281
+      41     1.77 sec   0.00000  |  keff  0.99662
+      42     1.78 sec   0.00000  |  keff  0.99265
+      43     1.76 sec   0.00000  |  keff  0.99600
+      44     1.78 sec   0.00000  |  keff  0.99464
+      45     1.77 sec   0.00000  |  keff  0.99344
+      46     1.76 sec   0.00000  |  keff  0.99490
+      47     1.76 sec   0.00000  |  keff  0.99480
+      48     1.78 sec   0.00000  |  keff  0.99684
+      49     1.80 sec   0.00000  |  keff  0.99522
+      50     1.80 sec   0.00000  |  keff  0.99549
+      51     1.81 sec   0.00000  |  keff  0.99457
+      52     1.76 sec   0.00000  |  keff  0.99531
+      53     1.80 sec   0.00000  |  keff  0.99510
+      54     1.79 sec   0.00000  |  keff  0.99515
+      55     1.78 sec   0.00000  |  keff  0.99496
+      56     1.79 sec   0.00000  |  keff  0.99408
+      57     1.75 sec   0.00000  |  keff  0.99057
+      58     1.76 sec   0.00000  |  keff  0.99455
+      59     1.79 sec   0.00000  |  keff  0.99387
+      60     1.79 sec   0.00000  |  keff  0.99702
+      61     1.82 sec   0.00000  |  keff  0.99602
+      62     1.79 sec   0.00000  |  keff  0.99520
+      63     1.81 sec   0.00000  |  keff  0.99547
+      64     1.81 sec   0.00000  |  keff  0.99447
+      65     1.78 sec   0.00000  |  keff  0.99612
+      66     1.77 sec   0.00000  |  keff  0.99548
+      67     1.77 sec   0.00000  |  keff  0.99433
+      68     1.74 sec   0.00000  |  keff  0.99588
+      69     1.77 sec   0.00000  |  keff  0.99639
+      70     1.79 sec   0.00000  |  keff  0.99466
+      71     1.80 sec   0.00000  |  keff  0.99568
+      72     1.81 sec   0.00000  |  keff  0.99486
+      73     1.78 sec   0.00000  |  keff  0.99617
+      74     1.77 sec   0.00000  |  keff  0.99485
+      75     1.82 sec   0.00000  |  keff  0.99677
+      76     1.76 sec   0.00000  |  keff  0.99691
+      77     1.72 sec   0.00000  |  keff  0.99229
+      78     1.74 sec   0.00000  |  keff  0.99448
+      79     1.77 sec   0.00000  |  keff  0.99563
+      80     1.81 sec   0.00000  |  keff  0.99499
+      81     1.80 sec   0.00000  |  keff  0.99599
+      82     1.81 sec   0.00000  |  keff  0.99723
+      83     1.76 sec   0.00000  |  keff  0.99508
+      84     1.85 sec   0.00000  |  keff  0.99606
+      85     1.81 sec   0.00000  |  keff  0.99660
+      86     1.82 sec   0.00000  |  keff  0.99621
+      87     1.81 sec   0.00000  |  keff  0.99469
+      88     1.76 sec   0.00000  |  keff  0.99557
+      89     1.81 sec   0.00000  |  keff  0.99597
+      90     1.79 sec   0.00000  |  keff  0.99389
+      91     1.75 sec   0.00000  |  keff  0.99554
+      92     1.82 sec   0.00000  |  keff  0.99573
+      93     1.81 sec   0.00000  |  keff  0.99357
+      94     1.79 sec   0.00000  |  keff  0.99325
+      95     1.75 sec   0.00000  |  keff  0.99501
+      96     1.80 sec   0.00000  |  keff  0.99424
+      97     1.74 sec   0.00000  |  keff  0.99731
+      98     1.78 sec   0.00000  |  keff  0.99312
+      99     1.79 sec   0.00000  |  keff  0.99299
+     100     1.78 sec   0.00000  |  keff  0.99641
+     101     2.91 sec   0.00000  |  keff  0.99504   avg  0.99504   SD    0.000
+     102     2.98 sec   0.00000  |  keff  0.99539   avg  0.99522   SD   17.543
+     103     2.90 sec   0.00000  |  keff  0.99470   avg  0.99505   SD   19.998
+     104     2.93 sec   0.00000  |  keff  0.99576   avg  0.99523   SD   22.834
+     105     2.91 sec   0.00000  |  keff  0.99650   avg  0.99548   SD   31.008
+     106     2.92 sec   0.00000  |  keff  0.99287   avg  0.99505   SD   50.292
+     107     2.90 sec   0.00000  |  keff  0.99494   avg  0.99503   SD   42.533
+     108     3.06 sec   0.00000  |  keff  0.99621   avg  0.99518   SD   39.696
+     109     2.94 sec   0.00000  |  keff  0.99570   avg  0.99524   SD   35.491
+     110     3.00 sec   0.00000  |  keff  0.99561   avg  0.99527   SD   31.967
+     111     3.59 sec   0.00000  |  keff  0.99408   avg  0.99517   SD   30.879
+     112     3.60 sec   0.00000  |  keff  0.99810   avg  0.99541   SD   37.308
+     113     3.62 sec   0.00000  |  keff  0.99435   avg  0.99533   SD   35.278
+     114     3.55 sec   0.00000  |  keff  0.99239   avg  0.99512   SD   38.844
+     115     3.60 sec   0.00000  |  keff  0.99728   avg  0.99526   SD   38.921
+     116     3.58 sec   0.00000  |  keff  0.99424   avg  0.99520   SD   36.963
+     117     3.60 sec   0.00000  |  keff  0.99663   avg  0.99528   SD   35.731
+     118     3.63 sec   0.00000  |  keff  0.99386   avg  0.99520   SD   34.606
+     119     3.58 sec   0.00000  |  keff  0.99565   avg  0.99523   SD   32.817
+     120     3.57 sec   0.00000  |  keff  0.99725   avg  0.99533   SD   32.733
+     121     3.58 sec   0.00000  |  keff  0.99601   avg  0.99536   SD   31.304
+     122     3.58 sec   0.00000  |  keff  0.99425   avg  0.99531   SD   30.273
+     123     3.56 sec   0.00000  |  keff  0.99436   avg  0.99527   SD   29.219
+     124     3.55 sec   0.00000  |  keff  0.99662   avg  0.99533   SD   28.535
+     125     3.61 sec   0.00000  |  keff  0.99408   avg  0.99528   SD   27.817
+     126     3.58 sec   0.00000  |  keff  0.99494   avg  0.99526   SD   26.757
+     127     3.57 sec   0.00000  |  keff  0.99818   avg  0.99537   SD   27.916
+     128     3.58 sec   0.00000  |  keff  0.99543   avg  0.99537   SD   26.901
+     129     3.61 sec   0.00000  |  keff  0.99490   avg  0.99536   SD   26.007
+     130     3.56 sec   0.00000  |  keff  0.99574   avg  0.99537   SD   25.158
+     131     3.56 sec   0.00000  |  keff  0.99557   avg  0.99538   SD   24.342
+     132     3.62 sec   0.00000  |  keff  0.99466   avg  0.99535   SD   23.676
+     133     3.57 sec   0.00000  |  keff  0.99378   avg  0.99531   SD   23.436
+     134     3.57 sec   0.00000  |  keff  0.99584   avg  0.99532   SD   22.790
+     135     3.62 sec   0.00000  |  keff  0.99553   avg  0.99533   SD   22.137
+     136     3.59 sec   0.00000  |  keff  0.99779   avg  0.99540   SD   22.572
+     137     3.56 sec   0.00000  |  keff  0.99479   avg  0.99538   SD   22.015
+     138     3.59 sec   0.00000  |  keff  0.99343   avg  0.99533   SD   22.035
+     139     3.60 sec   0.00000  |  keff  0.99854   avg  0.99541   SD   22.992
+     140     3.58 sec   0.00000  |  keff  0.99586   avg  0.99542   SD   22.439
+     141     3.57 sec   0.00000  |  keff  0.99703   avg  0.99546   SD   22.235
+     142     3.59 sec   0.00000  |  keff  0.99296   avg  0.99540   SD   22.502
+     143     3.54 sec   0.00000  |  keff  0.99264   avg  0.99534   SD   22.889
+     144     3.59 sec   0.00000  |  keff  0.99158   avg  0.99525   SD   23.939
+     145     3.59 sec   0.00000  |  keff  0.99350   avg  0.99521   SD   23.724
+     146     3.66 sec   0.00000  |  keff  0.99695   avg  0.99525   SD   23.510
+     147     3.69 sec   0.00000  |  keff  0.99779   avg  0.99530   SD   23.631
+     148     3.68 sec   0.00000  |  keff  0.99575   avg  0.99531   SD   23.152
+     149     3.57 sec   0.00000  |  keff  0.99194   avg  0.99525   SD   23.697
+     150     3.61 sec   0.00000  |  keff  0.99280   avg  0.99520   SD   23.728
+     151     3.61 sec   0.00000  |  keff  0.99531   avg  0.99520   SD   23.260
+     152     3.62 sec   0.00000  |  keff  0.99592   avg  0.99521   SD   22.850
+     153     3.67 sec   0.00000  |  keff  0.99288   avg  0.99517   SD   22.844
+     154     3.63 sec   0.00000  |  keff  0.99512   avg  0.99517   SD   22.417
+     155     3.65 sec   0.00000  |  keff  0.99383   avg  0.99514   SD   22.140
+     156     3.66 sec   0.00000  |  keff  0.99503   avg  0.99514   SD   21.742
+     157     3.69 sec   0.00000  |  keff  0.99481   avg  0.99514   SD   21.365
+     158     3.65 sec   0.00000  |  keff  0.99595   avg  0.99515   SD   21.040
+     159     3.66 sec   0.00000  |  keff  0.99669   avg  0.99518   SD   20.846
+     160     3.71 sec   0.00000  |  keff  0.99438   avg  0.99516   SD   20.538
+     161     3.60 sec   0.00000  |  keff  0.99678   avg  0.99519   SD   20.372
+     162     3.61 sec   0.00000  |  keff  0.99330   avg  0.99516   SD   20.271
+     163     3.60 sec   0.00000  |  keff  0.99521   avg  0.99516   SD   19.947
+     164     3.61 sec   0.00000  |  keff  0.99626   avg  0.99518   SD   19.708
+     165     3.66 sec   0.00000  |  keff  0.99133   avg  0.99512   SD   20.283
+     166     3.65 sec   0.00000  |  keff  0.99603   avg  0.99513   SD   20.022
+     167     3.62 sec   0.00000  |  keff  0.99463   avg  0.99512   SD   19.735
+     168     3.64 sec   0.00000  |  keff  0.99549   avg  0.99513   SD   19.450
+     169     3.61 sec   0.00000  |  keff  0.99249   avg  0.99509   SD   19.545
+     170     3.63 sec   0.00000  |  keff  0.99543   avg  0.99510   SD   19.270
+     171     3.62 sec   0.00000  |  keff  0.99397   avg  0.99508   SD   19.062
+     172     3.64 sec   0.00000  |  keff  0.99627   avg  0.99510   SD   18.869
+     173     3.62 sec   0.00000  |  keff  0.99478   avg  0.99509   SD   18.613
+     174     3.65 sec   0.00000  |  keff  0.99166   avg  0.99505   SD   18.937
+     175     3.66 sec   0.00000  |  keff  0.99460   avg  0.99504   SD   18.692
+     176     3.64 sec   0.00000  |  keff  0.99759   avg  0.99507   SD   18.748
+     177     3.63 sec   0.00000  |  keff  0.99465   avg  0.99507   SD   18.511
+     178     3.64 sec   0.00000  |  keff  0.99300   avg  0.99504   SD   18.463
+     179     3.57 sec   0.00000  |  keff  0.99160   avg  0.99500   SD   18.742
+     180     3.64 sec   0.00000  |  keff  0.99599   avg  0.99501   SD   18.548
+     181     3.57 sec   0.00000  |  keff  0.99610   avg  0.99502   SD   18.367
+     182     3.68 sec   0.00000  |  keff  0.99255   avg  0.99499   SD   18.391
+     183     3.64 sec   0.00000  |  keff  0.99363   avg  0.99498   SD   18.242
+     184     3.63 sec   0.00000  |  keff  0.99477   avg  0.99497   SD   18.025
+     185     3.62 sec   0.00000  |  keff  0.99286   avg  0.99495   SD   17.985
+     186     3.67 sec   0.00000  |  keff  0.99451   avg  0.99494   SD   17.783
+     187     3.67 sec   0.00000  |  keff  0.99702   avg  0.99497   SD   17.738
+     188     3.64 sec   0.00000  |  keff  0.99346   avg  0.99495   SD   17.619
+     189     3.63 sec   0.00000  |  keff  0.99206   avg  0.99492   SD   17.720
+     190     3.65 sec   0.00000  |  keff  0.99509   avg  0.99492   SD   17.523
+     191     3.61 sec   0.00000  |  keff  0.99601   avg  0.99493   SD   17.371
+     192     3.66 sec   0.00000  |  keff  0.99367   avg  0.99492   SD   17.235
+     193     3.65 sec   0.00000  |  keff  0.99575   avg  0.99493   SD   17.072
+     194     3.64 sec   0.00000  |  keff  0.99339   avg  0.99491   SD   16.969
+     195     3.67 sec   0.00000  |  keff  0.99534   avg  0.99492   SD   16.796
+     196     3.60 sec   0.00000  |  keff  0.99418   avg  0.99491   SD   16.638
+     197     3.64 sec   0.00000  |  keff  0.99271   avg  0.99489   SD   16.620
+     198     3.60 sec   0.00000  |  keff  0.99502   avg  0.99489   SD   16.450
+     199     3.59 sec   0.00000  |  keff  0.99651   avg  0.99490   SD   16.365
+     200     3.57 sec   0.00000  |  keff  0.99355   avg  0.99489   SD   16.257
+     201     3.67 sec   0.00000  |  keff  0.99472   avg  0.99489   SD   16.096
+     202     3.61 sec   0.00000  |  keff  0.99558   avg  0.99489   SD   15.952
+     203     3.64 sec   0.00000  |  keff  0.99500   avg  0.99490   SD   15.797
+     204     3.60 sec   0.00000  |  keff  0.99322   avg  0.99488   SD   15.727
+     205     3.65 sec   0.00000  |  keff  0.99543   avg  0.99489   SD   15.585
+     206     3.65 sec   0.00000  |  keff  0.99546   avg  0.99489   SD   15.447
+     207     3.61 sec   0.00000  |  keff  0.99309   avg  0.99487   SD   15.395
+     208     3.59 sec   0.00000  |  keff  0.99931   avg  0.99491   SD   15.796
+     209     3.61 sec   0.00000  |  keff  0.99664   avg  0.99493   SD   15.730
+     210     3.53 sec   0.00000  |  keff  0.99200   avg  0.99490   SD   15.812
+     211     3.64 sec   0.00000  |  keff  0.99350   avg  0.99489   SD   15.721
+     212     3.60 sec   0.00000  |  keff  0.99525   avg  0.99489   SD   15.583
+     213     3.60 sec   0.00000  |  keff  0.99670   avg  0.99491   SD   15.527
+     214     3.64 sec   0.00000  |  keff  0.99572   avg  0.99492   SD   15.406
+     215     3.57 sec   0.00000  |  keff  0.99423   avg  0.99491   SD   15.283
+     216     3.56 sec   0.00000  |  keff  0.99304   avg  0.99490   SD   15.237
+     217     3.65 sec   0.00000  |  keff  0.99268   avg  0.99488   SD   15.224
+     218     3.66 sec   0.00000  |  keff  0.99451   avg  0.99487   SD   15.098
+     219     3.64 sec   0.00000  |  keff  0.99427   avg  0.99487   SD   14.979
+     220     3.61 sec   0.00000  |  keff  0.99675   avg  0.99488   SD   14.937
+     221     3.63 sec   0.00000  |  keff  0.99426   avg  0.99488   SD   14.822
+     222     3.65 sec   0.00000  |  keff  0.99516   avg  0.99488   SD   14.701
+     223     3.58 sec   0.00000  |  keff  0.99386   avg  0.99487   SD   14.605
+     224     3.61 sec   0.00000  |  keff  0.99537   avg  0.99488   SD   14.492
+     225     3.57 sec   0.00000  |  keff  0.99620   avg  0.99489   SD   14.415
+     226     3.57 sec   0.00000  |  keff  0.99387   avg  0.99488   SD   14.323
+     227     3.63 sec   0.00000  |  keff  0.99320   avg  0.99487   SD   14.271
+     228     3.61 sec   0.00000  |  keff  0.99705   avg  0.99488   SD   14.261
+     229     3.58 sec   0.00000  |  keff  0.99595   avg  0.99489   SD   14.174
+     230     3.65 sec   0.00000  |  keff  0.99244   avg  0.99487   SD   14.191
+     231     3.57 sec   0.00000  |  keff  0.99401   avg  0.99487   SD   14.097
+     232     3.59 sec   0.00000  |  keff  0.99511   avg  0.99487   SD   13.992
+     233     3.58 sec   0.00000  |  keff  0.99708   avg  0.99488   SD   13.985
+     234     3.59 sec   0.00000  |  keff  0.99578   avg  0.99489   SD   13.897
+     235     3.56 sec   0.00000  |  keff  0.99359   avg  0.99488   SD   13.827
+     236     3.59 sec   0.00000  |  keff  0.99517   avg  0.99488   SD   13.726
+     237     3.59 sec   0.00000  |  keff  0.99542   avg  0.99489   SD   13.631
+     238     3.66 sec   0.00000  |  keff  0.99410   avg  0.99488   SD   13.544
+     239     3.55 sec   0.00000  |  keff  0.99815   avg  0.99491   SD   13.650
+     240     3.65 sec   0.00000  |  keff  0.99693   avg  0.99492   SD   13.630
+     241     3.64 sec   0.00000  |  keff  0.99624   avg  0.99493   SD   13.565
+     242     3.60 sec   0.00000  |  keff  1.00030   avg  0.99497   SD   13.990
+     243     3.58 sec   0.00000  |  keff  0.99382   avg  0.99496   SD   13.915
+     244     3.59 sec   0.00000  |  keff  0.99093   avg  0.99493   SD   14.099
+     245     3.61 sec   0.00000  |  keff  0.99481   avg  0.99493   SD   14.002
+     246     3.58 sec   0.00000  |  keff  0.99413   avg  0.99492   SD   13.916
+     247     3.58 sec   0.00000  |  keff  0.99500   avg  0.99493   SD   13.822
+     248     3.59 sec   0.00000  |  keff  0.99385   avg  0.99492   SD   13.747
+     249     3.65 sec   0.00000  |  keff  0.99450   avg  0.99492   SD   13.657
+     250     3.57 sec   0.00000  |  keff  0.99343   avg  0.99491   SD   13.602
+     251     3.61 sec   0.00000  |  keff  0.99350   avg  0.99490   SD   13.544
+     252     3.57 sec   0.00000  |  keff  0.99171   avg  0.99488   SD   13.617
+     253     3.61 sec   0.00000  |  keff  0.99595   avg  0.99488   SD   13.546
+     254     3.63 sec   0.00000  |  keff  0.99521   avg  0.99488   SD   13.459
+     255     3.61 sec   0.00000  |  keff  0.99580   avg  0.99489   SD   13.385
+     256     3.63 sec   0.00000  |  keff  0.99428   avg  0.99489   SD   13.305
+     257     3.66 sec   0.00000  |  keff  0.99425   avg  0.99488   SD   13.226
+     258     3.58 sec   0.00000  |  keff  0.99305   avg  0.99487   SD   13.193
+     259     3.56 sec   0.00000  |  keff  0.99563   avg  0.99488   SD   13.119
+     260     3.71 sec   0.00000  |  keff  0.99718   avg  0.99489   SD   13.116
+     261     3.62 sec   0.00000  |  keff  0.99728   avg  0.99490   SD   13.118
+     262     3.62 sec   0.00000  |  keff  0.99712   avg  0.99492   SD   13.109
+     263     3.56 sec   0.00000  |  keff  0.99520   avg  0.99492   SD   13.029
+     264     3.58 sec   0.00000  |  keff  0.99890   avg  0.99494   SD   13.175
+     265     3.61 sec   0.00000  |  keff  0.99938   avg  0.99497   SD   13.368
+     266     3.58 sec   0.00000  |  keff  0.99571   avg  0.99498   SD   13.295
+     267     3.57 sec   0.00000  |  keff  0.99652   avg  0.99498   SD   13.247
+     268     3.64 sec   0.00000  |  keff  0.99397   avg  0.99498   SD   13.182
+     269     3.56 sec   0.00000  |  keff  0.99668   avg  0.99499   SD   13.142
+     270     3.59 sec   0.00000  |  keff  0.99463   avg  0.99499   SD   13.066
+     271     3.62 sec   0.00000  |  keff  0.99308   avg  0.99498   SD   13.038
+     272     3.61 sec   0.00000  |  keff  0.99723   avg  0.99499   SD   13.027
+     273     3.63 sec   0.00000  |  keff  0.99723   avg  0.99500   SD   13.017
+     274     3.56 sec   0.00000  |  keff  0.99303   avg  0.99499   SD   12.991
+     275     3.63 sec   0.00000  |  keff  0.99360   avg  0.99498   SD   12.941
+     276     3.64 sec   0.00000  |  keff  0.99386   avg  0.99498   SD   12.883
+     277     3.64 sec   0.00000  |  keff  0.99426   avg  0.99497   SD   12.817
+     278     3.62 sec   0.00000  |  keff  0.99426   avg  0.99497   SD   12.751
+     279     3.56 sec   0.00000  |  keff  0.99439   avg  0.99496   SD   12.684
+     280     3.66 sec   0.00000  |  keff  0.99399   avg  0.99496   SD   12.624
+     281     3.64 sec   0.00000  |  keff  0.99545   avg  0.99496   SD   12.557
+     282     3.63 sec   0.00000  |  keff  0.99360   avg  0.99495   SD   12.511
+     283     3.61 sec   0.00000  |  keff  0.99391   avg  0.99495   SD   12.455
+     284     3.64 sec   0.00000  |  keff  0.99458   avg  0.99495   SD   12.389
+     285     3.60 sec   0.00000  |  keff  0.99476   avg  0.99495   SD   12.322
+     286     3.61 sec   0.00000  |  keff  0.99304   avg  0.99494   SD   12.299
+     287     3.55 sec   0.00000  |  keff  0.99737   avg  0.99495   SD   12.302
+     288     3.64 sec   0.00000  |  keff  0.99676   avg  0.99496   SD   12.274
+     289     3.53 sec   0.00000  |  keff  0.99515   avg  0.99496   SD   12.209
+     290     3.65 sec   0.00000  |  keff  0.99387   avg  0.99495   SD   12.158
+     291     3.62 sec   0.00000  |  keff  0.99466   avg  0.99495   SD   12.095
+     292     3.62 sec   0.00000  |  keff  0.99595   avg  0.99496   SD   12.043
+     293     3.66 sec   0.00000  |  keff  0.99524   avg  0.99496   SD   11.982
+     294     3.58 sec   0.00000  |  keff  0.99781   avg  0.99497   SD   12.010
+     295     3.68 sec   0.00000  |  keff  0.99177   avg  0.99496   SD   12.060
+     296     3.58 sec   0.00000  |  keff  0.99642   avg  0.99496   SD   12.022
+     297     3.58 sec   0.00000  |  keff  0.99325   avg  0.99496   SD   11.992
+     298     3.63 sec   0.00000  |  keff  0.99415   avg  0.99495   SD   11.939
+     299     3.64 sec   0.00000  |  keff  0.99491   avg  0.99495   SD   11.878
+     300     3.58 sec   0.00000  |  keff  0.99417   avg  0.99495   SD   11.825
+     301     3.59 sec   0.00000  |  keff  0.99499   avg  0.99495   SD   11.766
+     302     3.62 sec   0.00000  |  keff  0.99841   avg  0.99496   SD   11.833
+     303     3.59 sec   0.00000  |  keff  0.99386   avg  0.99496   SD   11.787
+     304     3.62 sec   0.00000  |  keff  0.99410   avg  0.99496   SD   11.737
+     305     3.56 sec   0.00000  |  keff  0.99419   avg  0.99495   SD   11.685
+     306     3.69 sec   0.00000  |  keff  0.99557   avg  0.99495   SD   11.632
+     307     3.60 sec   0.00000  |  keff  0.99241   avg  0.99494   SD   11.641
+     308     3.61 sec   0.00000  |  keff  0.99725   avg  0.99495   SD   11.638
+     309     3.60 sec   0.00000  |  keff  0.99523   avg  0.99495   SD   11.583
+     310     3.67 sec   0.00000  |  keff  0.99457   avg  0.99495   SD   11.529
+     311     3.62 sec   0.00000  |  keff  0.99551   avg  0.99496   SD   11.477
+     312     3.65 sec   0.00000  |  keff  0.99483   avg  0.99495   SD   11.423
+     313     3.61 sec   0.00000  |  keff  0.99519   avg  0.99496   SD   11.370
+     314     3.64 sec   0.00000  |  keff  0.99491   avg  0.99496   SD   11.317
+     315     3.62 sec   0.00000  |  keff  0.99662   avg  0.99496   SD   11.291
+     316     3.66 sec   0.00000  |  keff  0.99701   avg  0.99497   SD   11.278
+     317     3.63 sec   0.00000  |  keff  0.99497   avg  0.99497   SD   11.226
+     318     3.55 sec   0.00000  |  keff  0.99559   avg  0.99498   SD   11.178
+     319     3.63 sec   0.00000  |  keff  0.99566   avg  0.99498   SD   11.131
+     320     3.59 sec   0.00000  |  keff  0.99537   avg  0.99498   SD   11.082
+     321     3.61 sec   0.00000  |  keff  0.99459   avg  0.99498   SD   11.033
+     322     3.68 sec   0.00000  |  keff  0.99510   avg  0.99498   SD   10.983
+     323     3.64 sec   0.00000  |  keff  0.99503   avg  0.99498   SD   10.934
+     324     3.66 sec   0.00000  |  keff  0.99629   avg  0.99499   SD   10.901
+     325     3.61 sec   0.00000  |  keff  0.99375   avg  0.99498   SD   10.866
+     326     3.56 sec   0.00000  |  keff  0.99649   avg  0.99499   SD   10.839
+     327     3.65 sec   0.00000  |  keff  0.99426   avg  0.99498   SD   10.796
+     328     3.66 sec   0.00000  |  keff  0.99447   avg  0.99498   SD   10.751
+     329     3.61 sec   0.00000  |  keff  0.99503   avg  0.99498   SD   10.704
+     330     3.64 sec   0.00000  |  keff  0.99469   avg  0.99498   SD   10.658
+     331     3.65 sec   0.00000  |  keff  0.99361   avg  0.99497   SD   10.628
+     332     3.57 sec   0.00000  |  keff  0.99375   avg  0.99497   SD   10.595
+     333     3.58 sec   0.00000  |  keff  0.99743   avg  0.99498   SD   10.602
+     334     3.59 sec   0.00000  |  keff  0.99406   avg  0.99498   SD   10.564
+     335     3.70 sec   0.00000  |  keff  0.99002   avg  0.99495   SD   10.728
+     336     3.65 sec   0.00000  |  keff  0.99563   avg  0.99496   SD   10.687
+     337     3.62 sec   0.00000  |  keff  0.99636   avg  0.99496   SD   10.658
+     338     3.64 sec   0.00000  |  keff  0.99674   avg  0.99497   SD   10.639
+     339     3.55 sec   0.00000  |  keff  0.99315   avg  0.99496   SD   10.622
+     340     3.69 sec   0.00000  |  keff  0.99547   avg  0.99497   SD   10.580
+     341     3.64 sec   0.00000  |  keff  0.99401   avg  0.99496   SD   10.543
+     342     3.63 sec   0.00000  |  keff  0.99416   avg  0.99496   SD   10.505
+     343     3.55 sec   0.00000  |  keff  0.99248   avg  0.99495   SD   10.511
+     344     3.61 sec   0.00000  |  keff  0.99428   avg  0.99495   SD   10.471
+     345     3.60 sec   0.00000  |  keff  0.99407   avg  0.99494   SD   10.435
+     346     3.67 sec   0.00000  |  keff  0.99432   avg  0.99494   SD   10.395
+     347     3.61 sec   0.00000  |  keff  0.99400   avg  0.99494   SD   10.360
+     348     3.60 sec   0.00000  |  keff  0.99616   avg  0.99494   SD   10.330
+     349     3.67 sec   0.00000  |  keff  0.99438   avg  0.99494   SD   10.291
+     350     3.64 sec   0.00000  |  keff  0.99666   avg  0.99494   SD   10.273
+     351     3.60 sec   0.00000  |  keff  0.99253   avg  0.99494   SD   10.277
+     352     3.66 sec   0.00000  |  keff  0.99516   avg  0.99494   SD   10.236
+     353     3.67 sec   0.00000  |  keff  0.99279   avg  0.99493   SD   10.231
+     354     3.65 sec   0.00000  |  keff  0.99618   avg  0.99493   SD   10.202
+     355     3.64 sec   0.00000  |  keff  0.99475   avg  0.99493   SD   10.163
+     356     3.64 sec   0.00000  |  keff  0.99517   avg  0.99493   SD   10.123
+     357     3.60 sec   0.00000  |  keff  0.99587   avg  0.99494   SD   10.090
+     358     3.57 sec   0.00000  |  keff  0.99571   avg  0.99494   SD   10.056
+     359     3.65 sec   0.00000  |  keff  0.99491   avg  0.99494   SD   10.017
+     360     3.57 sec   0.00000  |  keff  0.99292   avg  0.99493   SD   10.008
+     361     3.56 sec   0.00000  |  keff  0.99311   avg  0.99492   SD    9.994
+     362     3.63 sec   0.00000  |  keff  0.99662   avg  0.99493   SD    9.977
+     363     3.64 sec   0.00000  |  keff  0.99460   avg  0.99493   SD    9.940
+     364     3.65 sec   0.00000  |  keff  0.99641   avg  0.99494   SD    9.918
+     365     3.64 sec   0.00000  |  keff  0.99513   avg  0.99494   SD    9.881
+     366     3.62 sec   0.00000  |  keff  0.99550   avg  0.99494   SD    9.846
+     367     3.64 sec   0.00000  |  keff  0.99391   avg  0.99493   SD    9.817
+     368     3.63 sec   0.00000  |  keff  0.99638   avg  0.99494   SD    9.795
+     369     3.63 sec   0.00000  |  keff  0.99462   avg  0.99494   SD    9.759
+     370     3.58 sec   0.00000  |  keff  0.99209   avg  0.99493   SD    9.780
+     371     3.65 sec   0.00000  |  keff  0.99421   avg  0.99493   SD    9.747
+     372     3.63 sec   0.00000  |  keff  0.99610   avg  0.99493   SD    9.721
+     373     3.63 sec   0.00000  |  keff  0.99324   avg  0.99492   SD    9.705
+     374     3.61 sec   0.00000  |  keff  0.99369   avg  0.99492   SD    9.680
+     375     3.57 sec   0.00000  |  keff  0.99570   avg  0.99492   SD    9.649
+     376     3.66 sec   0.00000  |  keff  0.99555   avg  0.99492   SD    9.617
+     377     3.64 sec   0.00000  |  keff  0.99732   avg  0.99493   SD    9.621
+     378     3.62 sec   0.00000  |  keff  0.99753   avg  0.99494   SD    9.632
+     379     3.62 sec   0.00000  |  keff  0.99612   avg  0.99495   SD    9.606
+     380     3.59 sec   0.00000  |  keff  0.99480   avg  0.99495   SD    9.572
+     381     3.61 sec   0.00000  |  keff  0.99287   avg  0.99494   SD    9.567
+     382     3.63 sec   0.00000  |  keff  0.99478   avg  0.99494   SD    9.533
+     383     3.65 sec   0.00000  |  keff  0.99734   avg  0.99495   SD    9.537
+     384     3.69 sec   0.00000  |  keff  0.99736   avg  0.99495   SD    9.541
+     385     3.66 sec   0.00000  |  keff  0.99802   avg  0.99497   SD    9.568
+     386     3.62 sec   0.00000  |  keff  0.99503   avg  0.99497   SD    9.535
+     387     3.63 sec   0.00000  |  keff  0.99536   avg  0.99497   SD    9.503
+     388     3.64 sec   0.00000  |  keff  0.99444   avg  0.99497   SD    9.471
+     389     3.66 sec   0.00000  |  keff  0.99044   avg  0.99495   SD    9.567
+     390     3.61 sec   0.00000  |  keff  0.99389   avg  0.99495   SD    9.541
+     391     3.70 sec   0.00000  |  keff  0.99607   avg  0.99495   SD    9.516
+     392     3.67 sec   0.00000  |  keff  0.99398   avg  0.99495   SD    9.489
+     393     3.57 sec   0.00000  |  keff  0.99789   avg  0.99496   SD    9.510
+     394     3.65 sec   0.00000  |  keff  0.99379   avg  0.99495   SD    9.486
+     395     3.58 sec   0.00000  |  keff  0.99315   avg  0.99495   SD    9.474
+     396     3.62 sec   0.00000  |  keff  0.99325   avg  0.99494   SD    9.459
+     397     3.65 sec   0.00000  |  keff  0.99573   avg  0.99494   SD    9.431
+     398     3.64 sec   0.00000  |  keff  0.99613   avg  0.99495   SD    9.407
+     399     3.62 sec   0.00000  |  keff  0.99528   avg  0.99495   SD    9.377
+     400     3.62 sec   0.00000  |  keff  0.99472   avg  0.99495   SD    9.346
+     401     3.62 sec   0.00000  |  keff  0.99456   avg  0.99495   SD    9.315
+     402     3.58 sec   0.00000  |  keff  0.99756   avg  0.99496   SD    9.325
+     403     3.61 sec   0.00000  |  keff  0.99639   avg  0.99496   SD    9.306
+     404     3.64 sec   0.00000  |  keff  0.99562   avg  0.99496   SD    9.278
+     405     3.68 sec   0.00000  |  keff  0.99339   avg  0.99496   SD    9.262
+     406     3.63 sec   0.00000  |  keff  0.99632   avg  0.99496   SD    9.242
+     407     3.63 sec   0.00000  |  keff  0.99425   avg  0.99496   SD    9.215
+     408     3.68 sec   0.00000  |  keff  0.99661   avg  0.99496   SD    9.201
+     409     3.62 sec   0.00000  |  keff  0.99751   avg  0.99497   SD    9.208
+     410     3.76 sec   0.00000  |  keff  0.99772   avg  0.99498   SD    9.221
+     411     3.66 sec   0.00000  |  keff  0.99581   avg  0.99498   SD    9.195
+     412     3.63 sec   0.00000  |  keff  0.99189   avg  0.99497   SD    9.219
+     413     3.65 sec   0.00000  |  keff  0.99718   avg  0.99498   SD    9.216
+     414     3.58 sec   0.00000  |  keff  0.99495   avg  0.99498   SD    9.187
+     415     3.67 sec   0.00000  |  keff  0.99417   avg  0.99498   SD    9.161
+     416     3.60 sec   0.00000  |  keff  0.99370   avg  0.99497   SD    9.141
+     417     3.66 sec   0.00000  |  keff  0.99209   avg  0.99497   SD    9.158
+     418     3.59 sec   0.00000  |  keff  0.99507   avg  0.99497   SD    9.129
+     419     3.59 sec   0.00000  |  keff  0.99492   avg  0.99497   SD    9.100
+     420     3.66 sec   0.00000  |  keff  0.99613   avg  0.99497   SD    9.079
+     421     3.53 sec   0.00000  |  keff  0.99589   avg  0.99497   SD    9.055
+     422     3.63 sec   0.00000  |  keff  0.99523   avg  0.99497   SD    9.027
+     423     3.58 sec   0.00000  |  keff  0.99432   avg  0.99497   SD    9.002
+     424     3.67 sec   0.00000  |  keff  0.99586   avg  0.99497   SD    8.978
+     425     3.65 sec   0.00000  |  keff  0.99503   avg  0.99497   SD    8.950
+     426     3.56 sec   0.00000  |  keff  0.99525   avg  0.99497   SD    8.923
+     427     3.63 sec   0.00000  |  keff  0.99412   avg  0.99497   SD    8.900
+     428     3.65 sec   0.00000  |  keff  0.99301   avg  0.99497   SD    8.893
+     429     3.62 sec   0.00000  |  keff  0.99310   avg  0.99496   SD    8.884
+     430     3.64 sec   0.00000  |  keff  0.99391   avg  0.99496   SD    8.862
+     431     3.63 sec   0.00000  |  keff  0.99407   avg  0.99495   SD    8.840
+     432     3.57 sec   0.00000  |  keff  0.99327   avg  0.99495   SD    8.828
+     433     3.61 sec   0.00000  |  keff  0.99590   avg  0.99495   SD    8.806
+     434     3.63 sec   0.00000  |  keff  0.99454   avg  0.99495   SD    8.780
+     435     3.62 sec   0.00000  |  keff  0.99350   avg  0.99495   SD    8.765
+     436     3.57 sec   0.00000  |  keff  0.99474   avg  0.99495   SD    8.739
+     437     3.63 sec   0.00000  |  keff  0.99558   avg  0.99495   SD    8.715
+     438     3.74 sec   0.00000  |  keff  0.99268   avg  0.99494   SD    8.715
+     439     3.63 sec   0.00000  |  keff  0.99343   avg  0.99494   SD    8.701
+     440     3.60 sec   0.00000  |  keff  0.99573   avg  0.99494   SD    8.678
+     441     3.59 sec   0.00000  |  keff  0.99631   avg  0.99494   SD    8.662
+     442     3.63 sec   0.00000  |  keff  0.99592   avg  0.99495   SD    8.641
+     443     3.64 sec   0.00000  |  keff  0.99617   avg  0.99495   SD    8.623
+     444     3.66 sec   0.00000  |  keff  0.99606   avg  0.99495   SD    8.604
+     445     3.62 sec   0.00000  |  keff  0.99549   avg  0.99495   SD    8.581
+     446     3.52 sec   0.00000  |  keff  0.99597   avg  0.99496   SD    8.561
+     447     3.59 sec   0.00000  |  keff  0.99290   avg  0.99495   SD    8.557
+     448     3.62 sec   0.00000  |  keff  0.99514   avg  0.99495   SD    8.532
+     449     3.64 sec   0.00000  |  keff  0.99488   avg  0.99495   SD    8.508
+     450     3.57 sec   0.00000  |  keff  0.99567   avg  0.99495   SD    8.486
+     451     3.60 sec   0.00000  |  keff  0.99289   avg  0.99495   SD    8.482
+     452     3.66 sec   0.00000  |  keff  0.99315   avg  0.99494   SD    8.474
+     453     3.63 sec   0.00000  |  keff  0.99761   avg  0.99495   SD    8.483
+     454     3.65 sec   0.00000  |  keff  0.99554   avg  0.99495   SD    8.461
+     455     3.56 sec   0.00000  |  keff  0.99614   avg  0.99496   SD    8.444
+     456     3.65 sec   0.00000  |  keff  0.99275   avg  0.99495   SD    8.443
+     457     3.66 sec   0.00000  |  keff  0.99580   avg  0.99495   SD    8.422
+     458     3.68 sec   0.00000  |  keff  0.99598   avg  0.99495   SD    8.404
+     459     3.54 sec   0.00000  |  keff  0.99481   avg  0.99495   SD    8.380
+     460     3.61 sec   0.00000  |  keff  0.99557   avg  0.99496   SD    8.359
+     461     3.59 sec   0.00000  |  keff  0.99194   avg  0.99495   SD    8.377
+     462     3.56 sec   0.00000  |  keff  0.99337   avg  0.99494   SD    8.366
+     463     3.68 sec   0.00000  |  keff  0.99510   avg  0.99494   SD    8.343
+     464     3.58 sec   0.00000  |  keff  0.99431   avg  0.99494   SD    8.321
+     465     3.57 sec   0.00000  |  keff  0.99524   avg  0.99494   SD    8.299
+     466     3.62 sec   0.00000  |  keff  0.99422   avg  0.99494   SD    8.279
+     467     3.58 sec   0.00000  |  keff  0.99401   avg  0.99494   SD    8.260
+     468     3.56 sec   0.00000  |  keff  0.99394   avg  0.99494   SD    8.242
+     469     3.66 sec   0.00000  |  keff  0.99523   avg  0.99494   SD    8.220
+     470     3.69 sec   0.00000  |  keff  0.99273   avg  0.99493   SD    8.219
+     471     3.58 sec   0.00000  |  keff  0.99392   avg  0.99493   SD    8.202
+     472     3.58 sec   0.00000  |  keff  0.99433   avg  0.99493   SD    8.181
+     473     3.61 sec   0.00000  |  keff  0.99498   avg  0.99493   SD    8.159
+     474     3.59 sec   0.00000  |  keff  0.99557   avg  0.99493   SD    8.139
+     475     3.63 sec   0.00000  |  keff  0.99713   avg  0.99493   SD    8.139
+     476     3.71 sec   0.00000  |  keff  0.99217   avg  0.99493   SD    8.150
+     477     3.64 sec   0.00000  |  keff  0.99261   avg  0.99492   SD    8.152
+     478     3.68 sec   0.00000  |  keff  0.99383   avg  0.99492   SD    8.135
+     479     3.61 sec   0.00000  |  keff  0.99503   avg  0.99492   SD    8.114
+     480     3.58 sec   0.00000  |  keff  0.99625   avg  0.99492   SD    8.100
+     481     3.57 sec   0.00000  |  keff  0.99470   avg  0.99492   SD    8.079
+     482     3.62 sec   0.00000  |  keff  0.99716   avg  0.99493   SD    8.079
+     483     3.61 sec   0.00000  |  keff  0.99654   avg  0.99493   SD    8.069
+     484     3.60 sec   0.00000  |  keff  0.99353   avg  0.99493   SD    8.056
+     485     3.63 sec   0.00000  |  keff  0.99446   avg  0.99493   SD    8.036
+     486     3.64 sec   0.00000  |  keff  0.99458   avg  0.99492   SD    8.016
+     487     3.56 sec   0.00000  |  keff  0.99382   avg  0.99492   SD    8.000
+     488     3.61 sec   0.00000  |  keff  0.99274   avg  0.99492   SD    7.999
+     489     3.57 sec   0.00000  |  keff  0.99366   avg  0.99491   SD    7.985
+     490     3.58 sec   0.00000  |  keff  0.99745   avg  0.99492   SD    7.991
+     491     3.62 sec   0.00000  |  keff  0.99519   avg  0.99492   SD    7.971
+     492     3.72 sec   0.00000  |  keff  0.99453   avg  0.99492   SD    7.951
+     493     3.61 sec   0.00000  |  keff  0.99427   avg  0.99492   SD    7.933
+     494     3.64 sec   0.00000  |  keff  0.99454   avg  0.99492   SD    7.913
+     495     3.59 sec   0.00000  |  keff  0.99678   avg  0.99492   SD    7.907
+     496     3.66 sec   0.00000  |  keff  0.99408   avg  0.99492   SD    7.890
+     497     3.66 sec   0.00000  |  keff  0.99451   avg  0.99492   SD    7.871
+     498     3.57 sec   0.00000  |  keff  0.99553   avg  0.99492   SD    7.853
+     499     3.62 sec   0.00000  |  keff  0.99343   avg  0.99492   SD    7.842
+     500     3.73 sec   0.00000  |  keff  0.99900   avg  0.99493   SD    7.889
+     501     3.56 sec   0.00000  |  keff  0.99348   avg  0.99492   SD    7.877
+     502     3.60 sec   0.00000  |  keff  0.99411   avg  0.99492   SD    7.860
+     503     3.66 sec   0.00000  |  keff  0.99530   avg  0.99492   SD    7.841
+     504     3.63 sec   0.00000  |  keff  0.99272   avg  0.99492   SD    7.841
+     505     3.64 sec   0.00000  |  keff  0.99707   avg  0.99492   SD    7.839
+     506     3.63 sec   0.00000  |  keff  0.99046   avg  0.99491   SD    7.897
+     507     3.62 sec   0.00000  |  keff  0.99611   avg  0.99491   SD    7.883
+     508     3.68 sec   0.00000  |  keff  0.99379   avg  0.99491   SD    7.869
+     509     3.65 sec   0.00000  |  keff  0.99496   avg  0.99491   SD    7.849
+     510     3.62 sec   0.00000  |  keff  0.99640   avg  0.99491   SD    7.839
+     511     3.60 sec   0.00000  |  keff  0.99343   avg  0.99491   SD    7.828
+     512     3.62 sec   0.00000  |  keff  0.99432   avg  0.99491   SD    7.810
+     513     3.62 sec   0.00000  |  keff  0.99458   avg  0.99491   SD    7.792
+     514     3.62 sec   0.00000  |  keff  0.99307   avg  0.99490   SD    7.785
+     515     3.58 sec   0.00000  |  keff  0.99653   avg  0.99491   SD    7.776
+     516     3.58 sec   0.00000  |  keff  0.99836   avg  0.99492   SD    7.802
+     517     3.58 sec   0.00000  |  keff  0.99555   avg  0.99492   SD    7.785
+     518     3.57 sec   0.00000  |  keff  0.99512   avg  0.99492   SD    7.766
+     519     3.62 sec   0.00000  |  keff  0.99591   avg  0.99492   SD    7.751
+     520     3.59 sec   0.00000  |  keff  0.99782   avg  0.99493   SD    7.763
+     521     3.61 sec   0.00000  |  keff  0.99287   avg  0.99492   SD    7.760
+     522     3.62 sec   0.00000  |  keff  0.99533   avg  0.99492   SD    7.742
+     523     3.64 sec   0.00000  |  keff  0.99486   avg  0.99492   SD    7.724
+     524     3.66 sec   0.00000  |  keff  0.99303   avg  0.99492   SD    7.719
+     525     3.64 sec   0.00000  |  keff  0.99306   avg  0.99491   SD    7.713
+     526     3.66 sec   0.00000  |  keff  0.99127   avg  0.99491   SD    7.742
+     527     3.63 sec   0.00000  |  keff  0.99448   avg  0.99491   SD    7.725
+     528     3.70 sec   0.00000  |  keff  0.99688   avg  0.99491   SD    7.720
+     529     3.59 sec   0.00000  |  keff  0.99202   avg  0.99490   SD    7.732
+     530     3.63 sec   0.00000  |  keff  0.99233   avg  0.99490   SD    7.737
+     531     3.60 sec   0.00000  |  keff  0.99509   avg  0.99490   SD    7.719
+     532     3.65 sec   0.00000  |  keff  0.99399   avg  0.99490   SD    7.704
+     533     3.67 sec   0.00000  |  keff  0.99522   avg  0.99490   SD    7.687
+     534     3.58 sec   0.00000  |  keff  0.99258   avg  0.99489   SD    7.687
+     535     3.65 sec   0.00000  |  keff  0.99566   avg  0.99489   SD    7.672
+     536     3.62 sec   0.00000  |  keff  0.99781   avg  0.99490   SD    7.683
+     537     3.67 sec   0.00000  |  keff  0.99385   avg  0.99490   SD    7.669
+     538     3.61 sec   0.00000  |  keff  0.99324   avg  0.99489   SD    7.661
+     539     3.54 sec   0.00000  |  keff  0.99644   avg  0.99490   SD    7.652
+     540     3.64 sec   0.00000  |  keff  0.99402   avg  0.99489   SD    7.637
+     541     3.68 sec   0.00000  |  keff  0.99609   avg  0.99490   SD    7.625
+     542     3.60 sec   0.00000  |  keff  0.99444   avg  0.99490   SD    7.608
+     543     3.60 sec   0.00000  |  keff  0.99746   avg  0.99490   SD    7.613
+     544     3.56 sec   0.00000  |  keff  0.99429   avg  0.99490   SD    7.597
+     545     3.59 sec   0.00000  |  keff  0.99596   avg  0.99490   SD    7.584
+     546     3.58 sec   0.00000  |  keff  0.99727   avg  0.99491   SD    7.585
+     547     3.62 sec   0.00000  |  keff  0.99633   avg  0.99491   SD    7.575
+     548     3.63 sec   0.00000  |  keff  0.99618   avg  0.99491   SD    7.563
+     549     3.60 sec   0.00000  |  keff  0.99313   avg  0.99491   SD    7.557
+     550     3.62 sec   0.00000  |  keff  0.99638   avg  0.99491   SD    7.547
+     551     3.66 sec   0.00000  |  keff  0.99413   avg  0.99491   SD    7.532
+     552     3.64 sec   0.00000  |  keff  0.99532   avg  0.99491   SD    7.516
+     553     3.68 sec   0.00000  |  keff  0.99434   avg  0.99491   SD    7.501
+     554     3.57 sec   0.00000  |  keff  0.99680   avg  0.99492   SD    7.496
+     555     3.70 sec   0.00000  |  keff  0.99605   avg  0.99492   SD    7.483
+     556     3.67 sec   0.00000  |  keff  0.99451   avg  0.99492   SD    7.467
+     557     3.63 sec   0.00000  |  keff  0.99751   avg  0.99492   SD    7.473
+     558     3.67 sec   0.00000  |  keff  0.99721   avg  0.99493   SD    7.473
+     559     3.67 sec   0.00000  |  keff  0.99551   avg  0.99493   SD    7.458
+     560     3.57 sec   0.00000  |  keff  0.99577   avg  0.99493   SD    7.444
+     561     3.63 sec   0.00000  |  keff  0.99515   avg  0.99493   SD    7.428
+     562     3.64 sec   0.00000  |  keff  0.99349   avg  0.99493   SD    7.418
+     563     3.66 sec   0.00000  |  keff  0.99707   avg  0.99493   SD    7.417
+     564     3.63 sec   0.00000  |  keff  0.99739   avg  0.99494   SD    7.419
+     565     3.61 sec   0.00000  |  keff  0.99627   avg  0.99494   SD    7.409
+     566     3.65 sec   0.00000  |  keff  0.99673   avg  0.99494   SD    7.403
+     567     3.62 sec   0.00000  |  keff  0.99791   avg  0.99495   SD    7.414
+     568     3.66 sec   0.00000  |  keff  0.99538   avg  0.99495   SD    7.399
+     569     3.63 sec   0.00000  |  keff  0.99405   avg  0.99495   SD    7.386
+     570     3.60 sec   0.00000  |  keff  0.99507   avg  0.99495   SD    7.370
+     571     3.70 sec   0.00000  |  keff  0.99728   avg  0.99496   SD    7.371
+     572     3.61 sec   0.00000  |  keff  0.99602   avg  0.99496   SD    7.359
+     573     3.66 sec   0.00000  |  keff  0.99392   avg  0.99496   SD    7.347
+     574     3.57 sec   0.00000  |  keff  0.99698   avg  0.99496   SD    7.343
+     575     3.65 sec   0.00000  |  keff  0.99582   avg  0.99496   SD    7.330
+     576     3.60 sec   0.00000  |  keff  0.99731   avg  0.99497   SD    7.331
+     577     3.57 sec   0.00000  |  keff  0.99354   avg  0.99496   SD    7.322
+     578     3.57 sec   0.00000  |  keff  0.99430   avg  0.99496   SD    7.308
+     579     3.56 sec   0.00000  |  keff  0.99262   avg  0.99496   SD    7.309
+     580     3.77 sec   0.00000  |  keff  0.99368   avg  0.99495   SD    7.299
+     581     3.65 sec   0.00000  |  keff  0.99377   avg  0.99495   SD    7.288
+     582     3.60 sec   0.00000  |  keff  0.99547   avg  0.99495   SD    7.273
+     583     3.59 sec   0.00000  |  keff  0.99331   avg  0.99495   SD    7.266
+     584     3.68 sec   0.00000  |  keff  0.99561   avg  0.99495   SD    7.253
+     585     3.65 sec   0.00000  |  keff  0.99291   avg  0.99495   SD    7.250
+     586     3.68 sec   0.00000  |  keff  0.99648   avg  0.99495   SD    7.242
+     587     3.62 sec   0.00000  |  keff  0.99408   avg  0.99495   SD    7.229
+     588     3.65 sec   0.00000  |  keff  0.99310   avg  0.99494   SD    7.224
+     589     3.63 sec   0.00000  |  keff  0.99265   avg  0.99494   SD    7.225
+     590     3.65 sec   0.00000  |  keff  0.99468   avg  0.99494   SD    7.210
+     591     3.62 sec   0.00000  |  keff  0.99222   avg  0.99493   SD    7.217
+     592     3.67 sec   0.00000  |  keff  0.99290   avg  0.99493   SD    7.214
+     593     3.64 sec   0.00000  |  keff  0.99403   avg  0.99493   SD    7.202
+     594     3.64 sec   0.00000  |  keff  0.99650   avg  0.99493   SD    7.194
+     595     3.59 sec   0.00000  |  keff  0.99277   avg  0.99493   SD    7.193
+     596     3.64 sec   0.00000  |  keff  0.99279   avg  0.99492   SD    7.191
+     597     3.71 sec   0.00000  |  keff  0.99660   avg  0.99493   SD    7.184
+     598     3.63 sec   0.00000  |  keff  0.99701   avg  0.99493   SD    7.182
+     599     3.63 sec   0.00000  |  keff  0.99437   avg  0.99493   SD    7.169
+     600     3.67 sec   0.00000  |  keff  0.99640   avg  0.99493   SD    7.160
+ 
+    Simulation of Burnup Step Terminated...
+    - Elapsed time    :   1982.085 sec   33.03 min
+    - Step Final keff :   0.994932 +/-   7.160
+ 
+    GENT   55601.30070 +/-    13.50986 scale:1E-9
+ BETASUM       741.568 +/-     1.87536 scale:1E-5
+BETASUMO       655.619 +/-     2.58710 scale:1E-5
+  BETA1        26.024 +/-     0.35595 scale:1E-5
+BETAOG1        22.960 +/-     0.37061 scale:1E-5
+  BETA2       133.613 +/-     0.82766 scale:1E-5
+BETAOG2       117.674 +/-     0.91273 scale:1E-5
+  BETA3       127.809 +/-     0.76160 scale:1E-5
+BETAOG3       113.690 +/-     0.85248 scale:1E-5
+  BETA4       285.190 +/-     1.19201 scale:1E-5
+BETAOG4       253.508 +/-     1.33328 scale:1E-5
+  BETA5       119.193 +/-     0.73584 scale:1E-5
+BETAOG5       103.662 +/-     0.80436 scale:1E-5
+  BETA6        49.739 +/-     0.47139 scale:1E-5
+BETAOG6        44.125 +/-     0.53382 scale:1E-5
+  BETA7         0.000 +/-     0.00000 scale:1E-5
+BETAOG7         0.000 +/-     0.00000 scale:1E-5
+  BETA8         0.000 +/-     0.00000 scale:1E-5
+BETAOG8         0.000 +/-     0.00000 scale:1E-5
+  ALPHA      -0.00013 +/-     0.00000 scale:1E6
+ 
+SPECTRUM, ENERGY =   1.3032750E+01  1.13250E+05 +/-  7.63332E+01 [  2.0000000E+01  6.0654998E+00]
+SPECTRUM, ENERGY =   4.8722498E+00  4.47135E+05 +/-  1.45947E+02 [  6.0654998E+00  3.6789999E+00]
+SPECTRUM, ENERGY =   2.9549999E+00  8.91559E+05 +/-  1.91566E+02 [  3.6789999E+00  2.2309999E+00]
+SPECTRUM, ENERGY =   1.7920000E+00  9.12318E+05 +/-  1.77668E+02 [  2.2309999E+00  1.3530000E+00]
+SPECTRUM, ENERGY =   1.0870000E+00  7.48666E+05 +/-  1.37358E+02 [  1.3530000E+00  8.2099998E-01]
+SPECTRUM, ENERGY =   6.6049999E-01  6.78628E+05 +/-  1.24728E+02 [  8.2099998E-01  5.0000000E-01]
+SPECTRUM, ENERGY =   4.0125000E-01  4.54990E+05 +/-  1.01039E+02 [  5.0000000E-01  3.0250001E-01]
+SPECTRUM, ENERGY =   2.4275000E-01  3.81573E+05 +/-  9.10694E+01 [  3.0250001E-01  1.8300000E-01]
+SPECTRUM, ENERGY =   1.4700000E-01  2.95545E+05 +/-  7.57787E+01 [  1.8300000E-01  1.1100000E-01]
+SPECTRUM, ENERGY =   8.9214999E-02  2.42937E+05 +/-  6.95186E+01 [  1.1100000E-01  6.7429997E-02]
+SPECTRUM, ENERGY =   5.4139998E-02  2.10286E+05 +/-  5.89228E+01 [  6.7429997E-02  4.0849999E-02]
+SPECTRUM, ENERGY =   3.2814999E-02  1.89879E+05 +/-  6.05727E+01 [  4.0849999E-02  2.4780000E-02]
+SPECTRUM, ENERGY =   1.9905000E-02  1.74835E+05 +/-  5.26913E+01 [  2.4780000E-02  1.5030000E-02]
+SPECTRUM, ENERGY =   1.2074000E-02  1.67579E+05 +/-  5.25833E+01 [  1.5030000E-02  9.1180000E-03]
+SPECTRUM, ENERGY =   7.3090000E-03  1.64948E+05 +/-  5.61434E+01 [  9.1180000E-03  5.5000000E-03]
+SPECTRUM, ENERGY =   4.5095499E-03  1.42678E+05 +/-  4.98601E+01 [  5.5000000E-03  3.5190999E-03]
+SPECTRUM, ENERGY =   2.8792750E-03  1.41655E+05 +/-  5.08695E+01 [  3.5190999E-03  2.2394501E-03]
+SPECTRUM, ENERGY =   1.8322751E-03  1.40228E+05 +/-  5.00402E+01 [  2.2394501E-03  1.4251000E-03]
+SPECTRUM, ENERGY =   1.1659990E-03  1.38391E+05 +/-  4.58698E+01 [  1.4251000E-03  9.0689800E-04]
+SPECTRUM, ENERGY =   6.3708000E-04  2.73966E+05 +/-  6.75302E+01 [  9.0689800E-04  3.6726199E-04]
+SPECTRUM, ENERGY =   2.5799499E-04  2.71708E+05 +/-  7.26185E+01 [  3.6726199E-04  1.4872800E-04]
+SPECTRUM, ENERGY =   1.1211470E-04  1.99996E+05 +/-  5.66291E+01 [  1.4872800E-04  7.5501397E-05]
+SPECTRUM, ENERGY =   6.1776698E-05  1.31623E+05 +/-  4.38692E+01 [  7.5501397E-05  4.8051999E-05]
+SPECTRUM, ENERGY =   3.7876000E-05  1.57486E+05 +/-  4.97139E+01 [  4.8051999E-05  2.7700000E-05]
+SPECTRUM, ENERGY =   2.1834000E-05  1.53496E+05 +/-  4.46906E+01 [  2.7700000E-05  1.5968000E-05]
+SPECTRUM, ENERGY =   1.2922500E-05  1.35276E+05 +/-  4.55732E+01 [  1.5968000E-05  9.8769997E-06]
+SPECTRUM, ENERGY =   6.9384998E-06  2.41371E+05 +/-  6.04177E+01 [  9.8769997E-06  4.0000000E-06]
+SPECTRUM, ENERGY =   3.6499999E-06  5.22105E+04 +/-  2.56435E+01 [  4.0000000E-06  3.2999999E-06]
+SPECTRUM, ENERGY =   2.9500000E-06  6.60606E+04 +/-  3.03766E+01 [  3.2999999E-06  2.6000000E-06]
+SPECTRUM, ENERGY =   2.3500000E-06  5.95768E+04 +/-  2.77611E+01 [  2.6000000E-06  2.1000001E-06]
+SPECTRUM, ENERGY =   1.9775001E-06  3.47905E+04 +/-  2.01022E+01 [  2.1000001E-06  1.8550001E-06]
+SPECTRUM, ENERGY =   1.6775001E-06  5.98724E+04 +/-  2.96738E+01 [  1.8550001E-06  1.5000001E-06]
+SPECTRUM, ENERGY =   1.4000000E-06  4.09411E+04 +/-  2.27813E+01 [  1.5000001E-06  1.3000000E-06]
+SPECTRUM, ENERGY =   1.2250000E-06  3.51712E+04 +/-  2.15680E+01 [  1.3000000E-06  1.1500000E-06]
+SPECTRUM, ENERGY =   1.1365000E-06  6.70262E+03 +/-  8.88180E+00 [  1.1500000E-06  1.1229999E-06]
+SPECTRUM, ENERGY =   1.1100000E-06  6.87850E+03 +/-  8.93559E+00 [  1.1229999E-06  1.0970000E-06]
+SPECTRUM, ENERGY =   1.0840000E-06  6.82496E+03 +/-  8.76973E+00 [  1.0970000E-06  1.0710000E-06]
+SPECTRUM, ENERGY =   1.0580000E-06  7.20998E+03 +/-  9.08701E+00 [  1.0710000E-06  1.0450000E-06]
+SPECTRUM, ENERGY =   1.0325000E-06  6.93501E+03 +/-  8.73436E+00 [  1.0450000E-06  1.0200000E-06]
+SPECTRUM, ENERGY =   1.0080000E-06  6.81185E+03 +/-  9.19552E+00 [  1.0200000E-06  9.9600004E-07]
+SPECTRUM, ENERGY =   9.8400000E-07  7.26386E+03 +/-  9.49095E+00 [  9.9600004E-07  9.7199995E-07]
+SPECTRUM, ENERGY =   9.6099998E-07  6.62234E+03 +/-  8.77757E+00 [  9.7199995E-07  9.5000001E-07]
+SPECTRUM, ENERGY =   9.3000000E-07  1.26628E+04 +/-  1.23027E+01 [  9.5000001E-07  9.0999998E-07]
+SPECTRUM, ENERGY =   8.7999999E-07  2.00640E+04 +/-  1.63519E+01 [  9.0999998E-07  8.4999999E-07]
+SPECTRUM, ENERGY =   8.1499999E-07  2.55063E+04 +/-  1.75700E+01 [  8.4999999E-07  7.7999999E-07]
+SPECTRUM, ENERGY =   7.0249999E-07  6.67435E+04 +/-  2.93945E+01 [  7.7999999E-07  6.2499998E-07]
+SPECTRUM, ENERGY =   5.6249999E-07  6.93631E+04 +/-  3.08630E+01 [  6.2499998E-07  5.0000000E-07]
+SPECTRUM, ENERGY =   4.5000000E-07  7.10224E+04 +/-  3.12827E+01 [  5.0000000E-07  4.0000000E-07]
+SPECTRUM, ENERGY =   3.7500000E-07  4.29391E+04 +/-  2.14157E+01 [  4.0000000E-07  3.4999999E-07]
+SPECTRUM, ENERGY =   3.3500000E-07  2.89973E+04 +/-  1.74807E+01 [  3.4999999E-07  3.2000000E-07]
+SPECTRUM, ENERGY =   3.1000000E-07  2.13068E+04 +/-  1.48528E+01 [  3.2000000E-07  3.0000001E-07]
+SPECTRUM, ENERGY =   2.9000000E-07  2.31206E+04 +/-  1.55112E+01 [  3.0000001E-07  2.7999999E-07]
+SPECTRUM, ENERGY =   2.6500000E-07  3.92262E+04 +/-  1.97385E+01 [  2.7999999E-07  2.5000000E-07]
+SPECTRUM, ENERGY =   2.3500000E-07  4.84543E+04 +/-  2.14632E+01 [  2.5000000E-07  2.2000000E-07]
+SPECTRUM, ENERGY =   2.0000000E-07  9.27525E+04 +/-  2.90094E+01 [  2.2000000E-07  1.8000000E-07]
+SPECTRUM, ENERGY =   1.6000000E-07  1.70652E+05 +/-  3.91436E+01 [  1.8000000E-07  1.4000000E-07]
+SPECTRUM, ENERGY =   1.2000000E-07  3.95479E+05 +/-  5.91905E+01 [  1.4000000E-07  1.0000000E-07]
+SPECTRUM, ENERGY =   9.0000000E-08  3.91712E+05 +/-  5.76930E+01 [  1.0000000E-07  8.0000000E-08]
+SPECTRUM, ENERGY =   7.3500001E-08  3.54122E+05 +/-  4.85870E+01 [  8.0000000E-08  6.7000002E-08]
+SPECTRUM, ENERGY =   6.2500002E-08  3.12750E+05 +/-  4.76884E+01 [  6.7000002E-08  5.8000001E-08]
+SPECTRUM, ENERGY =   5.4000001E-08  3.25774E+05 +/-  4.48919E+01 [  5.8000001E-08  5.0000001E-08]
+SPECTRUM, ENERGY =   4.6000000E-08  3.72380E+05 +/-  4.95096E+01 [  5.0000001E-08  4.2000000E-08]
+SPECTRUM, ENERGY =   3.8500000E-08  3.56686E+05 +/-  4.57118E+01 [  4.2000000E-08  3.4999999E-08]
+SPECTRUM, ENERGY =   3.2499999E-08  2.67378E+05 +/-  3.91239E+01 [  3.4999999E-08  2.9999999E-08]
+SPECTRUM, ENERGY =   2.7500000E-08  2.71095E+05 +/-  3.68766E+01 [  2.9999999E-08  2.5000000E-08]
+SPECTRUM, ENERGY =   2.2500000E-08  2.62091E+05 +/-  3.62783E+01 [  2.5000000E-08  2.0000000E-08]
+SPECTRUM, ENERGY =   1.7500000E-08  2.43833E+05 +/-  3.35202E+01 [  2.0000000E-08  1.4999999E-08]
+SPECTRUM, ENERGY =   1.2500000E-08  2.03691E+05 +/-  2.97165E+01 [  1.4999999E-08  9.9999999E-09]
+SPECTRUM, ENERGY =   7.5000000E-09  1.49747E+05 +/-  2.36209E+01 [  9.9999999E-09  5.0000000E-09]
+SPECTRUM, ENERGY =   2.5050000E-09  5.75403E+04 +/-  1.27607E+01 [  5.0000000E-09  1.0000000E-11]
+ 
+ADJOINT SPECTRUM, ENERGY =   1.3032750E+01  1.13179E+00 +/-  3.05361E-03 [  2.0000000E+01  6.0654998E+00]
+ADJOINT SPECTRUM, ENERGY =   4.8722498E+00  1.42948E+00 +/-  1.59800E-03 [  6.0654998E+00  3.6789999E+00]
+ADJOINT SPECTRUM, ENERGY =   2.9549999E+00  1.70663E+00 +/-  1.19435E-03 [  3.6789999E+00  2.2309999E+00]
+ADJOINT SPECTRUM, ENERGY =   1.7920000E+00  1.93119E+00 +/-  1.15312E-03 [  2.2309999E+00  1.3530000E+00]
+ADJOINT SPECTRUM, ENERGY =   1.0870000E+00  2.15323E+00 +/-  1.16095E-03 [  1.3530000E+00  8.2099998E-01]
+ADJOINT SPECTRUM, ENERGY =   6.6049999E-01  2.22217E+00 +/-  1.17350E-03 [  8.2099998E-01  5.0000000E-01]
+ADJOINT SPECTRUM, ENERGY =   4.0125000E-01  2.34620E+00 +/-  1.35432E-03 [  5.0000000E-01  3.0250001E-01]
+ADJOINT SPECTRUM, ENERGY =   2.4275000E-01  2.38932E+00 +/-  1.34247E-03 [  3.0250001E-01  1.8300000E-01]
+ADJOINT SPECTRUM, ENERGY =   1.4700000E-01  2.42298E+00 +/-  1.40590E-03 [  1.8300000E-01  1.1100000E-01]
+ADJOINT SPECTRUM, ENERGY =   8.9214999E-02  2.45404E+00 +/-  1.46617E-03 [  1.1100000E-01  6.7429997E-02]
+ADJOINT SPECTRUM, ENERGY =   5.4139998E-02  2.48567E+00 +/-  1.42433E-03 [  6.7429997E-02  4.0849999E-02]
+ADJOINT SPECTRUM, ENERGY =   3.2814999E-02  2.48811E+00 +/-  1.50791E-03 [  4.0849999E-02  2.4780000E-02]
+ADJOINT SPECTRUM, ENERGY =   1.9905000E-02  2.52651E+00 +/-  1.59030E-03 [  2.4780000E-02  1.5030000E-02]
+ADJOINT SPECTRUM, ENERGY =   1.2074000E-02  2.52468E+00 +/-  1.50099E-03 [  1.5030000E-02  9.1180000E-03]
+ADJOINT SPECTRUM, ENERGY =   7.3090000E-03  2.52538E+00 +/-  1.64526E-03 [  9.1180000E-03  5.5000000E-03]
+ADJOINT SPECTRUM, ENERGY =   4.5095499E-03  2.53840E+00 +/-  1.65778E-03 [  5.5000000E-03  3.5190999E-03]
+ADJOINT SPECTRUM, ENERGY =   2.8792750E-03  2.55778E+00 +/-  1.74278E-03 [  3.5190999E-03  2.2394501E-03]
+ADJOINT SPECTRUM, ENERGY =   1.8322751E-03  2.56242E+00 +/-  1.73983E-03 [  2.2394501E-03  1.4251000E-03]
+ADJOINT SPECTRUM, ENERGY =   1.1659990E-03  2.58178E+00 +/-  1.65228E-03 [  1.4251000E-03  9.0689800E-04]
+ADJOINT SPECTRUM, ENERGY =   6.3708000E-04  2.59589E+00 +/-  1.29200E-03 [  9.0689800E-04  3.6726199E-04]
+ADJOINT SPECTRUM, ENERGY =   2.5799499E-04  2.60201E+00 +/-  1.33080E-03 [  3.6726199E-04  1.4872800E-04]
+ADJOINT SPECTRUM, ENERGY =   1.1211470E-04  2.62798E+00 +/-  1.45138E-03 [  1.4872800E-04  7.5501397E-05]
+ADJOINT SPECTRUM, ENERGY =   6.1776698E-05  2.64853E+00 +/-  1.73134E-03 [  7.5501397E-05  4.8051999E-05]
+ADJOINT SPECTRUM, ENERGY =   3.7876000E-05  2.65681E+00 +/-  1.63500E-03 [  4.8051999E-05  2.7700000E-05]
+ADJOINT SPECTRUM, ENERGY =   2.1834000E-05  2.67912E+00 +/-  1.57315E-03 [  2.7700000E-05  1.5968000E-05]
+ADJOINT SPECTRUM, ENERGY =   1.2922500E-05  2.73678E+00 +/-  1.79392E-03 [  1.5968000E-05  9.8769997E-06]
+ADJOINT SPECTRUM, ENERGY =   6.9384998E-06  2.75045E+00 +/-  1.35029E-03 [  9.8769997E-06  4.0000000E-06]
+ADJOINT SPECTRUM, ENERGY =   3.6499999E-06  2.84445E+00 +/-  2.74998E-03 [  4.0000000E-06  3.2999999E-06]
+ADJOINT SPECTRUM, ENERGY =   2.9500000E-06  2.84029E+00 +/-  2.45174E-03 [  3.2999999E-06  2.6000000E-06]
+ADJOINT SPECTRUM, ENERGY =   2.3500000E-06  2.84866E+00 +/-  2.68981E-03 [  2.6000000E-06  2.1000001E-06]
+ADJOINT SPECTRUM, ENERGY =   1.9775001E-06  2.84355E+00 +/-  3.38698E-03 [  2.1000001E-06  1.8550001E-06]
+ADJOINT SPECTRUM, ENERGY =   1.6775001E-06  2.85766E+00 +/-  2.56182E-03 [  1.8550001E-06  1.5000001E-06]
+ADJOINT SPECTRUM, ENERGY =   1.4000000E-06  2.86229E+00 +/-  3.01004E-03 [  1.5000001E-06  1.3000000E-06]
+ADJOINT SPECTRUM, ENERGY =   1.2250000E-06  2.86530E+00 +/-  3.42693E-03 [  1.3000000E-06  1.1500000E-06]
+ADJOINT SPECTRUM, ENERGY =   1.1365000E-06  2.87058E+00 +/-  7.22063E-03 [  1.1500000E-06  1.1229999E-06]
+ADJOINT SPECTRUM, ENERGY =   1.1100000E-06  2.87721E+00 +/-  7.25832E-03 [  1.1229999E-06  1.0970000E-06]
+ADJOINT SPECTRUM, ENERGY =   1.0840000E-06  2.86636E+00 +/-  7.03340E-03 [  1.0970000E-06  1.0710000E-06]
+ADJOINT SPECTRUM, ENERGY =   1.0580000E-06  2.87782E+00 +/-  7.00410E-03 [  1.0710000E-06  1.0450000E-06]
+ADJOINT SPECTRUM, ENERGY =   1.0325000E-06  2.87087E+00 +/-  7.21153E-03 [  1.0450000E-06  1.0200000E-06]
+ADJOINT SPECTRUM, ENERGY =   1.0080000E-06  2.87251E+00 +/-  7.41243E-03 [  1.0200000E-06  9.9600004E-07]
+ADJOINT SPECTRUM, ENERGY =   9.8400000E-07  2.88283E+00 +/-  7.19884E-03 [  9.9600004E-07  9.7199995E-07]
+ADJOINT SPECTRUM, ENERGY =   9.6099998E-07  2.86653E+00 +/-  7.16782E-03 [  9.7199995E-07  9.5000001E-07]
+ADJOINT SPECTRUM, ENERGY =   9.3000000E-07  2.87889E+00 +/-  5.25082E-03 [  9.5000001E-07  9.0999998E-07]
+ADJOINT SPECTRUM, ENERGY =   8.7999999E-07  2.87271E+00 +/-  4.37387E-03 [  9.0999998E-07  8.4999999E-07]
+ADJOINT SPECTRUM, ENERGY =   8.1499999E-07  2.87585E+00 +/-  3.85097E-03 [  8.4999999E-07  7.7999999E-07]
+ADJOINT SPECTRUM, ENERGY =   7.0249999E-07  2.88886E+00 +/-  2.54652E-03 [  7.7999999E-07  6.2499998E-07]
+ADJOINT SPECTRUM, ENERGY =   5.6249999E-07  2.89654E+00 +/-  2.38610E-03 [  6.2499998E-07  5.0000000E-07]
+ADJOINT SPECTRUM, ENERGY =   4.5000000E-07  2.90835E+00 +/-  2.46866E-03 [  5.0000000E-07  4.0000000E-07]
+ADJOINT SPECTRUM, ENERGY =   3.7500000E-07  2.92494E+00 +/-  2.83816E-03 [  4.0000000E-07  3.4999999E-07]
+ADJOINT SPECTRUM, ENERGY =   3.3500000E-07  2.92949E+00 +/-  3.57412E-03 [  3.4999999E-07  3.2000000E-07]
+ADJOINT SPECTRUM, ENERGY =   3.1000000E-07  2.93459E+00 +/-  4.12036E-03 [  3.2000000E-07  3.0000001E-07]
+ADJOINT SPECTRUM, ENERGY =   2.9000000E-07  2.94135E+00 +/-  3.84489E-03 [  3.0000001E-07  2.7999999E-07]
+ADJOINT SPECTRUM, ENERGY =   2.6500000E-07  2.94811E+00 +/-  3.08028E-03 [  2.7999999E-07  2.5000000E-07]
+ADJOINT SPECTRUM, ENERGY =   2.3500000E-07  2.95466E+00 +/-  2.73665E-03 [  2.5000000E-07  2.2000000E-07]
+ADJOINT SPECTRUM, ENERGY =   2.0000000E-07  2.97398E+00 +/-  2.06900E-03 [  2.2000000E-07  1.8000000E-07]
+ADJOINT SPECTRUM, ENERGY =   1.6000000E-07  3.00380E+00 +/-  1.72750E-03 [  1.8000000E-07  1.4000000E-07]
+ADJOINT SPECTRUM, ENERGY =   1.2000000E-07  3.03966E+00 +/-  1.40131E-03 [  1.4000000E-07  1.0000000E-07]
+ADJOINT SPECTRUM, ENERGY =   9.0000000E-08  3.06019E+00 +/-  1.34934E-03 [  1.0000000E-07  8.0000000E-08]
+ADJOINT SPECTRUM, ENERGY =   7.3500001E-08  3.07086E+00 +/-  1.38084E-03 [  8.0000000E-08  6.7000002E-08]
+ADJOINT SPECTRUM, ENERGY =   6.2500002E-08  3.07753E+00 +/-  1.45270E-03 [  6.7000002E-08  5.8000001E-08]
+ADJOINT SPECTRUM, ENERGY =   5.4000001E-08  3.08544E+00 +/-  1.40939E-03 [  5.8000001E-08  5.0000001E-08]
+ADJOINT SPECTRUM, ENERGY =   4.6000000E-08  3.09476E+00 +/-  1.33960E-03 [  5.0000001E-08  4.2000000E-08]
+ADJOINT SPECTRUM, ENERGY =   3.8500000E-08  3.10244E+00 +/-  1.30976E-03 [  4.2000000E-08  3.4999999E-08]
+ADJOINT SPECTRUM, ENERGY =   3.2499999E-08  3.10950E+00 +/-  1.48837E-03 [  3.4999999E-08  2.9999999E-08]
+ADJOINT SPECTRUM, ENERGY =   2.7500000E-08  3.11647E+00 +/-  1.39701E-03 [  2.9999999E-08  2.5000000E-08]
+ADJOINT SPECTRUM, ENERGY =   2.2500000E-08  3.12447E+00 +/-  1.45612E-03 [  2.5000000E-08  2.0000000E-08]
+ADJOINT SPECTRUM, ENERGY =   1.7500000E-08  3.13416E+00 +/-  1.42551E-03 [  2.0000000E-08  1.4999999E-08]
+ADJOINT SPECTRUM, ENERGY =   1.2500000E-08  3.14093E+00 +/-  1.52020E-03 [  1.4999999E-08  9.9999999E-09]
+ADJOINT SPECTRUM, ENERGY =   7.5000000E-09  3.14836E+00 +/-  1.65699E-03 [  9.9999999E-09  5.0000000E-09]
+ADJOINT SPECTRUM, ENERGY =   2.5050000E-09  3.15119E+00 +/-  2.07659E-03 [  5.0000000E-09  1.0000000E-11]
