@@ -1,0 +1,24 @@
+CARD A
+	Energy_mode       = 1
+	Nominal_Power	  = 0.01  % MWth
+	nugrid            = 8192
+	
+	history_per_cycle = 4E5
+	number_inactive   = 100
+	number_active     = 500
+
+	lib_path = '/home/codes/serpent_data/sss_endf71.xsdata'
+
+	ures   = F
+	uegrid = F 8192
+
+	% DBRC = 4.0E-7 2.1E-4 92238.85c 
+
+	% --- TALLY OPTIONS
+	DO_IFP                  = T
+	LATENT_LONG             = 10
+	TALLY_SPECTRUM          = T
+	TALLY_ADJ_SPECTRUM      = T
+	ENERGY_GROUP_STRUCTURE  = 3
+	
+ENDA

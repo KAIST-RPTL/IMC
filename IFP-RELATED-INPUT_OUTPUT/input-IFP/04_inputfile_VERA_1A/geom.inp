@@ -1,0 +1,30 @@
+title VERA-1A
+
+% --- fuel pin
+pin 1 4
+fuel   0.4096
+gap    0.4180
+clad   0.4750
+water
+
+% --- assembly
+lat 110  1  0.0 0.0 0.0 1 1 1 1.26 1.26 1
+1
+
+% --- core 
+surf 2 pz 0
+surf 3 pz 1
+surf 4 sqcz 0 0 0.63
+
+cell 200 0 fill 110  &  2 -3 -4
+cell 300 0 outside   | -2  3  4
+
+% --- initial source
+sgrid -0.55 -0.55 0 0.55 0.55 1
+
+% --- boundary condition 
+bc 2 2
+bc 3 2
+bc 4 2
+
+
