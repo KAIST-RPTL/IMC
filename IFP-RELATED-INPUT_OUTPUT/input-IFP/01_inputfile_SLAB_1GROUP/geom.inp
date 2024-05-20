@@ -1,0 +1,24 @@
+title 1GROUP SLAB
+
+surf 1 pz 0.0
+surf 2 pz 1.0
+surf 3 py 0.0
+surf 4 py 1.0
+
+surf 10 px  0.0
+surf 11 px 10.0
+
+bc 10 2
+bc 11 1
+bc  1 2
+bc  2 2
+bc  3 2
+bc  4 2
+
+cell 1 0 FUEL    &  10 -11  1 -2  3 -4
+cell 3 0 outside | -10  11 -1  2 -3  4
+
+sgrid 0.0 0.0 0.0 10.0 1.0 1.0
+
+
+

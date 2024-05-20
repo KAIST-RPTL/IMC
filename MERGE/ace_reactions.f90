@@ -5,7 +5,7 @@ use variables,         only : E_mode, keff, k_col, icore, score
 use material_header 
 use ace_header
 use ace_xs
-use randoms,          only : rang, rand_vec
+use randoms,          only : rang, rand_vec, pick_random_indexes
 use scattering_laws 
 use particle_header
 use bank_header
@@ -940,6 +940,14 @@ subroutine fissionSite_CE (p, iso, micro_xs)
     logical :: delayed
 	real(8) :: pdf
     real(8) :: trvl, lambda
+	INTEGER :: code_xyz
+	INTEGER :: node_xyz(3)               ! (TSOH-IFP) 
+	INTEGER :: AHRI                      ! (TSOH-IFP)
+	LOGICAL :: SONA                      ! (TSOH-IFP)
+	INTEGER, ALLOCATABLE :: tmp_Code(:)  !> COPY & PASTE p%ptc_Code (size: p%n_prog)
+	REAL(8), ALLOCATABLE :: tmp_PwTL(:)  !> COPY & PASTE p%ptc_PwTL (size: p%n_prog)
+	INTEGER, ALLOCATABLE :: idx_STORE(:) !> SELECT INDEX FOR SELECTING [1:nainfo] outof tmp_Code & tmp_PwTL
+	REAL(8) :: tmp_FACTOR                !> FACTOR for scaling the weight according to fainfo
 	
 	
 	delayed = .false. 
@@ -1068,7 +1076,7 @@ subroutine fissionSite_CE (p, iso, micro_xs)
         thread_bank(bank_idx)%G = iso
         thread_bank(bank_idx)%time = 0
         if(do_ifp) then
-        ! ADJOINT : pass particle's IFP related info. to bank
+			! ADJOINT : pass particle's IFP related info. to bank
             if(latent>1) thread_bank(bank_idx)%delayedarr(1:latent-1) = p%delayedarr(2:latent)
             if(latent>1) thread_bank(bank_idx)%delayedlam(1:latent-1) = p%delayedlam(2:latent)
             if(latent>1) thread_bank(bank_idx)%nlifearr(1:latent-1)   = p%nlifearr(2:latent)
@@ -1081,6 +1089,37 @@ subroutine fissionSite_CE (p, iso, micro_xs)
                 thread_bank(bank_idx)%delayedarr(latent) = 0
                 thread_bank(bank_idx)%delayedlam(latent) = 0
             endif
+			! +++ APPEND TO BANK_LONG
+			IF(do_IFP_long .AND. latent > 1 .AND. curr_cyc > n_inact) THEN
+				! --- APPEND THE thread_bank information to thread_bank_ENERGY
+				thread_bank_LONG(bank_idx)%wgt        = thread_bank(bank_idx)%wgt
+				thread_bank_LONG(bank_idx)%xyz        = thread_bank(bank_idx)%xyz
+				thread_bank_LONG(bank_idx)%uvw        = thread_bank(bank_idx)%uvw
+				thread_bank_LONG(bank_idx)%E          = thread_bank(bank_idx)%E
+				thread_bank_LONG(bank_idx)%G          = thread_bank(bank_idx)%G
+				thread_bank_LONG(bank_idx)%G_delayed  = thread_bank(bank_idx)%G_delayed
+				thread_bank_LONG(bank_idx)%delayed    = thread_bank(bank_idx)%delayed
+				thread_bank_LONG(bank_idx)%time       = thread_bank(bank_idx)%time
+				thread_bank_LONG(bank_idx)%beta       = thread_bank(bank_idx)%beta
+				thread_bank_LONG(bank_idx)%lambda     = thread_bank(bank_idx)%lambda
+				thread_bank_LONG(bank_idx)%delayedarr = thread_bank(bank_idx)%delayedarr
+				thread_bank_LONG(bank_idx)%delayedlam = thread_bank(bank_idx)%delayedlam
+				thread_bank_LONG(bank_idx)%nlifearr   = thread_bank(bank_idx)%nlifearr
+				! --- RELATED TO IFP ADJOINT TALLY
+				thread_bank_LONG(bank_idx)%i_Parent = p%i_Parent
+				thread_bank_LONG(bank_idx) % arr_code(1:nainfo_src) = 0
+				thread_bank_LONG(bank_idx) % arr_PWTL(1:nainfo_src) = 0.d0
+				IF(p%n_prog <= nainfo_src) THEN
+					thread_bank_LONG(bank_idx) % arr_code(1:p%n_prog) = p%ptc_Code(1:p%n_prog)
+					thread_bank_LONG(bank_idx) % arr_PWTL(1:p%n_prog) = p%ptc_PwTL(1:p%n_prog)
+				ELSE
+					IF(ALLOCATED(idx_STORE)) DEALLOCATE(idx_STORE)
+					ALLOCATE(idx_STORE(nainfo_src))
+					CALL pick_random_indexes(idx_STORE,p%n_prog,nainfo_src)
+					thread_bank_LONG(bank_idx) % arr_code(1:nainfo_src) = p%ptc_Code(idx_STORE)
+					thread_bank_LONG(bank_idx) % arr_PWTL(1:nainfo_src) = p%ptc_PwTL(idx_STORE) * REAL(p%n_prog,8) / REAL(nainfo_src,8)
+				END IF
+			END IF
         endif
         if(do_fuel_mv .and. delayed) then
             lambda = ace(iso)%prcr(iMT)%decay_const

@@ -193,43 +193,46 @@ recursive subroutine read_geom(path, geom_nest)
                 
                 if (E_mode == 0) cells(j)%mat_idx = find_mat_idx(XS_MG,mat_id)
                 if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
-                if(materials(cells(j)%mat_idx) % duplicable &
-                    .and. materials(cells(j)%mat_idx) % depletable) then
-                    tmpidx = cells(j) % mat_idx
-                    if(materials(cells(j)%mat_idx) % geom_count > 0) then
-                        if(univptr%univ_id<10) then
-                            write(char1, '(I1)') univptr%univ_id
-                        elseif(univptr%univ_id<100) then
-                            write(char1, '(I2)') univptr%univ_id
-                        elseif(univptr%univ_id<1000) then
-                            write(char1, '(I3)') univptr%univ_id
-                        elseif(univptr%univ_id<10000) then
-                            write(char1, '(I4)') univptr%univ_id
-                        elseif(univptr%univ_id<100000) then
-                            write(char1, '(I5)') univptr%univ_id
-                        endif
-
-                        if(i<10) then
-                            write(char2, '(I1)') i
-                        elseif(i<100) then
-                            write(char2, '(I2)') i
-                        endif
-                        !if(icore==score) print *, 'CHCK', char1, char2
-                        !write(dupname, '(A,A1,A,A1,A)') adjustl(trim(materials(cells(j)%mat_idx) % mat_name)), '_', adjustl(trim(char1)), '_', adjustl(trim(char2))
-                        dupname = adjustl(trim(materials(cells(j)%mat_idx)%mat_name)) //'_' //adjustl(trim(char1)) // '_' // adjustl(trim(char2))
-                        if(icore==score) print *, 'DUP ', dupname, materials(cells(j)%mat_idx) % geom_count
-                        allocate(materials_temp(n_materials+1))
-                        materials_temp(1:n_materials) = materials(:)
-                        materials_temp(n_materials+1) = materials(cells(j)%mat_idx)
-                        materials_temp(n_materials+1) % mat_name = dupname
-                        if(allocated(materials)) deallocate(materials)
-                        call move_alloc(materials_temp, materials)
-                        n_materials = n_materials + 1
-                        cells(j) % mat_idx = n_materials
-                    endif
-                    materials(tmpidx) % geom_count = &
-                        materials(tmpidx) % geom_count + 1
-                endif
+				! *** ONLY FOR CE CASE [TSOH]
+				IF (E_mode == 1) THEN
+					if(materials(cells(j)%mat_idx) % duplicable &
+						.and. materials(cells(j)%mat_idx) % depletable) then
+						tmpidx = cells(j) % mat_idx
+						if(materials(cells(j)%mat_idx) % geom_count > 0) then
+							if(univptr%univ_id<10) then
+								write(char1, '(I1)') univptr%univ_id
+							elseif(univptr%univ_id<100) then
+								write(char1, '(I2)') univptr%univ_id
+							elseif(univptr%univ_id<1000) then
+								write(char1, '(I3)') univptr%univ_id
+							elseif(univptr%univ_id<10000) then
+								write(char1, '(I4)') univptr%univ_id
+							elseif(univptr%univ_id<100000) then
+								write(char1, '(I5)') univptr%univ_id
+							endif
+	
+							if(i<10) then
+								write(char2, '(I1)') i
+							elseif(i<100) then
+								write(char2, '(I2)') i
+							endif
+							!if(icore==score) print *, 'CHCK', char1, char2
+							!write(dupname, '(A,A1,A,A1,A)') adjustl(trim(materials(cells(j)%mat_idx) % mat_name)), '_', adjustl(trim(char1)), '_', adjustl(trim(char2))
+							dupname = adjustl(trim(materials(cells(j)%mat_idx)%mat_name)) //'_' //adjustl(trim(char1)) // '_' // adjustl(trim(char2))
+							if(icore==score) print *, 'DUP ', dupname, materials(cells(j)%mat_idx) % geom_count
+							allocate(materials_temp(n_materials+1))
+							materials_temp(1:n_materials) = materials(:)
+							materials_temp(n_materials+1) = materials(cells(j)%mat_idx)
+							materials_temp(n_materials+1) % mat_name = dupname
+							if(allocated(materials)) deallocate(materials)
+							call move_alloc(materials_temp, materials)
+							n_materials = n_materials + 1
+							cells(j) % mat_idx = n_materials
+						endif
+						materials(tmpidx) % geom_count = &
+							materials(tmpidx) % geom_count + 1
+					endif
+				END IF
             enddo
             j = ncell
             univptr%cell(i) = j
@@ -238,21 +241,24 @@ recursive subroutine read_geom(path, geom_nest)
             
             if (E_mode == 0) cells(j)%mat_idx = find_mat_idx(XS_MG,mat_id)
             if (E_mode == 1) cells(j)%mat_idx = find_CE_mat_idx (materials, mat_id)
-            if(materials(cells(j)%mat_idx) % duplicable &
-                .and. materials(cells(j)%mat_idx) % depletable) then
-                if(materials(cells(j)%mat_idx) % geom_count > 0) then
-                    allocate(materials_temp(n_materials+1))
-                    materials_temp(1:n_materials) = materials(:)
-                    materials_temp(n_materials+1) = materials(cells(j)%mat_idx)
-                    if(allocated(materials)) deallocate(materials)
-                    call move_alloc(materials_temp, materials)
-                    n_materials = n_materials + 1
-                    cells(j) % mat_idx = n_materials
-                endif
-                materials(cells(j)%mat_idx) % geom_count = &
-                    materials(cells(j)%mat_idx) % geom_count + 1
-                if(icore==score) print *, 'ADDED', n_materials, cells(j)%mat_idx
-            endif
+			! *** ONLY FOR CE CASE [TSOH]
+			IF (E_mode == 1) THEN
+				if(materials(cells(j)%mat_idx) % duplicable &
+					.and. materials(cells(j)%mat_idx) % depletable) then
+					if(materials(cells(j)%mat_idx) % geom_count > 0) then
+						allocate(materials_temp(n_materials+1))
+						materials_temp(1:n_materials) = materials(:)
+						materials_temp(n_materials+1) = materials(cells(j)%mat_idx)
+						if(allocated(materials)) deallocate(materials)
+						call move_alloc(materials_temp, materials)
+						n_materials = n_materials + 1
+						cells(j) % mat_idx = n_materials
+					endif
+					materials(cells(j)%mat_idx) % geom_count = &
+						materials(cells(j)%mat_idx) % geom_count + 1
+					if(icore==score) print *, 'ADDED', n_materials, cells(j)%mat_idx
+				endif
+			END IF
             call gen_cells_from_pin (univptr, cells(j-univptr%ncell+1:j)) 
             
             
@@ -1181,21 +1187,24 @@ subroutine read_cell (Cellobj, args, nargs)
 		read(args(4), *) mat_id
 		if (E_mode == 0) Cellobj%mat_idx = find_mat_idx(XS_MG,mat_id)
 		if (E_mode == 1) Cellobj%mat_idx = find_CE_mat_idx (materials, mat_id)
-        if(materials(Cellobj%mat_idx) % duplicable &
-            .and. materials(Cellobj%mat_idx) % depletable) then
-            if(materials(Cellobj%mat_idx) % geom_count > 0) then
-                allocate(materials_temp(n_materials+1))
-                materials_temp(1:n_materials) = materials(:)
-                materials_temp(n_materials+1) = materials(Cellobj%mat_idx)
-                if(allocated(materials)) deallocate(materials)
-                call move_alloc(materials_temp, materials)
-                n_materials = n_materials + 1
-                Cellobj % mat_idx = n_materials
-            endif
-            materials(Cellobj%mat_idx) % geom_count = &
-                materials(Cellobj%mat_idx) % geom_count + 1
-            if(icore==score) print *, 'ADDED', n_materials, Cellobj%mat_idx
-        endif
+		! *** AUTOMATIC CALCULATION OF n_materials ONLY FOR CE CASE [TSOH]
+		IF (E_mode == 1) THEN
+			if(materials(Cellobj%mat_idx) % duplicable &
+				.and. materials(Cellobj%mat_idx) % depletable) then
+				if(materials(Cellobj%mat_idx) % geom_count > 0) then
+					allocate(materials_temp(n_materials+1))
+					materials_temp(1:n_materials) = materials(:)
+					materials_temp(n_materials+1) = materials(Cellobj%mat_idx)
+					if(allocated(materials)) deallocate(materials)
+					call move_alloc(materials_temp, materials)
+					n_materials = n_materials + 1
+					Cellobj % mat_idx = n_materials
+				endif
+				materials(Cellobj%mat_idx) % geom_count = &
+					materials(Cellobj%mat_idx) % geom_count + 1
+				if(icore==score) print *, 'ADDED', n_materials, Cellobj%mat_idx
+			endif
+		END IF
 		Cellobj%fill = -1
 		n = 5
 	endif 
@@ -1483,8 +1492,6 @@ subroutine read_MG_XS
 				call move_alloc(MGD_temp, MGD)
 			endif
 			
-			
-            
         case default
             print *, 'WRONG OPTION :: MG_XS.inp'
             STOP 
@@ -1497,6 +1504,9 @@ subroutine read_MG_XS
 
     !> READ DONE
     if(icore==score) print '(A25)', '    XS    READ COMPLETE...' 
+	
+	!> SPECIFY n_materials value
+	n_materials = n_mat
 end subroutine    
     
     
@@ -1833,27 +1843,29 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, acc_skip
                     if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
-                case("ONE_CMFD")
-                    if ( .not. fmfdon ) cycle
-                    backspace(File_Number)
-                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fcr, fcz
-                    if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
-                    ncm(1:2) = nfm(1:2) / fcr
-                    ncm(3)   = nfm(3)   / fcz
-                    call FMFD_ERR1
-                    cmfdon = .true.
-                    fc1 = fcr*fcz
-                    fc2 = fcr*fcr
-                    n_lnodes = fc2*fcz
-                    dcm(1) = dfm(1)*fcr
-                    dcm(2) = dfm(2)*fcr
-                    dcm(3) = dfm(3)*fcz
+				! ------------------------------------------------------------------------------------
+                ! (DEPRECATED) case("ONE_CMFD")
+                ! (DEPRECATED)     if ( .not. fmfdon ) cycle
+                ! (DEPRECATED)     backspace(File_Number)
+                ! (DEPRECATED)     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fcr, fcz
+                ! (DEPRECATED)     if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+                ! (DEPRECATED)     ncm(1:2) = nfm(1:2) / fcr
+                ! (DEPRECATED)     ncm(3)   = nfm(3)   / fcz
+                ! (DEPRECATED)     call FMFD_ERR1
+                ! (DEPRECATED)     cmfdon = .true.
+                ! (DEPRECATED)     fc1 = fcr*fcz
+                ! (DEPRECATED)     fc2 = fcr*fcr
+                ! (DEPRECATED)     n_lnodes = fc2*fcz
+                ! (DEPRECATED)     dcm(1) = dfm(1)*fcr
+                ! (DEPRECATED)     dcm(2) = dfm(2)*fcr
+                ! (DEPRECATED)     dcm(3) = dfm(3)*fcz
+				! ------------------------------------------------------------------------------------
                 case("ONE_PCMFD")
                     if ( .not. fmfdon ) cycle
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fcr, fcz
                     if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
-                                ncm(1:2) = nfm(1:2) / fcr
+                    ncm(1:2) = nfm(1:2) / fcr
                     ncm(3)   = nfm(3)   / fcz
                     call FMFD_ERR1
                     cmfdon = .true.
@@ -1968,13 +1980,30 @@ end subroutine READ_CTRL
 					backspace(File_Number)
 					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, tallyon
 					if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+					IF(ALLOCATED(ttally)) DEALLOCATE(ttally)
 					allocate(ttally(1),tgroup(1))
 					ttally(1) = 4
 					tgroup(1) = 3D+1
 					n_tgroup  = 1
 					n_type = 1
+					
+				! --- TALLY2 CHANGED TO TALLY_MESH / BUT BOTH OPTIONS STILL WORKS
+				case("TALLY_MESH")
+					backspace(File_Number)
+					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, tallyon
+					if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+					IF(ALLOCATED(ttally)) DEALLOCATE(ttally)
+					allocate(ttally(1),tgroup(1))
+					!> #4: nu   *fission rate
+					!> #5: kappa*fission rate
+					ttally(1) = 5
+					tgroup(1) = 3D+1
+					n_tgroup  = 1
+					n_type    = 1
+					
 				case("TALLY_TYPE")
-					tallyon = .true.
+					! (MUTED) tallyon = .true.
+					if ( .not. tallyon ) cycle
 					n_type = 0
 					deallocate(ttally)
 					do
@@ -2013,6 +2042,7 @@ end subroutine READ_CTRL
 					end if
 					end do
 				case("TALLY_GROUP")
+					if ( .not. tallyon ) cycle
 					deallocate(tgroup)
 					n_tgroup = 0
 					do
@@ -2039,7 +2069,7 @@ end subroutine READ_CTRL
 					n_tgroup = n_tgroup + 1
 				case("MESH_GRID")
 					meshon = .true.
-					if ( .not. tallyon .and. .not. fmfdon ) cycle
+					! (MUTED) if ( .not. tallyon .and. .not. fmfdon ) cycle -> SO THAT TALLY COULD OCCUR FOR NON FMFD CALCULATIONS AS WELL 
 					backspace(File_Number)
 					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fm0, fm1, nfm
 					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
@@ -2050,11 +2080,7 @@ end subroutine READ_CTRL
 					a_fm(5) = dfm(1)*dfm(2)
 					a_fm(6) = a_fm(5)
 					v_fm    = dfm(1)*dfm(2)*dfm(3)
-                    n_nodes = nfm(1)*nfm(2)*nfm(3)
-
-
-					!call FMFD_ERR0
-					
+                    n_nodes = nfm(1)*nfm(2)*nfm(3)					
 				case("MESH_GRID_TET_VRC")
 					do_gmsh_vrc = .true. 
 					meshon_tet_vrc = .true.
@@ -2080,15 +2106,15 @@ end subroutine READ_CTRL
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
 					if (E_mode == 1) npg = 6
 					
-					if(trim(uppercase(line)) == "DMC")  then 
+					if(trim(uppercase(line)) == "DMC" .AND. do_transient .EQ. .TRUE.)  then 
 						do_DMC = .true. 
-					elseif(trim(uppercase(line)) == "PCQS") then 
+					elseif(trim(uppercase(line)) == "PCQS" .AND. do_transient .EQ. .TRUE.) then 
 						do_PCQS = .true. 
 					else 
-						print *, "ERROR : Unidentified transient solution method -", trim(line) 
-						stop 
+						do_DMC  = .FALSE.
+						do_PCQS = .FALSE.
+						 !(MUTE) print *, "ERROR : Unidentified transient solution method -", trim(line) 
 					endif 
-					
 					
 				case("N_PCQS_ACTIVE") 
                     backspace(File_Number)
@@ -2236,9 +2262,98 @@ end subroutine READ_CTRL
 						
 					enddo 
 				
+				! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+				! +++ RELATED TO IFP-RELATED CALCULATION (MESH-BASED ADJOINT DISTRIBUTION TALLYING) +++ !
+				! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
                 case("DO_IFP")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ifp
+				! ------------------------------------------------------------------------------------
+				! OPTION FOR CONTROLLING #LATENT CYCLES FOR ADJOINT TALLYING
+				! ------------------------------------------------------------------------------------
+				CASE("LATENT_LONG")
+					backspace(File_Number)
+					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, latent_long
+					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+				! ------------------------------------------------------------------------------------
+				! OPTION FOR CALCULATING NODE WISE ADJOINT FLUX (USING IFP)
+				! ------------------------------------------------------------------------------------
+				CASE('MESH_ADJOINT_IFP')
+					backspace(File_Number)
+					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, tally_adj_flux
+					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+				! ------------------------------------------------------------------------------------
+				! GRID SPACING FOR ADJOINT FLUX TALLYING
+				! ------------------------------------------------------------------------------------
+				CASE("MESH_ADJOINT_GRID")
+					meshon_adjflux = .true.
+					backspace(File_Number)
+					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, fm0_adj, fm1_adj, nfm_adj
+					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+					fm2_adj = fm1_adj - fm0_adj
+					dfm_adj = fm2_adj / dble(nfm_adj)
+				! ------------------------------------------------------------------------------------
+				! ZIGZAG CONSIDERATION (w.r.t MESH_ADJOINT_GRID) --- IF QUARTER NEEDS TO BE CONSIDERED, IT MUST BE READ AHEAD OF ZIGZAG_ADJOINT
+				! ------------------------------------------------------------------------------------
+				case("ZIGZAG_ADJOINT")
+					if ( .not. tally_adj_flux ) cycle
+					zigzag_adjflux = .true.
+					n_zz_adj = 0
+					do
+					n_zz_adj = n_zz_adj + 1
+					allocate(zztemp(n_zz_adj))
+					backspace(File_Number)
+					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, zztemp(1:n_zz_adj)
+					deallocate(zztemp)
+					if ( File_Error /= 0 ) then
+						n_zz_adj = n_zz_adj - 1
+						allocate(zztemp(n_zz_adj))
+						rewind(File_Number)
+						do
+						read(File_Number,*,iostat=File_Error) Char_Temp
+						Call Small_to_Capital(Char_Temp)
+						if ( Char_Temp == 'ZIGZAG_ADJOINT' ) exit
+						end do
+						backspace(File_Number)
+						read(File_Number,*,iostat=File_Error) Char_Temp, Equal, zztemp(1:n_zz_adj)
+						if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+						exit
+					end if
+					end do
+					call ZIGZAG_INDEX_ADJ(zztemp)
+				! ------------------------------------------------------------------------------------
+				! OPTION FOR TALLYING ENERGY SPECTRUM
+				! ------------------------------------------------------------------------------------
+				CASE('TALLY_SPECTRUM')
+					backspace(File_Number)
+					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, tally_for_spect
+					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)
+					
+				! ------------------------------------------------------------------------------------
+				! OPTION FOR TALLYING ADJOINT ENERGY SPECTRUM
+				! ------------------------------------------------------------------------------------
+				CASE('TALLY_ADJ_SPECTRUM')
+					backspace(File_Number)
+					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, tally_adj_spect
+					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)	
+				! ------------------------------------------------------------------------------------
+				! OPTION FOR CONTROLLING THE ENERGY GROUP STRUCTURE
+				! ------------------------------------------------------------------------------------
+				CASE('ENERGY_GROUP_STRUCTURE')
+					backspace(File_Number)
+					read(File_Number,*,iostat=File_Error) Char_Temp, Equal, idx_egroup
+					if ( Equal /= "=" ) call Card_Error (Card_Type,Char_Temp)			
+					IF(idx_egroup < 1 .OR. idx_egroup > 3) THEN
+						WRITE(*,'(A)') '(WARNING) ENERGY GROUP STRUCTURE SHOULD BE ONE OF THE FOLLOWINGS:'
+						WRITE(*,'(A)') '[1]: 70 GROUP STRUCTURE (SERPENT DEFAULT)'
+						WRITE(*,'(A)') '[2]: 30 GROUP STRUCTURE (LANL)'
+						WRITE(*,'(A)') '[3]: 47 GROUP STRUCTURE (HELIOS)'
+						WRITE(*,'(A)') ''
+						WRITE(*,'(A)') 'USE [1] ENERGY GROUP STRUCTURE'
+						WRITE(*,'(A)') ''
+						idx_egroup = 1
+					END IF
+				! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
 
                 case("BASE_COOL_DENS")
                     backspace(File_Number)
@@ -3177,7 +3292,53 @@ end subroutine READ_CTRL
         zzb2 = zzf2 - fcr
         end if
 
-    end subroutine
+    end subroutine ZIGZAG_INDEX
+	
+	! +++ ZIGZAG INDEXING FOR ADJOINT SPECTRUM TALLY 
+	SUBROUTINE ZIGZAG_INDEX_ADJ(zztemp)
+		use FMFD_HEADER, ONLY: quarter
+        integer:: zztemp(:)
+        integer:: ii
+
+        zz_div_adj = 2*n_zz_adj+1
+        allocate(zzf0_adj(zz_div_adj+1))
+        allocate(zzf1_adj(zz_div_adj))
+        allocate(zzf2_adj(zz_div_adj))
+        ! zzf0_adj   : reference points
+        zzf0_adj(1) = 0
+        zzf0_adj(2:n_zz_adj+1) = zztemp(1:n_zz_adj)
+        zzf0_adj(n_zz_adj+2:zz_div_adj) = nfm_adj(1) - zzf0_adj(n_zz_adj+1:2:-1)
+        zzf0_adj(zz_div_adj+1) = nfm_adj(1)
+
+        ! zzf1   : lower points for zzf0
+        zzf1_adj(1:n_zz_adj) = zztemp(n_zz_adj:1:-1)
+        zzf1_adj(n_zz_adj+1) = 0
+        zzf1_adj(n_zz_adj+2:zz_div_adj) = zztemp(1:n_zz_adj)
+
+        ! zzf2   : upper points for zzf0
+        zzf2_adj(:) = nfm_adj(1) - zzf1_adj(:)
+		
+		! =====================================================================
+		! QUARTER CORE CONSIDERATION --- NEEDS TO BE TESTED...
+		! =====================================================================
+        if ( quarter ) then
+			zz_div_adj = n_zz_adj+1
+			deallocate(zzf0_adj,zzf1_adj,zzf2_adj)
+	
+			allocate(zzf0_adj(zz_div_adj+1))
+			allocate(zzf1_adj(zz_div_adj))
+			allocate(zzf2_adj(zz_div_adj))
+			zzf0_adj(1) = 0
+			zzf0_adj(2:zz_div_adj) = nfm_adj(1) - zztemp(n_zz_adj:1:-1)
+			zzf0_adj(zz_div_adj+1) = nfm_adj(1)
+	
+			zzf1_adj(:) = 0
+	
+			zzf2_adj(1)  = nfm_adj(1)
+			zzf2_adj(2:) = nfm_adj(1) - zztemp(1:n_zz_adj)
+        end if
+		
+	END SUBROUTINE ZIGZAG_INDEX_ADJ
 
     subroutine read_depletion 
         
@@ -3219,8 +3380,8 @@ end subroutine READ_CTRL
         file_exists = .false.
         inquire(file=trim(directory)//"enegrid.inp",exist=file_exists)
         if(file_exists==.false.) then
-          do_mgtally = .false.
-          return
+			do_mgtally = .false.
+			return
         end if 
         
         open(unit=rd_mgt,file=trim(directory)//"enegrid.inp",status='old', action='read',iostat=Open_Error)

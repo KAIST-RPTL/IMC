@@ -46,7 +46,6 @@ call MPI_COMM_SIZE(core,ncore,ierr)
 call premc
 call TIME_MEASURE
 
-
 !> Stead-state Simlulation Start =================================================
 call START_MSG
 
@@ -54,8 +53,7 @@ curr_bat = 0
 BATCH : do
 
     if ( n_batch == 1 ) curr_bat = 1
-    if ( n_batch > 1 ) call BATCH_MSG(curr_bat)
-
+    if ( n_batch  > 1 ) call BATCH_MSG(curr_bat)
 
 BURNUP : do
 
@@ -180,10 +178,10 @@ TH : do
 	
 	
 	!> PCQS Transient MC =============================================================================
-	if (.not. do_PCQS) goto 99
-	!open(prt_dynamic,file="PCQS.out",action="write",status="replace")
-	open(prt_wgt,file="PCQS_power.out",action="write",status="replace")
-	open(prt_prec,file="PCQS_wgt.out",action="write",status="replace")
+	if (NOT(do_PCQS) .OR. NOT(do_transient)) goto 99
+
+	open(prt_wgt,    file="PCQS_power.out",action="write",status="replace")
+	open(prt_prec,   file="PCQS_wgt.out",action="write",status="replace")
 	open(prt_delayed,file="PCQS_corrector.out",action="write",status="replace")
 	
 	curr_time = 0
@@ -250,9 +248,8 @@ TH : do
 	
 	
 99  if (do_gmsh_vrc) close(prt_tet_vrc)
-	!close(prt_wgt)
-    time4 = omp_get_wtime()
-    call END_MSG(curr_bat)
+    time4 = omp_get_wtime()	
+    call END_MSG        (curr_bat)
     call CYCLE_TALLY_MSG(curr_bat)
 	
     if ( th_on ) then
@@ -511,14 +508,12 @@ end subroutine
 
 subroutine NORM_DIST(dist)
     real(8), intent(inout):: dist(1:,1:,:,:,:) ! (bat,cyc,x,y,z)
-
     do ii = 1, n_batch
     do jj = 1, n_act
         dist(ii,jj,:,:,:) = dist(ii,jj,:,:,:)/AVG_P(dist(ii,jj,:,:,:))
     end do
     end do
-
-end subroutine
+end subroutine NORM_DIST
 
 function AVG_P(val)
     real(8):: avg_p
@@ -731,6 +726,10 @@ end subroutine
 subroutine END_MSG(bat)
     implicit none
     integer:: bat
+	REAL(8), ALLOCATABLE :: flux_g       (:)
+	REAL(8), ALLOCATABLE :: flux_g_sd    (:) 
+	REAL(8), ALLOCATABLE :: adj_flux_g   (:)
+	REAL(8), ALLOCATABLE :: adj_flux_g_sd(:)
 
 if ( icore == score ) then
     if ( n_batch > 1 .and. bat == 0 ) then
@@ -748,26 +747,112 @@ if ( icore == score ) then
     write(*,*)
     
     if(do_ifp) then
-    write(prt_adjoint,*)
-    ! ADJOINT
-    write(prt_adjoint,13), '    GENT',AVG(genarr)*1E9,'+/-',STD_M(genarr)*1E9,' scale:1E-9'
-    write(prt_adjoint,22), ' BETASUM',PCM(AVG(betaarr(1:n_act-latent,0))),'+/-',PCM(STD_M(betaarr(1:n_act-latent,0))),' scale:1E-5'
-    write(prt_adjoint,22), 'BETASUMO',PCM(AVG(betad(0,1:n_act))), '+/-', PCM(STD_M(betad(0,1:n_act))), ' scale:1E-5'
-    do i = 1,8
-        write(prt_adjoint,12), '  BETA',i,PCM(AVG(betaarr(1:n_act-latent,i))),'+/-',PCM(STD_M(betaarr(1:n_act-latent,i))),' scale:1E-5'
-        write(prt_adjoint,12), 'BETAOG',i,PCM(AVG(betad(i,1:n_act))),'+/-',PCM(STD_M(betad(i,1:n_act))),' scale:1E-5'
-    enddo
-
-endif
+		write(prt_adjoint,*)
+		! ADJOINT
+		write(prt_adjoint,13), '    GENT',AVG(genarr)*1E9,'+/-',STD_M(genarr)*1E9,' scale:1E-9'
+		write(prt_adjoint,22), ' BETASUM',PCM(AVG(betaarr(1:n_act-latent,0))),'+/-',PCM(STD_M(betaarr(1:n_act-latent,0))),' scale:1E-5'
+		write(prt_adjoint,22), 'BETASUMO',PCM(AVG(betad(0,1:n_act))), '+/-', PCM(STD_M(betad(0,1:n_act))), ' scale:1E-5'
+		do i = 1,8
+			write(prt_adjoint,12), '  BETA',i,PCM(AVG(betaarr(1:n_act-latent,i))),'+/-',PCM(STD_M(betaarr(1:n_act-latent,i))),' scale:1E-5'
+			write(prt_adjoint,12), 'BETAOG',i,PCM(AVG(betad(i,1:n_act))),'+/-',PCM(STD_M(betad(i,1:n_act))),' scale:1E-5'
+		enddo
+		! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+		!> ECHO TO THE LOG FILE
+		! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+		IF(n_act >= 30) THEN
+			write(*,13), '    GENT',AVG(genarr)*1E9,'+/-',STD_M(genarr)*1E9,' scale:1E-9'
+			write(*,22), ' BETASUM',PCM(AVG(betaarr(1:n_act-latent,0))),'+/-', PCM(STD_M(betaarr(1:n_act-latent,0))),' scale:1E-5'
+			write(*,22), 'BETASUMO',PCM(AVG(betad  (0,1:n_act))),       '+/-', PCM(STD_M(betad  (0,1:n_act))),       ' scale:1E-5'
+			do i = 1,8
+				write(*,12), '  BETA',i,PCM(AVG(betaarr(1:n_act-latent,i))),'+/-',PCM(STD_M(betaarr(1:n_act-latent,i))),' scale:1E-5'
+				write(*,12), 'BETAOG',i,PCM(AVG(betad(i,1:n_act))),'+/-',PCM(STD_M(betad(i,1:n_act))),' scale:1E-5'
+			enddo
+			write(*,14), '  ALPHA',AVG(alphaarr)*1E-6,'+/-',STD_M(alphaarr)*1E-6,' scale:1E6'		
+		!> Insufficient number of active cycles / Only print out the conventional (non-adjoint weighted) values
+		ELSE
+			write(*,22), 'BETASUMO',PCM(AVG(betad  (0,1:n_act))),  '+/-',PCM(STD_M(betad(0,1:n_act))),' scale:1E-5'
+			do i = 1,8
+				write(*,12), 'BETAOG',i,PCM(AVG(betad(i,1:n_act))),'+/-',PCM(STD_M(betad(i,1:n_act))),' scale:1E-5'
+			enddo
+		END IF
+		! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	endif
+	
+	!> ENERGY SPECTRUM (TSOH-IFP)
+	IF(tally_for_spect) THEN
+		! +++ MG SIMULATION
+		IF(E_mode == 0) THEN
+			ALLOCATE(flux_g   (n_group))
+			ALLOCATE(flux_g_sd(n_group))
+			DO i = 1,n_group
+				flux_g   (i) = AVG  (FOR_phi_ene(:,i))
+				flux_g_sd(i) = STD_M(FOR_phi_ene(:,i))
+			END DO
+			IF(icore == score) THEN
+				WRITE(*,*) ''
+				DO i = 1,n_group
+					WRITE(*,'(A,I1,ES13.5,A4,ES13.5)')'SPECTRUM, GROUP = ',i,flux_g(i),'+/-',flux_g_sd(i)
+				END DO
+			END IF
+		! +++ CE SIMULATION
+		ELSE
+			ALLOCATE(flux_g   (n_egroup_spect-1))
+			ALLOCATE(flux_g_sd(n_egroup_spect-1))		
+			DO i = 1,n_egroup_spect-1
+				flux_g   (i) = AVG  (FOR_phi_ene(:,i))
+				flux_g_sd(i) = STD_M(FOR_phi_ene(:,i))
+			END DO
+			IF(icore == score) THEN
+				WRITE(*,*) ''
+				DO i = 1,n_egroup_spect-1
+					WRITE(*,'(A,ES15.7,ES13.5,A4,ES13.5,A,2ES15.7,A)')'SPECTRUM, ENERGY = ',egroup_spect_bin(i),flux_g(i),'+/-',flux_g_sd(i),' [',egroup_spect(i),egroup_spect(i+1),']'
+				END DO
+			END IF
+		END IF
+	END IF
+	
+	!> ADJOINT INFORMATION (VOLUME AVERAGED; ENERGY) (TSOH-IFP)
+	IF(tally_adj_spect) THEN
+		! +++ MG SIMULATION
+		IF(E_mode == 0) THEN
+			ALLOCATE(adj_flux_g   (n_group))
+			ALLOCATE(adj_flux_g_sd(n_group))
+			DO i = 1,n_group
+				adj_flux_g   (i) = AVG(adj_phi_ene(:,i))/flux_g(i)
+				adj_flux_g_sd(i) = adj_flux_g(i)*SQRT((STD_M(adj_phi_ene(:,i))/AVG(adj_phi_ene(:,i)))**2 + (flux_g_sd(i)/flux_g(i))**2)
+			END DO
+			IF(icore == score) THEN
+				WRITE(*,*) ''
+				DO i = 1,n_group
+					WRITE(*,'(A,I1,ES13.5,A4,ES13.5)')'ADJOINT SPECTRUM, GROUP = ',i,adj_flux_g(i),'+/-',adj_flux_g_sd(i)
+				END DO
+			END IF
+		! +++ CE SIMULATION
+		ELSE
+			ALLOCATE(adj_flux_g   (n_egroup_spect-1))
+			ALLOCATE(adj_flux_g_sd(n_egroup_spect-1))	
+			DO i = 1,n_egroup_spect-1
+				adj_flux_g   (i) = AVG(adj_phi_ene(:,i))/flux_g(i)
+				adj_flux_g_sd(i) = adj_flux_g(i)*SQRT((STD_M(adj_phi_ene(:,i))/AVG(adj_phi_ene(:,i)))**2 + (flux_g_sd(i)/flux_g(i))**2)
+			END DO
+			IF(icore == score) THEN
+				WRITE(*,*) ''
+				DO i = 1,n_egroup_spect-1
+					WRITE(*,'(A,ES15.7,ES13.5,A4,ES13.5,A,2ES15.7,A)')'ADJOINT SPECTRUM, ENERGY = ',egroup_spect_bin(i),adj_flux_g(i),'+/-',adj_flux_g_sd(i),' [',egroup_spect(i),egroup_spect(i+1),']'
+				END DO
+			END IF
+		END IF
+	END IF
+	
     10 format(A,F10.3,A4,F8.2,A4)
     11 format(A,F10.6,A4,F8.3)
 
-    12 format(A,i1,F10.3,A4,F8.5,A) !GROUPWISE BETA
-    15 format(A,i1,F10.5,A4,F8.5,A) !GROUPWISE LAMBDA
+    12 format(A,i1,F14.3,A4,F12.5,A) !GROUPWISE BETA
+    15 format(A,i1,F14.5,A4,F12.5,A) !GROUPWISE LAMBDA
 
-    22 format(A,F10.3,A4,F8.5,A) !
-    13 format(A,F12.3,A4,F10.5,A) !Generation time
-    14 format(A,F10.5,A4,F8.5,A) !Rossi-Alpha
+    22 format(A,F14.3,A4,F12.5,A) !BETA
+    13 format(A,F14.5,A4,F12.5,A) !Generation time
+    14 format(A,F14.5,A4,F12.5,A) !Rossi-Alpha
 end if
 
 end subroutine
@@ -789,11 +874,18 @@ subroutine CYCLE_TALLY_MSG(bat)
     real(8), allocatable :: p_mc(:,:,:), s_mc(:,:,:)
     character(3) :: fileid, tallytype
     integer :: ng, ttype
+	INTEGER :: tmp_idx, gg
     real(8):: ttemp(nfm(1),nfm(2),nfm(3))
     real(8):: ttemp_sd(nfm(1),nfm(2),nfm(3))
+	REAL(8) :: ttemp2   (nfm_adj(1),nfm_adj(2),nfm_adj(3))
+	REAL(8) :: ttemp2_sd(nfm_adj(1),nfm_adj(2),nfm_adj(3))
+	REAL(8) :: flux_g       (num_adj_group,nfm_adj(1),nfm_adj(2),nfm_adj(3))
+	REAL(8) :: flux_g_sd    (num_adj_group,nfm_adj(1),nfm_adj(2),nfm_adj(3)) 
+	REAL(8) :: adj_flux_g   (num_adj_group,nfm_adj(1),nfm_adj(2),nfm_adj(3))
+	REAL(8) :: adj_flux_g_sd(num_adj_group,nfm_adj(1),nfm_adj(2),nfm_adj(3))
 
     if ( icore /= score ) return
-    if ( .not. (fmfdon .or. tallyon)) return
+    if ( .not. (fmfdon .or. tallyon .or. tally_adj_flux)) return
 
     ! multiplication factor
     if ( fmfdon .and. bat /= 0 ) then
@@ -835,17 +927,17 @@ subroutine CYCLE_TALLY_MSG(bat)
         endif
     end if
 
+	! power distribution normalization
     if ( bat == n_batch ) then
-    ! power distribution normalization
-        !if ( tallyon ) &
-        !    call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
-        if ( fmfdon ) &
-            call NORM_DIST(p_fmfd(1:n_batch,1:n_act,:,:,:))
+		IF(tallyon) THEN
+			CALL NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
+		END IF
+        IF ( fmfdon ) THEN
+            CALL NORM_DIST(p_fmfd  (1:n_batch,1:n_act,:,:,:))
+		END IF
     end if
 
     ! computing time
-    !if ( bat == 1 .and. .not. do_burn ) then
-
     t_MC = t_tot - t_det
     write(*,*)
     write(*,*), "   Computing time"
@@ -854,11 +946,8 @@ subroutine CYCLE_TALLY_MSG(bat)
     end do
     write(*,*)
 
-    !end if
-
-
     ! bunrup dependent pin power distribution
-    if ( DO_BURN ) then
+    IF ( DO_BURN ) THEN
     if ( DTMCBU .and. .not. MCBU ) then
         if ( istep_burnup == 0 .or. .not. do_burn) then
         ! find if the file exists
@@ -1031,36 +1120,113 @@ subroutine CYCLE_TALLY_MSG(bat)
         write(*,*), "   Printing Tally Distribution "
         do ttype = 1, n_type
             !call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
-    
-            write(fileid, '(i3)') istep_burnup
+            write(fileid,    '(i3)') istep_burnup
             write(tallytype, '(i3)') ttype
         
-        	open(9999,file="mean_tally2_step"//trim(adjustl(fileid))//"_type"//trim(adjustl(tallytype))//".out",action="write",status="replace")
-        	open(99999,file="sd_tally2_step"//trim(adjustl(fileid))//"_type"//trim(adjustl(tallytype))//".out",action="write",status="replace")
-        
+        	open(9999, file="mean_tally2_step"//trim(adjustl(fileid))//"_type"//trim(adjustl(tallytype))//".out",action="write",status="replace")
+        	open(99999,file=  "sd_tally2_step"//trim(adjustl(fileid))//"_type"//trim(adjustl(tallytype))//".out",action="write",status="replace")
+			! --- TALLY = 5: KAPPA*SIGMA_F / TALLY = 4: NU * SIGMA_F
             do ng = 1, n_tgroup
-                ttemp = 0d0
+                ttemp    = 0d0
                 ttemp_sd = 0d0
-        
                 do ii = 1, nfm(1)
                 do jj = 1, nfm(2)
                 do kk = 1, nfm(3)
-                    ttemp(ii,jj,kk) = AVG(MC_tally(bat,:,ttype,ng,ii,jj,kk))
+                    ttemp   (ii,jj,kk) = AVG  (MC_tally(bat,:,ttype,ng,ii,jj,kk))
                     ttemp_sd(ii,jj,kk) = STD_M(MC_tally(bat,:,ttype,ng,ii,jj,kk))
                 end do
                 end do
                 end do
-                write( 9999,14), ttemp(:,:,:)
+                write( 9999,14), ttemp   (:,:,:)
                 write(99999,14), ttemp_sd(:,:,:)
-        
             enddo
         	close(9999)
         	close(99999)
         enddo
-        !! INITIALIZE after Printing
+        ! INITIALIZE after Printing
         MC_tally = 0d0
-    endif
-    endif
+	end if
+	! +++ FOR NO BURNUP CALCULATION (JUST STEADY-STATE)
+    ELSE
+    if ( bat == n_batch ) then
+		if ( .not. fmfdon ) then
+			! --- TALLY = 5: KAPPA*SIGMA_F / TALLY = 4: NU * SIGMA_F
+			if ( tallyon ) then
+				open(9991, file= "MESH_POWER_MC_AVG.out",action="write",status="replace")
+				open(99991,file= "MESH_POWER_MC_STD.out",action="write",status="replace")
+				do ii = 1, nfm(1)
+				do jj = 1, nfm(2)
+				do kk = 1, nfm(3)
+					ttemp   (ii,jj,kk) = AVG  (MC_tally(bat,:,1,1,ii,jj,kk))
+					ttemp_sd(ii,jj,kk) = STD_M(MC_tally(bat,:,1,1,ii,jj,kk))
+				end do
+				end do
+				end do
+				WRITE(*,*), ""
+				write(*,*), "   Printing MC power distribution"
+				write( 9991,14), ttemp   (:,:,:)
+				write(99991,14), ttemp_sd(:,:,:)
+				close( 9991)
+				close(99991)
+			END IF
+			! --- IFP BASED ADJOINT DISTRIBUTION / GROUP WISE
+			IF(tally_adj_flux) THEN
+				open(9909, file= "MESH_ADJ_MC_AVG.out",action="write",status="replace")
+				open(99099,file= "MESH_ADJ_MC_STD.out",action="write",status="replace")
+				! *** FORWARD FLUX
+				WRITE( 9909,*), 'FORWARD [TL]'
+				WRITE(99099,*), 'FORWARD [TL]'
+				DO gg = 1,num_adj_group
+					do ii = 1, nfm_adj(1)
+					do jj = 1, nfm_adj(2)
+					do kk = 1, nfm_adj(3)
+						flux_g   (gg,ii,jj,kk) = AVG  (FOR_phi(:,gg,ii,jj,kk))
+						flux_g_sd(gg,ii,jj,kk) = STD_M(FOR_phi(:,gg,ii,jj,kk))
+					end do
+					end do
+					end do
+					ttemp2    = flux_g   (gg,:,:,:)
+					ttemp2_sd = flux_g_sd(gg,:,:,:)
+					write( 9909,24), ttemp2   (:,:,:)
+					write(99099,24), ttemp2_sd(:,:,:)
+					WRITE( 9909,*) ''
+					WRITE(99099,*) ''
+				END DO
+				WRITE( 9909,*) ''
+				WRITE(99099,*) ''
+				! *** ADJOINT FLUX
+				WRITE( 9909,*), 'ADJOINT'
+				WRITE(99099,*), 'ADJOINT'
+				DO gg = 1,num_adj_group
+					do ii = 1, nfm_adj(1)
+					do jj = 1, nfm_adj(2)
+					do kk = 1, nfm_adj(3)
+						IF(ABS(flux_g(gg,ii,jj,kk)) < TINY_BIT) THEN
+							adj_flux_g   (gg,ii,jj,kk) = 0.d0
+							adj_flux_g_sd(gg,ii,jj,kk) = 0.d0
+						ELSE
+							adj_flux_g   (gg,ii,jj,kk) = AVG  (adj_phi(:,gg,ii,jj,kk))/flux_g(gg,ii,jj,kk)
+							adj_flux_g_sd(gg,ii,jj,kk) = adj_flux_g(gg,ii,jj,kk)*&
+														SQRT((STD_M(adj_phi(:,gg,ii,jj,kk))/AVG(adj_phi(:,gg,ii,jj,kk)))**2 + (flux_g_sd(gg,ii,jj,kk)/flux_g(gg,ii,jj,kk))**2)
+						END IF
+					end do
+					end do
+					end do
+					ttemp2    = adj_flux_g   (gg,:,:,:)
+					ttemp2_sd = adj_flux_g_sd(gg,:,:,:)
+					write( 9909,24), ttemp2   (:,:,:)
+					write(99099,24), ttemp2_sd(:,:,:)
+					WRITE( 9909,*) ''
+					WRITE(99099,*) ''
+				END DO
+				close( 9909)
+				CLOSE(99099)
+				WRITE(*,*), ""
+				write(*,*), "   Printing MC ADJOINT FLUX (IFP-based) distribution"
+			END IF
+		END IF
+	END IF
+	END IF
 
     1 format(1000ES15.7)
     2 format(2I4,1000ES15.7)
@@ -1071,8 +1237,9 @@ subroutine CYCLE_TALLY_MSG(bat)
     14 format(<nfm(1)>ES15.7)
     15 format(4X,I4,3F12.3)
     21 format(<nfm(1)>es15.7)
+	24 format(<nfm_adj(1)>ES15.7)
 
-end subroutine
+end subroutine CYCLE_TALLY_MSG
 
 ! =============================================================================
 ! BATCH_TALLY_MSG

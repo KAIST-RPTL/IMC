@@ -40,8 +40,8 @@ module simulation
     
 	interface gatherBank
 		module procedure  gatherSourceBank
+		MODULE procedure  gatherSourceBank_LONG
 		module procedure  gatherPrecBank
-		module procedure  gatherVRCBank
 	end interface 
 	
 	integer, parameter :: bank_max = 1000000
@@ -71,9 +71,31 @@ subroutine simulate_history(bat,cyc)
 	integer :: i_bin(4)
     real(8) :: adj_sum, totwgt
     real(8) :: t_fm1, t_fm2
+	INTEGER :: AHRI, x, y, z, g
+	REAL(8), ALLOCATABLE :: rcv_vec1(:) ! --- FOR ADJOINT FLUX DISTRIBUTION
+	REAL(8), ALLOCATABLE :: rcv_vec2(:) ! --- FOR ENERGY SPECTRUM (FORWARD)
+	REAL(8), ALLOCATABLE :: rcv_vec3(:) ! --- FOR ENERGY SPECTRUM (ADJOINT)
 
     MSR_leak = 0d0
-    if (allocated(fission_bank)) call move_alloc(fission_bank, source_bank)
+	! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	! --- BANK <-> BANK_LONG (FOR TALLYING ADJOINT SPECTRUM)
+	! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	IF(curr_cyc .EQ. n_inact + 1 .AND. do_IFP_long) THEN
+		if (allocated(fission_bank)) call move_alloc(fission_bank, source_bank)
+		CALL extend_BANK_to_BANK_LONG(source_bank,source_bank_LONG)
+		IF(ALLOCATED(fission_bank_LONG)) DEALLOCATE(fission_bank_LONG)
+		ALLOCATE(fission_bank_LONG(0))	
+	! --- BANK <-> BANK_LONG
+	ELSE IF(curr_cyc > n_inact + 1 .AND. do_IFP_long) THEN
+		if (allocated(fission_bank_LONG)) call move_alloc(fission_bank_LONG, source_bank_LONG)
+		CALL reduce_BANK_LONG_to_BANK(source_bank_LONG,source_bank)
+		ALLOCATE(fission_bank_LONG(0))
+	ELSE
+		if (allocated(fission_bank)) call move_alloc(fission_bank, source_bank)
+		ALLOCATE(fission_bank     (0))
+	END IF
+	! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
     if ( icore == score ) then
         call SHENTROPY(source_bank)
         call FET_CALC(source_bank)
@@ -83,107 +105,157 @@ subroutine simulate_history(bat,cyc)
     if ( mprupon .or. ( .not. mprupon .and. genup ) ) &
         call MPRUP_DIST(isize,source_bank(:))
     if ( .not. mprupon .and. genup ) call CYCLECHANGE(cyc)
-    allocate(fission_bank(0))
+	
+	! --- HEAP STACK ALGORITHM FOR IFP ADJOINT DISTRIBUTION TALLY
+	IF(cyc > n_inact .AND. do_IFP_long) THEN
+		DO i = 1,isize
+			source_bank_LONG(i)%i_Current = i
+		END DO
+		IF(NOT(ALLOCATED(mat_source_bank_LONG))) THEN
+			ALLOCATE(mat_source_bank_LONG(FLOOR(REAL(isize,8)*1.05d0 + TINY_BIT),latent_LONG))
+		END IF
+		AHRI = MOD((cyc-n_inact),latent_LONG)
+		IF(AHRI == 0) AHRI = latent_LONG
+		mat_source_bank_LONG(1:isize,AHRI) = source_bank_LONG(:)
+	END IF
 	
     !> Distribute source_bank to slave nodes 
     call para_range(1, isize, ncore, icore, ista, iend)        
     k_col = 0; k_tl = 0; k_vrc = 0; fiss_vrc = 0; loss_vrc = 0;
     if ( fmfdon ) call FMFD_initialize()
     if ( do_burn ) MC_tally(bat,:,:,:,:,:,:) = 0
+	
     cyc_power = 0;
-    !if(.not. allocated(cyc_p_arr)) allocate(cyc_p_arr(0:ncore-1))
-    !cyc_p_arr = 0;
+	n_col = 0; n_cross = 0 
     
     ! ADJOINT related
-    denom = 0; beta_numer = 0; gen_numer = 0; lam_denom = 0; !gen_prompt = 0
-
-	n_col = 0; n_cross = 0 
+    denom = 0; beta_numer = 0; gen_numer = 0; lam_denom = 0; 
 	
 	if (allocated(prec_bank)) deallocate(prec_bank)
 	allocate(prec_bank(0))
 	if (allocated(prompt_bank)) deallocate(prompt_bank)
 	allocate(prompt_bank(0))
-
 	
-    !$omp parallel private(p) shared(source_bank, fission_bank, temp_bank, prec_bank, ista, iend)
-      thread_bank(:)%wgt = 0; bank_idx = 0; prec_idx = 0 ; init_idx = 0
-      if (tallyon .and. .not. fmfdon) call TALLY_THREAD_INITIAL(cyc)
-      if ( fmfdon ) call FMFD_initialize_thread()
-      !$omp do reduction(+: k_col, k_tl) 
-        do i= ista, iend 
-            call p%initialize()
-            call p%set(source_bank(i))
-			
-			! initialize p%tet value (TODO)
-			if (do_gmsh .and. curr_cyc > n_inact) then 
-				i_bin = FindTallyBin(p)
-				if ( i_bin(1) > 0 ) then 
-					p%tet = find_tet(p%coord(p%n_coord)%xyz)
-					p%in_tet = .true.
-				else 
-					p%in_tet = .false.
-				endif 
-				!if (p%tet .le. 0) p%in_tet = .false.
+	! --- ENERGY SPECTRUM RELATED (TSOH-IFP)
+	IF(curr_cyc > n_inact .AND. tally_for_spect) THEN
+		FOR_phi_ene_cyc = 0.d0
+		IF(ALLOCATED(rcv_vec2)) DEALLOCATE(rcv_vec2)
+		IF(E_mode == 0) THEN
+			ALLOCATE(rcv_vec2(n_group))
+		ELSE
+			ALLOCATE(rcv_vec2(n_egroup_spect-1))
+		END IF
+	END IF
+	
+	! --- ADJOINT FLUX DISTRIBUTION RELATED
+	IF(curr_cyc > n_inact .AND. tally_adj_flux) THEN
+		adj_phi_cyc     = 0.d0
+		FOR_phi_cyc     = 0.d0
+		adj_phi_cyc_vec = 0.d0
+		FOR_phi_cyc_vec = 0.d0
+		IF(ALLOCATED(rcv_vec1)) DEALLOCATE(rcv_vec1)
+		ALLOCATE(rcv_vec1(num_adj_group*nfm_adj(1)*nfm_adj(2)*nfm_adj(3)))
+	END IF
+	
+	! --- ENERGY SPECTRUM RELATED (ADJOINT) (TSOH-IFP)
+	IF(curr_cyc > n_inact .AND. tally_adj_spect) THEN
+		adj_phi_ene_cyc = 0.d0
+		IF(ALLOCATED(rcv_vec3)) DEALLOCATE(rcv_vec3)
+		IF(E_mode == 0) THEN
+			ALLOCATE(rcv_vec3(n_group))
+		ELSE
+			ALLOCATE(rcv_vec3(n_egroup_spect-1))
+		END IF
+	END IF
+
+	!$omp parallel private(p) shared(source_bank, fission_bank, temp_bank, prec_bank, ista, iend, source_bank_LONG, fission_bank_LONG)
+    thread_bank(:)%wgt = 0; bank_idx = 0; prec_idx = 0 ; init_idx = 0; thread_bank_LONG(:)%wgt = 0
+    if (tallyon .and. .not. fmfdon) call TALLY_THREAD_INITIAL(cyc)
+    if ( fmfdon )                   call FMFD_initialize_thread()
+    !$omp do reduction(+: k_col, k_tl) 
+    do i= ista, iend 
+		call p%initialize()
+		IF(curr_cyc > n_inact .AND. do_IFP_long) THEN
+			CALL p%set_LONG(source_bank_LONG(i))
+		ELSE
+			call p%set(source_bank(i))
+		END IF
+		
+		! initialize p%tet value (TODO)
+		if (do_gmsh .and. curr_cyc > n_inact) then 
+			i_bin = FindTallyBin(p)
+			if ( i_bin(1) > 0 ) then 
+				p%tet = find_tet(p%coord(p%n_coord)%xyz)
+				p%in_tet = .true.
+			else 
+				p%in_tet = .false.
 			endif 
-            do while (p%alive == .true.)
-				call transport(p)
-            enddo 
+		endif 
 		
-            !if buffer is almost full -> add to the fission bank
-            !if (bank_idx > int(size(thread_bank)*0.01*(80-OMP_GET_THREAD_NUM()))) then 
-            if ( bank_idx > 7500 ) then 
-              !$omp critical
+		! TRASNPORT the PTC until it dies away
+        do while (p%alive == .true.)
+			call transport(p)
+        enddo 
+		
+        ! if buffer is almost full -> add to the fission bank
+        if ( bank_idx > 7500 ) then 
+			IF(curr_cyc > n_inact .AND. do_IFP_long) THEN
+				!$omp critical
+				call gatherBank(fission_bank_LONG, thread_bank_LONG, bank_idx)
+				!$omp end critical
+				bank_idx = 0
+			ELSE
+				!$omp critical
 				call gatherBank(fission_bank, thread_bank, bank_idx)
-              !$omp end critical
-                bank_idx = 0
-            endif
-			
-            if ( prec_idx > 10000 ) then 
-			  !$omp critical
-				call gatherBank(prec_bank, prec_thread, prec_idx)
-			  !$omp end critical
-				prec_idx = 0
-            endif
-			
-            if ( init_idx > 10000 ) then 
-			  !$omp critical
-				call gatherBank(prompt_bank, thread_bank_init, init_idx)
-			  !$omp end critical
-				init_idx = 0
-            endif
-        enddo
-      !$omp end do
+				!$omp end critical
+				bank_idx = 0
+			END IF
+		endif
+		
+        if ( prec_idx > 10000 ) then 
+			!$omp critical
+			call gatherBank(prec_bank, prec_thread, prec_idx)
+		    !$omp end critical
+			prec_idx = 0
+        endif
+		
+        if ( init_idx > 10000 ) then 
+			!$omp critical
+			call gatherBank(prompt_bank, thread_bank_init, init_idx)
+			!$omp end critical
+			init_idx = 0
+        endif
+	enddo
+	!$omp end do
 
-      ! print *, icore, 'CYC done'
-		
-		
-      !$omp critical
+    !$omp critical
+	IF(curr_cyc > n_inact .AND. do_IFP_long) THEN
+		call gatherBank(fission_bank_LONG, thread_bank_LONG, bank_idx)
+	ELSE
 		call gatherBank(fission_bank, thread_bank, bank_idx)
-        !> normalize thread tally parameters (can be done outside critical)
-        if ( tallyon .and. .not. fmfdon ) call NORM_TALLY(bat,cyc)
-        if ( fmfdon ) call NORM_FMFD(cyc)
-        if ( th_on .and. .not. fmfdon ) call NORM_TH()
-        
-      !$omp end critical
+	END IF
+    !> normalize thread tally parameters (can be done outside critical)
+    if ( tallyon .and. .not. fmfdon ) call NORM_TALLY(bat,cyc)
+    if ( fmfdon                     ) call NORM_FMFD(cyc)
+    if ( th_on   .and. .not. fmfdon ) call NORM_TH()
+    !$omp end critical
 	  
-      !$omp critical
-		call gatherBank(prec_bank, prec_thread, prec_idx)
-      !$omp end critical
+    !$omp critical
+	call gatherBank(prec_bank, prec_thread, prec_idx)
+    !$omp end critical
 	  
-	  !$omp critical
-		call gatherBank(prompt_bank, thread_bank_init, init_idx)
-	  !$omp end critical
-	  
+	!$omp critical
+	call gatherBank(prompt_bank, thread_bank_init, init_idx)
+	!$omp end critical
+  
     !$omp end parallel
+	! call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 	
-	
-	
-    !call MPI_BARRIER(MPI_COMM_WORLD, ierr)
     !> Process tallied FMFD parameters ==========================================
     if ( tallyon .and. .not. fmfdon ) call PROCESS_TALLY(bat,cyc)
-    if ( fmfdon .and. cyc > n_skip ) call PROCESS_FMFD(bat,cyc)
-    if ( th_on .and. .not. fmfdon ) call PROCESS_TH()
-    
+    if ( fmfdon  .and. cyc > n_skip ) call PROCESS_FMFD (bat,cyc)
+    if ( th_on   .and. .not. fmfdon ) call PROCESS_TH()
+	
     !> Gather keff from the slave nodes =========================================
     call MPI_REDUCE(k_col,rcv_buf,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
     k_col = rcv_buf
@@ -191,17 +263,83 @@ subroutine simulate_history(bat,cyc)
     call MPI_REDUCE(k_tl,rcv_buf,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
     k_tl = rcv_buf
 	
-
     call MPI_REDUCE(cyc_power,rcv_buf,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
     cyc_power = rcv_buf
     
+    ! ADJOINT related 
+    call MPI_REDUCE(denom,rcv_buf,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+    denom = rcv_buf
+	
+	! ADJOINT related 
+    call MPI_REDUCE(beta_numer,rcv_buf_long,8,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+    beta_numer(1:8) = rcv_buf_long(1:8)
+	
+	! ADJOINT related 
+    call MPI_REDUCE(lam_denom,rcv_buf_long,8,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+    lam_denom(1:8)  = rcv_buf_long(1:8)
+	
+	! ADJOINT related 
+    call MPI_REDUCE(gen_numer,rcv_buf,1,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+    gen_numer  = rcv_buf
+	
+	! --- REDUCE the spectrum information (TSOH-IFP)
+	IF(tally_for_spect) THEN
+		IF(curr_cyc > n_inact) THEN
+			IF(E_mode == 0) THEN
+				AHRI = n_group
+			ELSE
+				AHRI = n_egroup_spect-1
+			END IF
+			CALL MPI_REDUCE(FOR_phi_ene_cyc,rcv_vec2,AHRI,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+			FOR_phi_ene_cyc = rcv_vec2
+		END IF
+	END IF
+	
+	! --- REDUCE the adjoint flux information (Energy condensed) (TSOH-IFP)
+	IF(tally_adj_spect) THEN
+		IF(curr_cyc > n_inact + latent_LONG) THEN
+			CALL MPI_REDUCE(adj_phi_ene_cyc,rcv_vec3,AHRI,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+			adj_phi_ene_cyc = rcv_vec3
+		END IF
+	END IF
+	
+	! --- REDUCE the vectorized adjoint flux distribution then convert to (x,y,z) & group index
+	IF(tally_adj_flux) THEN
+		IF(curr_cyc > n_inact .AND. curr_cyc <= n_inact + latent_LONG) THEN
+			CALL MPI_REDUCE(FOR_phi_cyc_vec,rcv_vec1,num_adj_group*nfm_adj(1)*nfm_adj(2)*nfm_adj(3),MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr) 
+			FOR_phi_cyc_vec = rcv_vec1			
+			DO g = 1,num_adj_group
+				DO z = 1,nfm_adj(3)
+					DO y = 1,nfm_adj(2)
+						DO x = 1,nfm_adj(1)
+							FOR_phi_cyc(g,x,y,z) = FOR_phi_cyc_vec((g-1)*nfm_adj(1)*nfm_adj(2)*nfm_adj(3)+(z-1)*nfm_adj(1)*nfm_adj(2)+(y-1)*nfm_adj(1)+x)
+						END DO
+					END DO				
+				END DO
+			END DO
+		ELSE IF(curr_cyc > n_inact + latent_LONG) THEN
+			CALL MPI_REDUCE(adj_phi_cyc_vec,rcv_vec1,num_adj_group*nfm_adj(1)*nfm_adj(2)*nfm_adj(3),MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+			adj_phi_cyc_vec = rcv_vec1
+			CALL MPI_REDUCE(FOR_phi_cyc_vec,rcv_vec1,num_adj_group*nfm_adj(1)*nfm_adj(2)*nfm_adj(3),MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr) 
+			FOR_phi_cyc_vec = rcv_vec1
+			DO g = 1,num_adj_group
+				DO z = 1,nfm_adj(3)
+					DO y = 1,nfm_adj(2)
+						DO x = 1,nfm_adj(1)
+							adj_phi_cyc(g,x,y,z) = adj_phi_cyc_vec((g-1)*nfm_adj(1)*nfm_adj(2)*nfm_adj(3)+(z-1)*nfm_adj(1)*nfm_adj(2)+(y-1)*nfm_adj(1)+x)
+							FOR_phi_cyc(g,x,y,z) = FOR_phi_cyc_vec((g-1)*nfm_adj(1)*nfm_adj(2)*nfm_adj(3)+(z-1)*nfm_adj(1)*nfm_adj(2)+(y-1)*nfm_adj(1)+x)
+						END DO
+					END DO				
+				END DO
+			END DO		
+		END IF
+	END IF
+	
 	if (icore == score) avg_power = avg_power + cyc_power
 	
     call MPI_REDUCE(n_col,i,1,MPI_INTEGER,MPI_SUM,score,MPI_COMM_WORLD,ierr)
     n_col = i
 	n_col_avg = n_col_avg + n_col 
-	
-	
 	
     if(do_mgtally) then
         allocate(rcvbuflong(n_mg))
@@ -244,34 +382,50 @@ subroutine simulate_history(bat,cyc)
         !if(icore==score) print *, 'leak_red', MSR_leak
     endif
         
-        !if(icore == score) print *, curr_cyc, isize, n_col	
-    if(do_ifp .and. icore==score .and. curr_cyc>n_inact) then 
-        betad(:,curr_cyc-n_inact) = 0.d0
-        isize = size(fission_bank)
-        totwgt = 0.d0
-        do i = 1,isize
-            totwgt = totwgt+fission_bank(i)%wgt
-            if(fission_bank(i)%delayed .and. fission_bank(i)%G>0) &
-            betad(fission_bank(i)%G,curr_cyc-n_inact) = &
-            betad(fission_bank(i)%G,curr_cyc-n_inact) + fission_bank(i)%wgt
-        enddo
-        betad(0,curr_cyc-n_inact) = sum(betad(1:8,curr_cyc-n_inact))
-        betad(:,curr_cyc-n_inact) = betad(:,curr_cyc-n_inact)/totwgt
-        !print *, curr_cyc-n_inact, totwgt, betad(0:6,curr_cyc-n_inact)
-    endif
-	
-	
+	! REDUCE BANK_LONG TO BANK
+	IF(do_IFP_long .AND. curr_cyc > n_inact) THEN
+		CALL reduce_BANK_LONG_to_BANK(fission_bank_LONG,fission_bank)
+	END IF
+		
     !> Calculate k_eff ==========================================================
     k_col = k_col / real(ngen,8)
     k_tl  = k_tl  / real(ngen,8) 
-    keff  = (k_tl + k_col) / 2.0d0
-    !keff = k_col
-    
+    ! keff  = (k_tl + k_col) / 2.0d0; 
+	keff = k_col
     if (icore == score) write(prt_keff,*) keff, k_col, k_tl
-    
     call MPI_BCAST(keff, 1, MPI_DOUBLE_PRECISION, score, MPI_COMM_WORLD, ierr) 
-    
 	
+	!> ADJUSTMENT IN GENARATION TIME TALLY_THREAD_INITIAL
+    IF(icore == score) gen_numer = gen_numer / keff
+	call MPI_BCAST(gen_numer, 1, MPI_DOUBLE_PRECISION, score, MPI_COMM_WORLD, ierr)
+		
+	!> CONVENTIONAL BETA VALUE CALCULATION (TSOH-IFP): INCLUDED MG EVALUATION AS WELL
+    if(do_ifp .and. icore==score .and. curr_cyc > n_inact) then 
+        betad(:,curr_cyc-n_inact) = 0.d0
+        isize = size(fission_bank)
+        totwgt = 0.d0
+		! --- MULTIGROUP ENERGY
+		IF(E_mode == 0) THEN
+			DO i = 1,isize
+				totwgt = totwgt+fission_bank(i)%wgt
+				if(fission_bank(i)%delayed .and. fission_bank(i)%G_delayed>0) THEN
+					betad(fission_bank(i)%G_delayed,curr_cyc-n_inact) = betad(fission_bank(i)%G_delayed,curr_cyc-n_inact) + fission_bank(i)%wgt
+				END IF
+			END DO
+		! --- CONTINUOUS ENERGY
+		ELSE
+			do i = 1,isize
+				totwgt = totwgt+fission_bank(i)%wgt
+				if(fission_bank(i)%delayed .and. fission_bank(i)%G>0) THEN
+					betad(fission_bank(i)%G,curr_cyc-n_inact) = betad(fission_bank(i)%G,curr_cyc-n_inact) + fission_bank(i)%wgt
+				END IF
+			enddo
+		END IF
+        betad(0,curr_cyc-n_inact) = sum(betad(1:8,curr_cyc-n_inact))
+        betad(:,curr_cyc-n_inact) = betad(:,curr_cyc-n_inact)/totwgt
+    endif 
+	
+	!> ADJOINT RELATED
     if (do_ifp .and. curr_cyc > n_inact+latent .and. icore == score) then
         do i = 1,8
             betaarr(curr_cyc-n_inact-latent,i) = beta_numer(i)/denom
@@ -281,45 +435,87 @@ subroutine simulate_history(bat,cyc)
                 lamarr(curr_cyc-n_inact-latent,i)  = 0.d0
             endif
         enddo
-        
         betaarr(curr_cyc-n_inact-latent,0) = sum(beta_numer)/denom
         if(sum(lam_denom)>0) then
             lamarr(curr_cyc-n_inact-latent,0)  = sum(beta_numer)/sum(lam_denom)
         else
             lamarr(curr_cyc-n_inact-latent,0)  = 0.d0
         endif
-
-        genarr(curr_cyc-n_inact-latent)  = gen_numer /denom
-        !alphaarr(curr_cyc-n_inact-latent)= -(denom*sum(beta_numer(1:8)))/gen_numer 
-        alphaarr(curr_cyc-n_inact-latent) = &
-                -betaarr(curr_cyc-n_inact-latent,0)/genarr(curr_cyc-n_inact-latent)
-        !alphaarr(curr_cyc-n_inact-latent)= -sum(betaarr(curr_cyc-n_inact-latent,1:8))/gen_prompt*denom_prompt
+        genarr(curr_cyc-n_inact-latent)   = gen_numer /denom
+        alphaarr(curr_cyc-n_inact-latent) = -betaarr(curr_cyc-n_inact-latent,0)/genarr(curr_cyc-n_inact-latent)
+		! --- ECHO
         write(prt_adjoint,*) 'GENAlpha', genarr(curr_cyc-n_inact-latent), alphaarr(curr_cyc-n_inact-latent), gen_numer, denom
         write(prt_adjoint,*) 'TOTAL', (betaarr(curr_cyc-n_inact-latent,0)), (lamarr(curr_cyc-n_inact-latent,0))
         do i = 1,8
             write(prt_adjoint,*) i,betaarr(curr_cyc-n_inact-latent,i), lamarr(curr_cyc-n_inact-latent,i)
         enddo
         writE(prt_adjoint,*) ' '
-
     endif
-    !> Gather fission_bank from the slave nodes =================================        
-    ndata = size(fission_bank)
-    allocate(ircnt(1:ncore))
-    allocate(idisp(1:ncore))
-    do i = 1, ncore
-        idata = ndata
-        call MPI_BCAST(idata, 1, MPI_INTEGER, i-1, MPI_COMM_WORLD, ierr) 
-        ircnt(i) = idata
-    enddo 
-    idisp(1) = 0
-    do i = 2, ncore 
-        idisp(i) = idisp(i-1) + ircnt(i-1)
-    enddo
-    allocate(temp_bank(1:sum(ircnt)))
-    call MPI_ALLGATHERV(fission_bank,ndata,MPI_bank,temp_bank,ircnt,idisp,MPI_bank,MPI_COMM_WORLD,ierr)
-    deallocate(ircnt); deallocate(idisp); deallocate(fission_bank) 
-    call move_alloc(temp_bank, fission_bank)
 	
+	!> ADJOINT FLUX RELATED
+	IF(do_IFP_LONG .AND. icore == score .AND. tally_adj_flux) THEN
+		IF(curr_cyc > n_inact .AND. curr_cyc <= n_inact + latent_LONG) THEN
+			FOR_phi(curr_cyc-n_inact       ,:,:,:,:) = FOR_phi_cyc
+		ELSE IF(curr_cyc > n_inact + latent_LONG) THEN
+			adj_phi(curr_cyc-n_inact-latent_LONG,:,:,:,:) = adj_phi_cyc
+			FOR_phi(curr_cyc-n_inact            ,:,:,:,:) = FOR_phi_cyc
+		END IF
+	END IF
+	
+	!> ENERGY SPECTRUM RELATED (TSOH-IFP)
+	IF(icore == score .AND. tally_for_spect) THEN
+		IF(curr_cyc > n_inact) THEN
+			FOR_phi_ene(curr_cyc-n_inact,:) = FOR_phi_ene_cyc
+		END IF
+		IF(do_IFP_LONG .AND. tally_adj_spect) THEN
+			IF(curr_cyc > n_inact + latent_LONG) THEN
+				adj_phi_ene(curr_cyc-n_inact-latent_LONG,:) = adj_phi_ene_cyc
+			END IF
+		END IF
+	END IF
+	
+    !> Gather fission_bank from the slave nodes =================================        
+	! ------------------------------------------------------------------------------------------------------
+	! (*) FISSION_BANK_LONG
+	! ------------------------------------------------------------------------------------------------------
+	IF(do_IFP_long .AND. curr_cyc > n_inact) THEN
+		ndata = size(fission_bank_LONG)
+		allocate(ircnt(1:ncore)) ! 수신된 원소의 개수를 저장하는 정수 배열
+		allocate(idisp(1:ncore)) ! 정수 배열; i 번째 자리에는 프로세스 i에서 들어오는 데이터가 저장될 수신 버퍼 상의 위치 나타냄
+		do i = 1, ncore
+			idata = ndata
+			call MPI_BCAST(idata, 1, MPI_INTEGER, i-1, MPI_COMM_WORLD, ierr) 
+			ircnt(i) = idata
+		enddo 
+		idisp(1) = 0
+		do i = 2, ncore 
+			idisp(i) = idisp(i-1) + ircnt(i-1)
+		enddo
+		allocate(temp_bank_LONG(1:sum(ircnt)))
+		call MPI_ALLGATHERV(fission_bank_LONG,ndata,MPI_bank_LONG,temp_bank_LONG,ircnt,idisp,MPI_bank_LONG,MPI_COMM_WORLD,ierr)
+		deallocate(ircnt); deallocate(idisp); deallocate(fission_bank_LONG) 
+		call move_alloc(temp_bank_LONG, fission_bank_LONG)
+	! ------------------------------------------------------------------------------------------------------
+	! (*) FISSION_BANK
+	! ------------------------------------------------------------------------------------------------------
+	ELSE
+		ndata = size(fission_bank)
+		allocate(ircnt(1:ncore))
+		allocate(idisp(1:ncore))
+		do i = 1, ncore
+			idata = ndata
+			call MPI_BCAST(idata, 1, MPI_INTEGER, i-1, MPI_COMM_WORLD, ierr) 
+			ircnt(i) = idata
+		enddo 
+		idisp(1) = 0
+		do i = 2, ncore 
+			idisp(i) = idisp(i-1) + ircnt(i-1)
+		enddo
+		allocate(temp_bank(1:sum(ircnt)))
+		call MPI_ALLGATHERV(fission_bank,ndata,MPI_bank,temp_bank,ircnt,idisp,MPI_bank,MPI_COMM_WORLD,ierr)
+		deallocate(ircnt); deallocate(idisp); deallocate(fission_bank) 
+		call move_alloc(temp_bank, fission_bank)
+	END IF
     
 	if (do_DMC .and. curr_cyc > n_inact) then 
 		!> Gather prec_bank from the slave nodes =================================        
@@ -357,17 +553,20 @@ subroutine simulate_history(bat,cyc)
 		allocate(temp_bank(1:sum(ircnt)))
 		call MPI_ALLGATHERV(prompt_bank,ndata,MPI_bank,temp_bank,ircnt,idisp,MPI_bank,MPI_COMM_WORLD,ierr)
 		deallocate(ircnt); deallocate(idisp); deallocate(prompt_bank) 
-		call move_alloc(temp_bank, prompt_bank)
-		
-		
-		
-		
+		call move_alloc(temp_bank, prompt_bank)		
 	endif 
 
 	
     !> Normalize source weight  =================================================
-    isize = size(fission_bank)
-    fission_bank(:)%wgt = real(ngen,8)/real(isize,8)
+	IF(do_IFP_long .AND. curr_cyc > n_inact) THEN
+		isize = size(fission_bank_LONG)
+		fission_bank_LONG(:)%wgt = real(ngen,8)/real(isize,8)
+	ELSE
+		isize = size(fission_bank)
+		fission_bank(:)%wgt = real(ngen,8)/real(isize,8)
+	END IF
+	
+	!> MSR LEAK 상황에서 적절히 fission_bank_LONG 적용하여야 함 (나중에)
     if(do_fuel_mv) fission_bank(:)%wgt = real(ngen,8) / real(isize+MSR_leak,8)	
 	fission_bank(:)%time = 0 
 	
@@ -378,15 +577,9 @@ subroutine simulate_history(bat,cyc)
 		TallyFlux = tally_buf
         call MPI_REDUCE(TallyPower, tally_buf, isize, MPI_DOUBLE_PRECISION, MPI_SUM, score, MPI_COMM_WORLD, ierr)
 		TallyPower = tally_buf
-		
-		
         if (icore == score) then 
-			!print *, sum(TallyPower), cyc_power, sum(TallyPower)/cyc_power, Nominal_Power
             TallyFlux(:) = TallyFlux(:) * dble(isize) / sum(TallyFlux)
-            !TallyPower(:) = TallyPower(:) * Nominal_Power * 1.0d6 / sum(TallyPower)
             TallyPower(:) = TallyPower(:) * Nominal_Power * 1.0d6 / cyc_power
-			
-			
 			if (do_gmsh) then
 				do i = 1, isize
 					TallyFlux(i)  = TallyFlux(i)/tet(i)%vol
@@ -398,15 +591,11 @@ subroutine simulate_history(bat,cyc)
 					TallyPower(i) = TallyPower(i)/TallyCoord(i)%vol
 				enddo
 			endif 
-			
             !> Print TallyFlux
             write(prt_flux, 100) TallyFlux(:)
             write(prt_powr, 100) TallyPower(:)
         100 format(<isize>ES15.7)
-		
-
         endif 
-		
 		TallyFlux(:) =0
 		TallyPower(:)=0
     endif
@@ -438,10 +627,7 @@ subroutine simulate_history(bat,cyc)
     !> initialize the global tally parameters ==================================
     k_col = 0.0d0; k_tl = 0.0d0; 
     
-
-end subroutine 
-
-
+end subroutine simulate_history 
 
 !===============================================================================
 ! DINAMIC_MC - DMC simulation subroutine.
@@ -1483,10 +1669,6 @@ end subroutine
 					
 	end subroutine
   
-  	
-
-
-    
 !subroutine para_range(n1, n2, nprocs, irank, ista, iend)
 !    integer :: iwork1, iwork2 
 !    integer, intent(in) :: n1, n2, nprocs, irank 
@@ -1519,11 +1701,29 @@ subroutine gatherSourceBank(bank_main, bank_thread, bank_idx)
 	bank_temp(isize+1:isize+bank_idx) = bank_thread(1:bank_idx)
 	call move_alloc(bank_temp, bank_main)
 	time4 = omp_get_wtime()
-	
-	!if (icore==score) print '(a, 3F12.5)', 'test', time2-time1, time3-time2, time4-time3
-	
-	
 end subroutine
+
+! TSOH-IFP: TO TALLY ADJOINT SPECTRUM
+subroutine gatherSourceBank_LONG(bank_main, bank_thread, bank_idx)
+	type(bank_LONG), allocatable, intent(inout) :: bank_main(:)
+	type(bank_LONG), intent(inout) :: bank_thread(:) 
+	type(bank_LONG), allocatable :: bank_temp(:) 
+	integer, intent(inout) :: bank_idx
+	integer :: isize
+	real(8) :: time1, time2, time3, time4 
+	
+	time1 = omp_get_wtime()
+	isize = size(bank_main)
+	if(allocated(bank_temp)) deallocate(bank_temp)
+	allocate(bank_temp(1:isize+bank_idx)) 
+	time2 = omp_get_wtime()
+	if (isize>0) bank_temp(1:isize) = bank_main(:)
+	deallocate(bank_main)
+	time3 = omp_get_wtime()
+	bank_temp(isize+1:isize+bank_idx) = bank_thread(1:bank_idx)
+	call move_alloc(bank_temp, bank_main)
+	time4 = omp_get_wtime()
+end subroutine gatherSourceBank_LONG
 
 subroutine gatherPrecBank(bank_main, bank_thread, bank_idx)
 	type(PrecBank), allocatable, intent(inout) :: bank_main(:)
@@ -1541,22 +1741,74 @@ subroutine gatherPrecBank(bank_main, bank_thread, bank_idx)
 	call move_alloc(bank_temp, bank_main)
 end subroutine
 
-subroutine gatherVRCBank(bank_main, bank_thread, bank_idx)
-	type(VRCBank), allocatable, intent(inout) :: bank_main(:)
-	type(VRCBank), intent(inout) :: bank_thread(:) 
-	type(VRCBank), allocatable :: bank_temp(:) 
-	integer, intent(inout) :: bank_idx
-	integer :: isize
-	
-	isize = size(bank_main)
-	if(allocated(bank_temp)) deallocate(bank_temp)
-	allocate(bank_temp(1:isize+bank_idx)) 
-	if (isize>0) bank_temp(1:isize) = bank_main(:)
-	deallocate(bank_main)
-	bank_temp(isize+1:isize+bank_idx) = bank_thread(1:bank_idx)
-	call move_alloc(bank_temp, bank_main)
-end subroutine
+! (NOT USED)	subroutine gatherVRCBank(bank_main, bank_thread, bank_idx)
+! (NOT USED)		type(VRCBank), allocatable, intent(inout) :: bank_main(:)
+! (NOT USED)		type(VRCBank), intent(inout) :: bank_thread(:) 
+! (NOT USED)		type(VRCBank), allocatable :: bank_temp(:) 
+! (NOT USED)		integer, intent(inout) :: bank_idx
+! (NOT USED)		integer :: isize
+! (NOT USED)		
+! (NOT USED)		isize = size(bank_main)
+! (NOT USED)		if(allocated(bank_temp)) deallocate(bank_temp)
+! (NOT USED)		allocate(bank_temp(1:isize+bank_idx)) 
+! (NOT USED)		if (isize>0) bank_temp(1:isize) = bank_main(:)
+! (NOT USED)		deallocate(bank_main)
+! (NOT USED)		bank_temp(isize+1:isize+bank_idx) = bank_thread(1:bank_idx)
+! (NOT USED)		call move_alloc(bank_temp, bank_main)
+! (NOT USED)	end subroutine
 
+! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
+! EXTEND 'BANK' variable to 'BANK_LONG' variable / IFP ADJOINT RELATED QUANTITES ARE INITIALIZED TO BE ZERO (TSOH-IFP)
+! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
+SUBROUTINE extend_BANK_to_BANK_LONG(my_bank,my_bank_LONG)
+	TYPE(BANK),      ALLOCATABLE, INTENT(INOUT) :: my_bank     (:)
+	TYPE(BANK_LONG), ALLOCATABLE, INTENT(INOUT) :: my_bank_LONG(:)
+	INTEGER :: i,isize
+	isize = SIZE(my_bank)
+	IF(ALLOCATED(my_bank_LONG)) DEALLOCATE(my_bank_LONG)
+	ALLOCATE(my_bank_LONG(isize))
+	DO i = 1,isize
+		my_bank_LONG(i)%wgt        = my_bank(i)%wgt
+		my_bank_LONG(i)%xyz        = my_bank(i)%xyz
+		my_bank_LONG(i)%uvw        = my_bank(i)%uvw
+		my_bank_LONG(i)%E          = my_bank(i)%E
+		my_bank_LONG(i)%G          = my_bank(i)%G
+		my_bank_LONG(i)%G_delayed  = my_bank(i)%G_delayed
+		my_bank_LONG(i)%delayed    = my_bank(i)%delayed
+		! --- IFP RELATED
+		my_bank_LONG(i)%delayedarr   = my_bank(i)%delayedarr
+		my_bank_LONG(i)%delayedlam   = my_bank(i)%delayedlam
+		my_bank_LONG(i)%nlifearr     = my_bank(i)%nlifearr
+		! --- PROGENITOR BANK RELATED (INITIALIZE)
+		my_bank_LONG(i) % arr_code = 0
+		my_bank_LONG(i) % arr_PwTL = 0.d0
+	END DO
+END SUBROUTINE extend_BANK_to_BANK_LONG
+
+! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
+! REDUCE 'BANK_LONG' variable to 'BANK' variable (TSOH-IFP)
+! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
+SUBROUTINE reduce_BANK_LONG_to_BANK(my_bank_LONG,my_bank)
+	TYPE(BANK_LONG), ALLOCATABLE, INTENT(INOUT) :: my_bank_LONG(:)
+	TYPE(BANK),      ALLOCATABLE, INTENT(INOUT) :: my_bank     (:)	
+	INTEGER :: i,isize
+	isize = SIZE(my_bank_LONG)
+	IF(ALLOCATED(my_bank)) DEALLOCATE(my_bank)
+	ALLOCATE(my_bank(isize))
+	DO i = 1,isize
+		my_bank(i)%wgt        = my_bank_LONG(i)%wgt
+		my_bank(i)%xyz        = my_bank_LONG(i)%xyz
+		my_bank(i)%uvw        = my_bank_LONG(i)%uvw
+		my_bank(i)%E          = my_bank_LONG(i)%E
+		my_bank(i)%G          = my_bank_LONG(i)%G
+		my_bank(i)%G_delayed  = my_bank_LONG(i)%G_delayed
+		my_bank(i)%delayed    = my_bank_LONG(i)%delayed
+		! --- IFP RELATED
+		my_bank(i)%delayedarr = my_bank_LONG(i)%delayedarr
+		my_bank(i)%delayedlam = my_bank_LONG(i)%delayedlam
+		my_bank(i)%nlifearr   = my_bank_LONG(i)%nlifearr
+	END DO
+END SUBROUTINE reduce_BANK_LONG_to_BANK
 
 
 end module

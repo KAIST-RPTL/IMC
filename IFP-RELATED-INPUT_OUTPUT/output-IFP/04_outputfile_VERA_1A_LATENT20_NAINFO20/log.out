@@ -1,0 +1,874 @@
+ ctrl.inp :: CARD A is being read...
+    CTRL  READ COMPLETE..
+    Continuous Energy Mode...
+    CE_mat.inp :: CARD D is being read...
+    Number of Defined MAT:           4
+     S(a,b) lib:            1 /home/codes/serpent_data/endf71/hh2o.71t_0550
+     S(a,b) lib:            2 /home/codes/serpent_data/endf71/hh2o.71t_0600
+ lwtr_565K            Fraction:   0.300000000000001     
+           1 /home/codes/serpent_data/endf71/92234.710nc
+           2 /home/codes/serpent_data/endf71/92235.710nc
+           3 /home/codes/serpent_data/endf71/92236.710nc
+           4 /home/codes/serpent_data/endf71/92238.710nc
+           5 /home/codes/serpent_data/endf71/8016.710nc
+          WARNING :: NYD block exists
+           6 /home/codes/serpent_data/endf71/2004.710nc
+        2004 (n,g) cross section is not found
+           7 /home/codes/serpent_data/endf71/40090.710nc
+          WARNING :: NYD block exists
+           8 /home/codes/serpent_data/endf71/40091.710nc
+          WARNING :: NYD block exists
+           9 /home/codes/serpent_data/endf71/40092.710nc
+          WARNING :: NYD block exists
+          10 /home/codes/serpent_data/endf71/40094.710nc
+          WARNING :: NYD block exists
+          11 /home/codes/serpent_data/endf71/40096.710nc
+          WARNING :: NYD block exists
+          12 /home/codes/serpent_data/endf71/50112.710nc
+          13 /home/codes/serpent_data/endf71/50114.710nc
+          14 /home/codes/serpent_data/endf71/50115.710nc
+          15 /home/codes/serpent_data/endf71/50116.710nc
+          16 /home/codes/serpent_data/endf71/50117.710nc
+          17 /home/codes/serpent_data/endf71/50118.710nc
+          18 /home/codes/serpent_data/endf71/50119.710nc
+          19 /home/codes/serpent_data/endf71/50120.710nc
+          20 /home/codes/serpent_data/endf71/50122.710nc
+          21 /home/codes/serpent_data/endf71/50124.710nc
+          22 /home/codes/serpent_data/endf71/26054.710nc
+          WARNING :: NYD block exists
+          23 /home/codes/serpent_data/endf71/26056.710nc
+          WARNING :: NYD block exists
+          24 /home/codes/serpent_data/endf71/26057.710nc
+          WARNING :: NYD block exists
+          25 /home/codes/serpent_data/endf71/26058.710nc
+          26 /home/codes/serpent_data/endf71/24050.710nc
+          WARNING :: NYD block exists
+          27 /home/codes/serpent_data/endf71/24052.710nc
+          WARNING :: NYD block exists
+          28 /home/codes/serpent_data/endf71/24053.710nc
+          WARNING :: NYD block exists
+          29 /home/codes/serpent_data/endf71/24054.710nc
+          WARNING :: NYD block exists
+          30 /home/codes/serpent_data/endf71/72174.710nc
+          31 /home/codes/serpent_data/endf71/72176.710nc
+          32 /home/codes/serpent_data/endf71/72177.710nc
+          33 /home/codes/serpent_data/endf71/72178.710nc
+          34 /home/codes/serpent_data/endf71/72179.710nc
+          35 /home/codes/serpent_data/endf71/72180.710nc
+          36 /home/codes/serpent_data/endf71/1001.710nc
+          37 /home/codes/serpent_data/endf71/5010.710nc
+          38 /home/codes/serpent_data/endf71/5011.710nc
+    CE MAT READ COMPLETE...
+     Time to read CE_mat.inp [s]:   4.13598203659058     
+    geom.inp :: GEOMETRY CARD is being read..., LOOP #:           0
+ Surf #:           6
+ Cell #:           6
+ Univ #:           1
+ Latt #:           1
+ Reading is done...
+ Surf #:           6
+ Cell #:           6
+ Univ #:           1
+ Latt #:           1
+ Step2 is done...
+ Surf #:           6
+ Cell #:           6
+ Univ #:           1
+ Latt #:           1
+ Step3 is done...
+ Surf #:           6
+ Cell #:           6
+ Univ #:           1
+ Latt #:           1
+ Step4 is done...
+ Surf #:           6
+ Cell #:           6
+ Univ #:           1
+ Latt #:           1
+ Step5 is done...
+ Surf #:           6
+ Cell #:           6
+ Univ #:           1
+ Latt #:           1
+ TST2
+ Surf #:           6
+ Cell #:           6
+ Univ #:           1
+ Latt #:           1
+    GEOM  READ COMPLETE..
+     Time to read geom.inp [s]:  1.952886581420898E-003
+    ADJOINT SPECTRUM     TALLY
+    Setting ugrid...
+    Setting ugrid...
+   UEG XS set for 5010.80c  37/  38
+   UEG XS set for 50118.80c  17/  38
+   UEG XS set for 72178.80c  33/  38
+   UEG XS set for 92234.80c   1/  38
+   UEG XS set for 72177.80c  32/  38
+   UEG XS set for 26057.80c  24/  38
+   UEG XS set for 50114.80c  13/  38
+   UEG XS set for 50119.80c  18/  38
+   UEG XS set for 72179.80c  34/  38
+   UEG XS set for 92235.80c   2/  38
+   UEG XS set for 92236.80c   3/  38
+   UEG XS set for 50120.80c  19/  38
+   UEG XS set for 72180.80c  35/  38
+   UEG XS set for 24052.80c  27/  38
+   UEG XS set for 40090.80c   7/  38
+   UEG XS set for 26058.80c  25/  38
+   UEG XS set for 8016.80c   5/  38
+   UEG XS set for 5011.80c  38/  38
+   UEG XS set for 24054.80c  29/  38
+   UEG XS set for 50124.80c  21/  38
+   UEG XS set for 40092.80c   9/  38
+   UEG XS set for 92238.80c   4/  38
+   UEG XS set for 50117.80c  16/  38
+   UEG XS set for 50115.80c  14/  38
+   UEG XS set for 26056.80c  23/  38
+   UEG XS set for 50122.80c  20/  38
+   UEG XS set for 24050.80c  26/  38
+   UEG XS set for 1001.80c  36/  38
+   UEG XS set for 2004.80c   6/  38
+   UEG XS set for 40094.80c  10/  38
+   UEG XS set for 72174.80c  30/  38
+   UEG XS set for 26054.80c  22/  38
+   UEG XS set for 50116.80c  15/  38
+   UEG XS set for 72176.80c  31/  38
+   UEG XS set for 50112.80c  12/  38
+   UEG XS set for 40096.80c  11/  38
+   UEG XS set for 24053.80c  28/  38
+   UEG XS set for 40091.80c   8/  38
+    Initializing Source...
+    Source Initializing Complete...
+ 
+ 
+  > Num of Threads per Node          40
+  > Num of MPI Nodes                  6
+  > Num of Histories per Cycle   400000
+  > Skip Cycles:  100  /  Active Cycles:  500
+ 
+  > m-PRUP is OFF
+  > FMFD is OFF
+ 
+    Transport Simulation Starts...
+       1     5.20 sec   0.00000  |  keff  1.18675
+       2     5.50 sec   0.00000  |  keff  1.18812
+       3     4.67 sec   0.00000  |  keff  1.18742
+       4     4.69 sec   0.00000  |  keff  1.18764
+       5     4.71 sec   0.00000  |  keff  1.18612
+       6     4.66 sec   0.00000  |  keff  1.18384
+       7     4.68 sec   0.00000  |  keff  1.18614
+       8     4.68 sec   0.00000  |  keff  1.18773
+       9     4.70 sec   0.00000  |  keff  1.18394
+      10     4.73 sec   0.00000  |  keff  1.18991
+      11     4.69 sec   0.00000  |  keff  1.18848
+      12     4.69 sec   0.00000  |  keff  1.18951
+      13     4.70 sec   0.00000  |  keff  1.18517
+      14     4.72 sec   0.00000  |  keff  1.18710
+      15     4.68 sec   0.00000  |  keff  1.18629
+      16     4.67 sec   0.00000  |  keff  1.18757
+      17     4.71 sec   0.00000  |  keff  1.18844
+      18     4.66 sec   0.00000  |  keff  1.18711
+      19     4.69 sec   0.00000  |  keff  1.18743
+      20     4.69 sec   0.00000  |  keff  1.18896
+      21     4.65 sec   0.00000  |  keff  1.18818
+      22     4.73 sec   0.00000  |  keff  1.18787
+      23     4.76 sec   0.00000  |  keff  1.18777
+      24     4.62 sec   0.00000  |  keff  1.18599
+      25     4.69 sec   0.00000  |  keff  1.18747
+      26     4.72 sec   0.00000  |  keff  1.18873
+      27     4.77 sec   0.00000  |  keff  1.18707
+      28     4.67 sec   0.00000  |  keff  1.18634
+      29     4.71 sec   0.00000  |  keff  1.19043
+      30     4.74 sec   0.00000  |  keff  1.18555
+      31     4.71 sec   0.00000  |  keff  1.18640
+      32     4.73 sec   0.00000  |  keff  1.18748
+      33     4.73 sec   0.00000  |  keff  1.18818
+      34     4.72 sec   0.00000  |  keff  1.18796
+      35     4.70 sec   0.00000  |  keff  1.18610
+      36     4.68 sec   0.00000  |  keff  1.18575
+      37     4.71 sec   0.00000  |  keff  1.18595
+      38     4.74 sec   0.00000  |  keff  1.18611
+      39     4.70 sec   0.00000  |  keff  1.18594
+      40     4.72 sec   0.00000  |  keff  1.18529
+      41     4.66 sec   0.00000  |  keff  1.18668
+      42     4.72 sec   0.00000  |  keff  1.18680
+      43     4.64 sec   0.00000  |  keff  1.18698
+      44     4.68 sec   0.00000  |  keff  1.19021
+      45     4.73 sec   0.00000  |  keff  1.18669
+      46     4.69 sec   0.00000  |  keff  1.18708
+      47     4.69 sec   0.00000  |  keff  1.18661
+      48     4.70 sec   0.00000  |  keff  1.18682
+      49     4.67 sec   0.00000  |  keff  1.18776
+      50     4.66 sec   0.00000  |  keff  1.18787
+      51     4.65 sec   0.00000  |  keff  1.18732
+      52     4.68 sec   0.00000  |  keff  1.18633
+      53     4.66 sec   0.00000  |  keff  1.18819
+      54     4.68 sec   0.00000  |  keff  1.19018
+      55     4.70 sec   0.00000  |  keff  1.18743
+      56     4.75 sec   0.00000  |  keff  1.18549
+      57     4.68 sec   0.00000  |  keff  1.18781
+      58     4.71 sec   0.00000  |  keff  1.18771
+      59     4.71 sec   0.00000  |  keff  1.18867
+      60     4.71 sec   0.00000  |  keff  1.18622
+      61     4.67 sec   0.00000  |  keff  1.18824
+      62     4.72 sec   0.00000  |  keff  1.18876
+      63     4.74 sec   0.00000  |  keff  1.18622
+      64     4.72 sec   0.00000  |  keff  1.18809
+      65     4.71 sec   0.00000  |  keff  1.18628
+      66     4.70 sec   0.00000  |  keff  1.18772
+      67     4.73 sec   0.00000  |  keff  1.18643
+      68     4.69 sec   0.00000  |  keff  1.18731
+      69     4.71 sec   0.00000  |  keff  1.18619
+      70     4.63 sec   0.00000  |  keff  1.18758
+      71     4.74 sec   0.00000  |  keff  1.18710
+      72     4.69 sec   0.00000  |  keff  1.18724
+      73     4.64 sec   0.00000  |  keff  1.18791
+      74     4.71 sec   0.00000  |  keff  1.18342
+      75     4.68 sec   0.00000  |  keff  1.18649
+      76     4.67 sec   0.00000  |  keff  1.18717
+      77     4.69 sec   0.00000  |  keff  1.18707
+      78     4.64 sec   0.00000  |  keff  1.18558
+      79     4.72 sec   0.00000  |  keff  1.18738
+      80     4.71 sec   0.00000  |  keff  1.18883
+      81     4.73 sec   0.00000  |  keff  1.19028
+      82     4.67 sec   0.00000  |  keff  1.18445
+      83     4.67 sec   0.00000  |  keff  1.18783
+      84     4.67 sec   0.00000  |  keff  1.18861
+      85     4.67 sec   0.00000  |  keff  1.18583
+      86     4.63 sec   0.00000  |  keff  1.18714
+      87     4.64 sec   0.00000  |  keff  1.18862
+      88     4.71 sec   0.00000  |  keff  1.18858
+      89     4.61 sec   0.00000  |  keff  1.18825
+      90     4.68 sec   0.00000  |  keff  1.18539
+      91     4.67 sec   0.00000  |  keff  1.18677
+      92     4.71 sec   0.00000  |  keff  1.18798
+      93     4.63 sec   0.00000  |  keff  1.19172
+      94     4.67 sec   0.00000  |  keff  1.18621
+      95     4.66 sec   0.00000  |  keff  1.18528
+      96     4.70 sec   0.00000  |  keff  1.18814
+      97     4.63 sec   0.00000  |  keff  1.18608
+      98     4.65 sec   0.00000  |  keff  1.18646
+      99     4.64 sec   0.00000  |  keff  1.18582
+     100     4.65 sec   0.00000  |  keff  1.18793
+     101    12.70 sec   0.00000  |  keff  1.18633   avg  1.18633   SD    0.000
+     102    12.82 sec   0.00000  |  keff  1.18865   avg  1.18749   SD  116.347
+     103    12.60 sec   0.00000  |  keff  1.19074   avg  1.18857   SD  127.627
+     104    12.65 sec   0.00000  |  keff  1.18750   avg  1.18831   SD   94.143
+     105    12.72 sec   0.00000  |  keff  1.19258   avg  1.18916   SD  112.436
+     106    12.96 sec   0.00000  |  keff  1.18426   avg  1.18835   SD  122.843
+     107    12.79 sec   0.00000  |  keff  1.18931   avg  1.18848   SD  104.738
+     108    12.78 sec   0.00000  |  keff  1.18496   avg  1.18804   SD  100.836
+     109    12.75 sec   0.00000  |  keff  1.18586   avg  1.18780   SD   92.192
+     110    12.74 sec   0.00000  |  keff  1.18823   avg  1.18784   SD   82.571
+     111    13.87 sec   0.00000  |  keff  1.18666   avg  1.18774   SD   75.458
+     112    13.84 sec   0.00000  |  keff  1.19031   avg  1.18795   SD   72.153
+     113    13.89 sec   0.00000  |  keff  1.18849   avg  1.18799   SD   66.504
+     114    14.02 sec   0.00000  |  keff  1.18629   avg  1.18787   SD   62.762
+     115    13.97 sec   0.00000  |  keff  1.18805   avg  1.18788   SD   58.441
+     116    13.79 sec   0.00000  |  keff  1.18692   avg  1.18782   SD   54.996
+     117    14.12 sec   0.00000  |  keff  1.18721   avg  1.18779   SD   51.785
+     118    13.94 sec   0.00000  |  keff  1.18781   avg  1.18779   SD   48.824
+     119    13.98 sec   0.00000  |  keff  1.18745   avg  1.18777   SD   46.216
+     120    13.77 sec   0.00000  |  keff  1.18805   avg  1.18778   SD   43.868
+     121    15.20 sec   0.00000  |  keff  1.18938   avg  1.18786   SD   42.410
+     122    15.16 sec   0.00000  |  keff  1.18543   avg  1.18775   SD   41.922
+     123    15.17 sec   0.00000  |  keff  1.18683   avg  1.18771   SD   40.255
+     124    15.06 sec   0.00000  |  keff  1.18788   avg  1.18772   SD   38.548
+     125    15.18 sec   0.00000  |  keff  1.18560   avg  1.18763   SD   37.934
+     126    15.15 sec   0.00000  |  keff  1.18736   avg  1.18762   SD   36.461
+     127    15.12 sec   0.00000  |  keff  1.18798   avg  1.18763   SD   35.110
+     128    15.11 sec   0.00000  |  keff  1.18819   avg  1.18765   SD   33.892
+     129    15.17 sec   0.00000  |  keff  1.18829   avg  1.18768   SD   32.776
+     130    15.13 sec   0.00000  |  keff  1.18754   avg  1.18767   SD   31.668
+     131    14.89 sec   0.00000  |  keff  1.18818   avg  1.18769   SD   30.673
+     132    15.21 sec   0.00000  |  keff  1.18527   avg  1.18761   SD   30.646
+     133    15.07 sec   0.00000  |  keff  1.18845   avg  1.18764   SD   29.811
+     134    14.94 sec   0.00000  |  keff  1.18620   avg  1.18760   SD   29.228
+     135    15.17 sec   0.00000  |  keff  1.18635   avg  1.18756   SD   28.603
+     136    15.15 sec   0.00000  |  keff  1.18812   avg  1.18758   SD   27.840
+     137    15.10 sec   0.00000  |  keff  1.18781   avg  1.18758   SD   27.085
+     138    14.94 sec   0.00000  |  keff  1.18695   avg  1.18757   SD   26.415
+     139    15.12 sec   0.00000  |  keff  1.18641   avg  1.18754   SD   25.900
+     140    15.19 sec   0.00000  |  keff  1.18776   avg  1.18754   SD   25.250
+     141    15.06 sec   0.00000  |  keff  1.18589   avg  1.18750   SD   24.953
+     142    14.99 sec   0.00000  |  keff  1.18524   avg  1.18745   SD   24.940
+     143    14.92 sec   0.00000  |  keff  1.18593   avg  1.18741   SD   24.608
+     144    15.04 sec   0.00000  |  keff  1.18778   avg  1.18742   SD   24.057
+     145    15.06 sec   0.00000  |  keff  1.18820   avg  1.18744   SD   23.580
+     146    14.98 sec   0.00000  |  keff  1.18501   avg  1.18739   SD   23.656
+     147    15.00 sec   0.00000  |  keff  1.18905   avg  1.18742   SD   23.417
+     148    15.02 sec   0.00000  |  keff  1.18785   avg  1.18743   SD   22.942
+     149    15.00 sec   0.00000  |  keff  1.18790   avg  1.18744   SD   22.489
+     150    14.95 sec   0.00000  |  keff  1.18878   avg  1.18747   SD   22.198
+     151    15.00 sec   0.00000  |  keff  1.18773   avg  1.18747   SD   21.764
+     152    14.91 sec   0.00000  |  keff  1.18697   avg  1.18746   SD   21.364
+     153    14.96 sec   0.00000  |  keff  1.18821   avg  1.18748   SD   21.004
+     154    15.00 sec   0.00000  |  keff  1.18513   avg  1.18743   SD   21.064
+     155    15.00 sec   0.00000  |  keff  1.18884   avg  1.18746   SD   20.836
+     156    15.21 sec   0.00000  |  keff  1.18794   avg  1.18747   SD   20.479
+     157    14.98 sec   0.00000  |  keff  1.18581   avg  1.18744   SD   20.326
+     158    14.87 sec   0.00000  |  keff  1.18695   avg  1.18743   SD   19.990
+     159    15.20 sec   0.00000  |  keff  1.18712   avg  1.18742   SD   19.655
+     160    15.11 sec   0.00000  |  keff  1.18835   avg  1.18744   SD   19.386
+     161    15.28 sec   0.00000  |  keff  1.18673   avg  1.18743   SD   19.101
+     162    15.20 sec   0.00000  |  keff  1.18624   avg  1.18741   SD   18.888
+     163    15.14 sec   0.00000  |  keff  1.18677   avg  1.18740   SD   18.613
+     164    15.27 sec   0.00000  |  keff  1.18978   avg  1.18744   SD   18.695
+     165    15.09 sec   0.00000  |  keff  1.18722   avg  1.18743   SD   18.409
+     166    15.14 sec   0.00000  |  keff  1.18753   avg  1.18743   SD   18.128
+     167    15.25 sec   0.00000  |  keff  1.18717   avg  1.18743   SD   17.860
+     168    15.17 sec   0.00000  |  keff  1.18843   avg  1.18744   SD   17.657
+     169    15.29 sec   0.00000  |  keff  1.18667   avg  1.18743   SD   17.435
+     170    15.12 sec   0.00000  |  keff  1.18514   avg  1.18740   SD   17.493
+     171    15.33 sec   0.00000  |  keff  1.18738   avg  1.18740   SD   17.245
+     172    15.27 sec   0.00000  |  keff  1.18864   avg  1.18742   SD   17.091
+     173    15.11 sec   0.00000  |  keff  1.18661   avg  1.18741   SD   16.891
+     174    15.39 sec   0.00000  |  keff  1.18432   avg  1.18736   SD   17.174
+     175    15.14 sec   0.00000  |  keff  1.18545   avg  1.18734   SD   17.135
+     176    15.23 sec   0.00000  |  keff  1.18667   avg  1.18733   SD   16.931
+     177    15.21 sec   0.00000  |  keff  1.18699   avg  1.18733   SD   16.715
+     178    15.42 sec   0.00000  |  keff  1.18871   avg  1.18734   SD   16.595
+     179    15.19 sec   0.00000  |  keff  1.18629   avg  1.18733   SD   16.438
+     180    15.36 sec   0.00000  |  keff  1.18921   avg  1.18735   SD   16.400
+     181    15.32 sec   0.00000  |  keff  1.18714   avg  1.18735   SD   16.199
+     182    15.13 sec   0.00000  |  keff  1.18653   avg  1.18734   SD   16.031
+     183    15.41 sec   0.00000  |  keff  1.18875   avg  1.18736   SD   15.928
+     184    15.30 sec   0.00000  |  keff  1.18825   avg  1.18737   SD   15.772
+     185    15.37 sec   0.00000  |  keff  1.18617   avg  1.18735   SD   15.649
+     186    15.14 sec   0.00000  |  keff  1.18700   avg  1.18735   SD   15.471
+     187    15.41 sec   0.00000  |  keff  1.18820   avg  1.18736   SD   15.324
+     188    15.13 sec   0.00000  |  keff  1.18509   avg  1.18733   SD   15.367
+     189    15.31 sec   0.00000  |  keff  1.18599   avg  1.18732   SD   15.268
+     190    15.32 sec   0.00000  |  keff  1.18672   avg  1.18731   SD   15.112
+     191    15.32 sec   0.00000  |  keff  1.18631   avg  1.18730   SD   14.986
+     192    15.20 sec   0.00000  |  keff  1.18719   avg  1.18730   SD   14.823
+     193    15.20 sec   0.00000  |  keff  1.18527   avg  1.18728   SD   14.825
+     194    15.29 sec   0.00000  |  keff  1.18680   avg  1.18727   SD   14.675
+     195    15.50 sec   0.00000  |  keff  1.18496   avg  1.18725   SD   14.723
+     196    15.15 sec   0.00000  |  keff  1.18809   avg  1.18726   SD   14.595
+     197    15.25 sec   0.00000  |  keff  1.18900   avg  1.18728   SD   14.556
+     198    15.28 sec   0.00000  |  keff  1.18785   avg  1.18728   SD   14.418
+     199    15.28 sec   0.00000  |  keff  1.18654   avg  1.18727   SD   14.292
+     200    15.17 sec   0.00000  |  keff  1.18956   avg  1.18730   SD   14.331
+     201    15.33 sec   0.00000  |  keff  1.18630   avg  1.18729   SD   14.223
+     202    15.16 sec   0.00000  |  keff  1.19025   avg  1.18732   SD   14.379
+     203    15.24 sec   0.00000  |  keff  1.18427   avg  1.18729   SD   14.543
+     204    15.16 sec   0.00000  |  keff  1.18659   avg  1.18728   SD   14.419
+     205    15.42 sec   0.00000  |  keff  1.18925   avg  1.18730   SD   14.403
+     206    15.34 sec   0.00000  |  keff  1.18588   avg  1.18729   SD   14.329
+     207    15.31 sec   0.00000  |  keff  1.18877   avg  1.18730   SD   14.262
+     208    15.32 sec   0.00000  |  keff  1.18700   avg  1.18730   SD   14.132
+     209    15.21 sec   0.00000  |  keff  1.18524   avg  1.18728   SD   14.128
+     210    15.28 sec   0.00000  |  keff  1.18791   avg  1.18728   SD   14.011
+     211    15.40 sec   0.00000  |  keff  1.18656   avg  1.18728   SD   13.900
+     212    15.30 sec   0.00000  |  keff  1.18594   avg  1.18726   SD   13.826
+     213    15.33 sec   0.00000  |  keff  1.18714   avg  1.18726   SD   13.704
+     214    15.30 sec   0.00000  |  keff  1.18676   avg  1.18726   SD   13.590
+     215    15.31 sec   0.00000  |  keff  1.18957   avg  1.18728   SD   13.621
+     216    15.37 sec   0.00000  |  keff  1.18690   avg  1.18728   SD   13.507
+     217    15.32 sec   0.00000  |  keff  1.18706   avg  1.18727   SD   13.393
+     218    15.29 sec   0.00000  |  keff  1.18644   avg  1.18727   SD   13.297
+     219    15.13 sec   0.00000  |  keff  1.18767   avg  1.18727   SD   13.189
+     220    15.34 sec   0.00000  |  keff  1.18797   avg  1.18728   SD   13.092
+     221    15.25 sec   0.00000  |  keff  1.18735   avg  1.18728   SD   12.984
+     222    15.18 sec   0.00000  |  keff  1.18543   avg  1.18726   SD   12.965
+     223    15.37 sec   0.00000  |  keff  1.18611   avg  1.18725   SD   12.894
+     224    15.34 sec   0.00000  |  keff  1.18678   avg  1.18725   SD   12.795
+     225    15.25 sec   0.00000  |  keff  1.18776   avg  1.18725   SD   12.699
+     226    15.23 sec   0.00000  |  keff  1.18808   avg  1.18726   SD   12.615
+     227    15.32 sec   0.00000  |  keff  1.18601   avg  1.18725   SD   12.554
+     228    15.23 sec   0.00000  |  keff  1.18769   avg  1.18725   SD   12.460
+     229    15.37 sec   0.00000  |  keff  1.18746   avg  1.18725   SD   12.365
+     230    15.39 sec   0.00000  |  keff  1.18851   avg  1.18726   SD   12.307
+     231    15.21 sec   0.00000  |  keff  1.18644   avg  1.18726   SD   12.229
+     232    15.31 sec   0.00000  |  keff  1.18738   avg  1.18726   SD   12.136
+     233    15.24 sec   0.00000  |  keff  1.18736   avg  1.18726   SD   12.045
+     234    15.32 sec   0.00000  |  keff  1.18777   avg  1.18726   SD   11.961
+     235    15.29 sec   0.00000  |  keff  1.18520   avg  1.18725   SD   11.970
+     236    15.27 sec   0.00000  |  keff  1.18560   avg  1.18724   SD   11.943
+     237    15.24 sec   0.00000  |  keff  1.18492   avg  1.18722   SD   11.975
+     238    15.29 sec   0.00000  |  keff  1.19020   avg  1.18724   SD   12.083
+     239    15.24 sec   0.00000  |  keff  1.18820   avg  1.18725   SD   12.016
+     240    15.31 sec   0.00000  |  keff  1.18786   avg  1.18725   SD   11.938
+     241    15.13 sec   0.00000  |  keff  1.18607   avg  1.18724   SD   11.882
+     242    15.16 sec   0.00000  |  keff  1.18514   avg  1.18723   SD   11.891
+     243    15.26 sec   0.00000  |  keff  1.18940   avg  1.18724   SD   11.905
+     244    15.32 sec   0.00000  |  keff  1.18732   avg  1.18724   SD   11.822
+     245    15.21 sec   0.00000  |  keff  1.18578   avg  1.18723   SD   11.783
+     246    15.15 sec   0.00000  |  keff  1.18487   avg  1.18722   SD   11.814
+     247    15.23 sec   0.00000  |  keff  1.18496   avg  1.18720   SD   11.833
+     248    15.33 sec   0.00000  |  keff  1.18746   avg  1.18720   SD   11.754
+     249    15.30 sec   0.00000  |  keff  1.18708   avg  1.18720   SD   11.676
+     250    15.32 sec   0.00000  |  keff  1.18656   avg  1.18720   SD   11.605
+     251    15.23 sec   0.00000  |  keff  1.18802   avg  1.18721   SD   11.541
+     252    15.29 sec   0.00000  |  keff  1.18647   avg  1.18720   SD   11.475
+     253    15.12 sec   0.00000  |  keff  1.18867   avg  1.18721   SD   11.440
+     254    15.47 sec   0.00000  |  keff  1.18652   avg  1.18721   SD   11.374
+     255    15.27 sec   0.00000  |  keff  1.18796   avg  1.18721   SD   11.311
+     256    15.18 sec   0.00000  |  keff  1.18601   avg  1.18720   SD   11.264
+     257    15.41 sec   0.00000  |  keff  1.18829   avg  1.18721   SD   11.214
+     258    15.31 sec   0.00000  |  keff  1.18702   avg  1.18721   SD   11.143
+     259    15.24 sec   0.00000  |  keff  1.18724   avg  1.18721   SD   11.073
+     260    15.27 sec   0.00000  |  keff  1.18840   avg  1.18722   SD   11.029
+     261    15.20 sec   0.00000  |  keff  1.18783   avg  1.18722   SD   10.967
+     262    15.42 sec   0.00000  |  keff  1.19106   avg  1.18724   SD   11.153
+     263    15.32 sec   0.00000  |  keff  1.18732   avg  1.18724   SD   11.084
+     264    15.31 sec   0.00000  |  keff  1.18674   avg  1.18724   SD   11.021
+     265    15.33 sec   0.00000  |  keff  1.18860   avg  1.18725   SD   10.985
+     266    15.18 sec   0.00000  |  keff  1.18765   avg  1.18725   SD   10.921
+     267    15.39 sec   0.00000  |  keff  1.18749   avg  1.18725   SD   10.857
+     268    15.30 sec   0.00000  |  keff  1.18810   avg  1.18726   SD   10.803
+     269    15.27 sec   0.00000  |  keff  1.18762   avg  1.18726   SD   10.741
+     270    15.34 sec   0.00000  |  keff  1.18658   avg  1.18726   SD   10.685
+     271    15.17 sec   0.00000  |  keff  1.18666   avg  1.18725   SD   10.628
+     272    15.48 sec   0.00000  |  keff  1.18731   avg  1.18725   SD   10.567
+     273    15.25 sec   0.00000  |  keff  1.18618   avg  1.18725   SD   10.524
+     274    15.37 sec   0.00000  |  keff  1.18692   avg  1.18724   SD   10.465
+     275    15.35 sec   0.00000  |  keff  1.18764   avg  1.18725   SD   10.407
+     276    15.19 sec   0.00000  |  keff  1.18815   avg  1.18725   SD   10.360
+     277    15.31 sec   0.00000  |  keff  1.18552   avg  1.18724   SD   10.348
+     278    15.36 sec   0.00000  |  keff  1.18789   avg  1.18725   SD   10.296
+     279    15.27 sec   0.00000  |  keff  1.18811   avg  1.18725   SD   10.250
+     280    15.25 sec   0.00000  |  keff  1.18637   avg  1.18725   SD   10.204
+     281    15.35 sec   0.00000  |  keff  1.18617   avg  1.18724   SD   10.165
+     282    15.32 sec   0.00000  |  keff  1.18490   avg  1.18723   SD   10.191
+     283    15.15 sec   0.00000  |  keff  1.18754   avg  1.18723   SD   10.136
+     284    15.51 sec   0.00000  |  keff  1.18715   avg  1.18723   SD   10.081
+     285    15.32 sec   0.00000  |  keff  1.18649   avg  1.18722   SD   10.034
+     286    15.29 sec   0.00000  |  keff  1.18750   avg  1.18723   SD    9.981
+     287    15.22 sec   0.00000  |  keff  1.18862   avg  1.18723   SD    9.956
+     288    15.34 sec   0.00000  |  keff  1.19016   avg  1.18725   SD   10.025
+     289    15.27 sec   0.00000  |  keff  1.18723   avg  1.18725   SD    9.972
+     290    15.26 sec   0.00000  |  keff  1.18548   avg  1.18724   SD    9.963
+     291    15.11 sec   0.00000  |  keff  1.18733   avg  1.18724   SD    9.910
+     292    15.32 sec   0.00000  |  keff  1.18753   avg  1.18724   SD    9.860
+     293    15.31 sec   0.00000  |  keff  1.18599   avg  1.18724   SD    9.830
+     294    15.29 sec   0.00000  |  keff  1.18634   avg  1.18723   SD    9.790
+     295    15.24 sec   0.00000  |  keff  1.18877   avg  1.18724   SD    9.772
+     296    15.16 sec   0.00000  |  keff  1.18525   avg  1.18723   SD    9.774
+     297    15.32 sec   0.00000  |  keff  1.18505   avg  1.18722   SD    9.787
+     298    15.38 sec   0.00000  |  keff  1.18828   avg  1.18722   SD    9.753
+     299    15.35 sec   0.00000  |  keff  1.18461   avg  1.18721   SD    9.792
+     300    15.25 sec   0.00000  |  keff  1.18849   avg  1.18722   SD    9.764
+     301    15.32 sec   0.00000  |  keff  1.18721   avg  1.18722   SD    9.715
+     302    15.18 sec   0.00000  |  keff  1.18984   avg  1.18723   SD    9.754
+     303    15.28 sec   0.00000  |  keff  1.19111   avg  1.18725   SD    9.892
+     304    15.19 sec   0.00000  |  keff  1.18621   avg  1.18724   SD    9.856
+     305    15.09 sec   0.00000  |  keff  1.18616   avg  1.18724   SD    9.823
+     306    15.32 sec   0.00000  |  keff  1.18674   avg  1.18724   SD    9.778
+     307    15.33 sec   0.00000  |  keff  1.18877   avg  1.18724   SD    9.758
+     308    15.21 sec   0.00000  |  keff  1.18606   avg  1.18724   SD    9.728
+     309    15.24 sec   0.00000  |  keff  1.18690   avg  1.18724   SD    9.683
+     310    15.26 sec   0.00000  |  keff  1.18706   avg  1.18723   SD    9.637
+     311    15.39 sec   0.00000  |  keff  1.18853   avg  1.18724   SD    9.611
+     312    15.25 sec   0.00000  |  keff  1.18632   avg  1.18724   SD    9.575
+     313    15.31 sec   0.00000  |  keff  1.18661   avg  1.18723   SD    9.535
+     314    15.27 sec   0.00000  |  keff  1.18725   avg  1.18723   SD    9.490
+     315    15.39 sec   0.00000  |  keff  1.18728   avg  1.18723   SD    9.446
+     316    15.35 sec   0.00000  |  keff  1.18592   avg  1.18723   SD    9.422
+     317    15.34 sec   0.00000  |  keff  1.18777   avg  1.18723   SD    9.382
+     318    15.27 sec   0.00000  |  keff  1.18861   avg  1.18724   SD    9.360
+     319    15.29 sec   0.00000  |  keff  1.18690   avg  1.18723   SD    9.318
+     320    15.17 sec   0.00000  |  keff  1.18865   avg  1.18724   SD    9.298
+     321    15.41 sec   0.00000  |  keff  1.18843   avg  1.18725   SD    9.272
+     322    15.17 sec   0.00000  |  keff  1.18642   avg  1.18724   SD    9.237
+     323    15.40 sec   0.00000  |  keff  1.18861   avg  1.18725   SD    9.216
+     324    15.17 sec   0.00000  |  keff  1.18462   avg  1.18724   SD    9.250
+     325    15.30 sec   0.00000  |  keff  1.18815   avg  1.18724   SD    9.217
+     326    15.29 sec   0.00000  |  keff  1.18788   avg  1.18724   SD    9.181
+     327    15.42 sec   0.00000  |  keff  1.18743   avg  1.18725   SD    9.141
+     328    15.25 sec   0.00000  |  keff  1.18506   avg  1.18724   SD    9.151
+     329    15.32 sec   0.00000  |  keff  1.18863   avg  1.18724   SD    9.131
+     330    15.35 sec   0.00000  |  keff  1.18822   avg  1.18725   SD    9.101
+     331    15.29 sec   0.00000  |  keff  1.18559   avg  1.18724   SD    9.090
+     332    15.25 sec   0.00000  |  keff  1.18635   avg  1.18723   SD    9.059
+     333    15.24 sec   0.00000  |  keff  1.18903   avg  1.18724   SD    9.052
+     334    15.33 sec   0.00000  |  keff  1.18798   avg  1.18725   SD    9.019
+     335    15.43 sec   0.00000  |  keff  1.18496   avg  1.18724   SD    9.033
+     336    15.15 sec   0.00000  |  keff  1.18814   avg  1.18724   SD    9.003
+     337    15.31 sec   0.00000  |  keff  1.18449   avg  1.18723   SD    9.040
+     338    15.21 sec   0.00000  |  keff  1.18801   avg  1.18723   SD    9.008
+     339    15.51 sec   0.00000  |  keff  1.18771   avg  1.18723   SD    8.972
+     340    15.36 sec   0.00000  |  keff  1.18842   avg  1.18724   SD    8.948
+     341    15.39 sec   0.00000  |  keff  1.18500   avg  1.18723   SD    8.959
+     342    15.33 sec   0.00000  |  keff  1.18538   avg  1.18722   SD    8.955
+     343    15.18 sec   0.00000  |  keff  1.18433   avg  1.18721   SD    8.997
+     344    15.14 sec   0.00000  |  keff  1.18776   avg  1.18721   SD    8.963
+     345    15.46 sec   0.00000  |  keff  1.18749   avg  1.18721   SD    8.927
+     346    15.12 sec   0.00000  |  keff  1.18728   avg  1.18721   SD    8.891
+     347    15.45 sec   0.00000  |  keff  1.18630   avg  1.18721   SD    8.862
+     348    15.27 sec   0.00000  |  keff  1.18715   avg  1.18721   SD    8.826
+     349    15.26 sec   0.00000  |  keff  1.18822   avg  1.18721   SD    8.800
+     350    15.19 sec   0.00000  |  keff  1.18721   avg  1.18721   SD    8.765
+     351    15.42 sec   0.00000  |  keff  1.18799   avg  1.18722   SD    8.736
+     352    15.28 sec   0.00000  |  keff  1.18756   avg  1.18722   SD    8.702
+     353    15.29 sec   0.00000  |  keff  1.18761   avg  1.18722   SD    8.669
+     354    15.23 sec   0.00000  |  keff  1.18530   avg  1.18721   SD    8.668
+     355    15.29 sec   0.00000  |  keff  1.19025   avg  1.18722   SD    8.715
+     356    15.30 sec   0.00000  |  keff  1.18873   avg  1.18723   SD    8.701
+     357    15.23 sec   0.00000  |  keff  1.18660   avg  1.18723   SD    8.671
+     358    15.08 sec   0.00000  |  keff  1.18795   avg  1.18723   SD    8.642
+     359    15.26 sec   0.00000  |  keff  1.18765   avg  1.18723   SD    8.610
+     360    15.34 sec   0.00000  |  keff  1.18884   avg  1.18724   SD    8.599
+     361    15.33 sec   0.00000  |  keff  1.18853   avg  1.18724   SD    8.580
+     362    15.13 sec   0.00000  |  keff  1.18659   avg  1.18724   SD    8.551
+     363    15.44 sec   0.00000  |  keff  1.18962   avg  1.18725   SD    8.566
+     364    15.31 sec   0.00000  |  keff  1.18541   avg  1.18724   SD    8.562
+     365    15.12 sec   0.00000  |  keff  1.18851   avg  1.18725   SD    8.543
+     366    15.40 sec   0.00000  |  keff  1.19120   avg  1.18726   SD    8.640
+     367    15.27 sec   0.00000  |  keff  1.18645   avg  1.18726   SD    8.613
+     368    15.37 sec   0.00000  |  keff  1.18518   avg  1.18725   SD    8.615
+     369    15.17 sec   0.00000  |  keff  1.18608   avg  1.18725   SD    8.594
+     370    15.46 sec   0.00000  |  keff  1.18620   avg  1.18724   SD    8.571
+     371    15.32 sec   0.00000  |  keff  1.18701   avg  1.18724   SD    8.540
+     372    15.30 sec   0.00000  |  keff  1.18410   avg  1.18723   SD    8.587
+     373    15.34 sec   0.00000  |  keff  1.18532   avg  1.18722   SD    8.583
+     374    15.44 sec   0.00000  |  keff  1.18679   avg  1.18722   SD    8.554
+     375    15.27 sec   0.00000  |  keff  1.18613   avg  1.18722   SD    8.532
+     376    15.34 sec   0.00000  |  keff  1.18747   avg  1.18722   SD    8.501
+     377    15.31 sec   0.00000  |  keff  1.18932   avg  1.18723   SD    8.504
+     378    15.23 sec   0.00000  |  keff  1.19024   avg  1.18724   SD    8.543
+     379    15.28 sec   0.00000  |  keff  1.18665   avg  1.18724   SD    8.515
+     380    15.29 sec   0.00000  |  keff  1.18807   avg  1.18724   SD    8.489
+     381    15.32 sec   0.00000  |  keff  1.18803   avg  1.18724   SD    8.464
+     382    15.25 sec   0.00000  |  keff  1.18561   avg  1.18724   SD    8.454
+     383    15.27 sec   0.00000  |  keff  1.18550   avg  1.18723   SD    8.446
+     384    15.27 sec   0.00000  |  keff  1.18688   avg  1.18723   SD    8.417
+     385    15.19 sec   0.00000  |  keff  1.18633   avg  1.18722   SD    8.393
+     386    15.16 sec   0.00000  |  keff  1.18548   avg  1.18722   SD    8.386
+     387    15.21 sec   0.00000  |  keff  1.18621   avg  1.18722   SD    8.364
+     388    15.26 sec   0.00000  |  keff  1.18822   avg  1.18722   SD    8.342
+     389    15.25 sec   0.00000  |  keff  1.18711   avg  1.18722   SD    8.314
+     390    15.25 sec   0.00000  |  keff  1.18515   avg  1.18721   SD    8.315
+     391    15.22 sec   0.00000  |  keff  1.18962   avg  1.18722   SD    8.328
+     392    15.46 sec   0.00000  |  keff  1.18733   avg  1.18722   SD    8.300
+     393    15.27 sec   0.00000  |  keff  1.18639   avg  1.18722   SD    8.276
+     394    15.23 sec   0.00000  |  keff  1.18405   avg  1.18721   SD    8.318
+     395    15.33 sec   0.00000  |  keff  1.18709   avg  1.18721   SD    8.290
+     396    15.34 sec   0.00000  |  keff  1.18355   avg  1.18719   SD    8.353
+     397    15.17 sec   0.00000  |  keff  1.18916   avg  1.18720   SD    8.351
+     398    15.37 sec   0.00000  |  keff  1.18689   avg  1.18720   SD    8.324
+     399    15.29 sec   0.00000  |  keff  1.18527   avg  1.18719   SD    8.321
+     400    15.24 sec   0.00000  |  keff  1.18484   avg  1.18718   SD    8.331
+     401    15.24 sec   0.00000  |  keff  1.18879   avg  1.18719   SD    8.320
+     402    15.33 sec   0.00000  |  keff  1.18559   avg  1.18718   SD    8.309
+     403    15.24 sec   0.00000  |  keff  1.18741   avg  1.18719   SD    8.282
+     404    15.32 sec   0.00000  |  keff  1.18737   avg  1.18719   SD    8.255
+     405    15.27 sec   0.00000  |  keff  1.18788   avg  1.18719   SD    8.231
+     406    15.39 sec   0.00000  |  keff  1.18999   avg  1.18720   SD    8.255
+     407    15.27 sec   0.00000  |  keff  1.18531   avg  1.18719   SD    8.251
+     408    15.31 sec   0.00000  |  keff  1.18477   avg  1.18718   SD    8.261
+     409    15.26 sec   0.00000  |  keff  1.18679   avg  1.18718   SD    8.236
+     410    15.27 sec   0.00000  |  keff  1.18499   avg  1.18718   SD    8.239
+     411    15.24 sec   0.00000  |  keff  1.18831   avg  1.18718   SD    8.221
+     412    15.33 sec   0.00000  |  keff  1.18741   avg  1.18718   SD    8.195
+     413    15.18 sec   0.00000  |  keff  1.18833   avg  1.18718   SD    8.177
+     414    15.22 sec   0.00000  |  keff  1.18468   avg  1.18718   SD    8.190
+     415    15.12 sec   0.00000  |  keff  1.18629   avg  1.18717   SD    8.168
+     416    15.29 sec   0.00000  |  keff  1.18804   avg  1.18718   SD    8.147
+     417    15.27 sec   0.00000  |  keff  1.18664   avg  1.18717   SD    8.123
+     418    15.22 sec   0.00000  |  keff  1.18605   avg  1.18717   SD    8.105
+     419    15.17 sec   0.00000  |  keff  1.18428   avg  1.18716   SD    8.130
+     420    15.30 sec   0.00000  |  keff  1.18560   avg  1.18716   SD    8.120
+     421    15.23 sec   0.00000  |  keff  1.18579   avg  1.18715   SD    8.106
+     422    15.28 sec   0.00000  |  keff  1.18843   avg  1.18716   SD    8.090
+     423    15.18 sec   0.00000  |  keff  1.18630   avg  1.18715   SD    8.069
+     424    15.18 sec   0.00000  |  keff  1.18737   avg  1.18715   SD    8.045
+     425    15.12 sec   0.00000  |  keff  1.18731   avg  1.18715   SD    8.020
+     426    15.44 sec   0.00000  |  keff  1.18777   avg  1.18716   SD    7.998
+     427    15.10 sec   0.00000  |  keff  1.18597   avg  1.18715   SD    7.981
+     428    15.17 sec   0.00000  |  keff  1.18835   avg  1.18716   SD    7.966
+     429    15.15 sec   0.00000  |  keff  1.18804   avg  1.18716   SD    7.946
+     430    15.28 sec   0.00000  |  keff  1.18763   avg  1.18716   SD    7.923
+     431    15.20 sec   0.00000  |  keff  1.18869   avg  1.18716   SD    7.912
+     432    15.36 sec   0.00000  |  keff  1.18915   avg  1.18717   SD    7.911
+     433    15.25 sec   0.00000  |  keff  1.18703   avg  1.18717   SD    7.888
+     434    15.30 sec   0.00000  |  keff  1.18927   avg  1.18718   SD    7.889
+     435    15.24 sec   0.00000  |  keff  1.18718   avg  1.18718   SD    7.865
+     436    15.14 sec   0.00000  |  keff  1.18822   avg  1.18718   SD    7.848
+     437    15.23 sec   0.00000  |  keff  1.18745   avg  1.18718   SD    7.825
+     438    15.15 sec   0.00000  |  keff  1.18590   avg  1.18718   SD    7.811
+     439    15.37 sec   0.00000  |  keff  1.18815   avg  1.18718   SD    7.794
+     440    15.19 sec   0.00000  |  keff  1.18725   avg  1.18718   SD    7.771
+     441    15.23 sec   0.00000  |  keff  1.18935   avg  1.18719   SD    7.774
+     442    15.19 sec   0.00000  |  keff  1.18812   avg  1.18719   SD    7.756
+     443    15.17 sec   0.00000  |  keff  1.18805   avg  1.18719   SD    7.737
+     444    15.20 sec   0.00000  |  keff  1.18693   avg  1.18719   SD    7.715
+     445    15.25 sec   0.00000  |  keff  1.18658   avg  1.18719   SD    7.695
+     446    15.24 sec   0.00000  |  keff  1.18548   avg  1.18718   SD    7.688
+     447    15.17 sec   0.00000  |  keff  1.18612   avg  1.18718   SD    7.672
+     448    15.23 sec   0.00000  |  keff  1.18668   avg  1.18718   SD    7.651
+     449    15.14 sec   0.00000  |  keff  1.18702   avg  1.18718   SD    7.630
+     450    15.33 sec   0.00000  |  keff  1.18792   avg  1.18718   SD    7.611
+     451    15.22 sec   0.00000  |  keff  1.18764   avg  1.18718   SD    7.590
+     452    15.16 sec   0.00000  |  keff  1.18657   avg  1.18718   SD    7.571
+     453    15.26 sec   0.00000  |  keff  1.18759   avg  1.18718   SD    7.550
+     454    15.21 sec   0.00000  |  keff  1.18628   avg  1.18718   SD    7.533
+     455    15.18 sec   0.00000  |  keff  1.18825   avg  1.18718   SD    7.518
+     456    15.29 sec   0.00000  |  keff  1.18744   avg  1.18718   SD    7.497
+     457    15.16 sec   0.00000  |  keff  1.18727   avg  1.18718   SD    7.476
+     458    15.13 sec   0.00000  |  keff  1.18808   avg  1.18719   SD    7.459
+     459    15.34 sec   0.00000  |  keff  1.18525   avg  1.18718   SD    7.458
+     460    15.10 sec   0.00000  |  keff  1.18749   avg  1.18718   SD    7.438
+     461    15.15 sec   0.00000  |  keff  1.18858   avg  1.18719   SD    7.427
+     462    15.09 sec   0.00000  |  keff  1.18583   avg  1.18718   SD    7.416
+     463    15.18 sec   0.00000  |  keff  1.18665   avg  1.18718   SD    7.397
+     464    15.13 sec   0.00000  |  keff  1.18509   avg  1.18717   SD    7.399
+     465    15.07 sec   0.00000  |  keff  1.18887   avg  1.18718   SD    7.393
+     466    15.14 sec   0.00000  |  keff  1.18850   avg  1.18718   SD    7.382
+     467    15.05 sec   0.00000  |  keff  1.18653   avg  1.18718   SD    7.364
+     468    14.95 sec   0.00000  |  keff  1.18771   avg  1.18718   SD    7.345
+     469    15.19 sec   0.00000  |  keff  1.18969   avg  1.18719   SD    7.357
+     470    15.03 sec   0.00000  |  keff  1.18711   avg  1.18719   SD    7.337
+     471    15.03 sec   0.00000  |  keff  1.18644   avg  1.18719   SD    7.320
+     472    15.09 sec   0.00000  |  keff  1.18780   avg  1.18719   SD    7.302
+     473    15.13 sec   0.00000  |  keff  1.18860   avg  1.18719   SD    7.292
+     474    15.13 sec   0.00000  |  keff  1.18813   avg  1.18719   SD    7.277
+     475    15.06 sec   0.00000  |  keff  1.18706   avg  1.18719   SD    7.258
+     476    15.00 sec   0.00000  |  keff  1.18663   avg  1.18719   SD    7.240
+     477    15.16 sec   0.00000  |  keff  1.19170   avg  1.18720   SD    7.319
+     478    15.05 sec   0.00000  |  keff  1.18778   avg  1.18721   SD    7.301
+     479    15.07 sec   0.00000  |  keff  1.18547   avg  1.18720   SD    7.296
+     480    15.02 sec   0.00000  |  keff  1.18826   avg  1.18720   SD    7.283
+     481    15.07 sec   0.00000  |  keff  1.18632   avg  1.18720   SD    7.267
+     482    15.25 sec   0.00000  |  keff  1.18659   avg  1.18720   SD    7.250
+     483    15.11 sec   0.00000  |  keff  1.18842   avg  1.18720   SD    7.238
+     484    15.17 sec   0.00000  |  keff  1.18664   avg  1.18720   SD    7.220
+     485    14.99 sec   0.00000  |  keff  1.18783   avg  1.18720   SD    7.203
+     486    15.03 sec   0.00000  |  keff  1.18719   avg  1.18720   SD    7.185
+     487    15.28 sec   0.00000  |  keff  1.18729   avg  1.18720   SD    7.166
+     488    15.13 sec   0.00000  |  keff  1.18910   avg  1.18721   SD    7.164
+     489    15.14 sec   0.00000  |  keff  1.18608   avg  1.18721   SD    7.152
+     490    15.10 sec   0.00000  |  keff  1.18983   avg  1.18721   SD    7.165
+     491    15.06 sec   0.00000  |  keff  1.18710   avg  1.18721   SD    7.147
+     492    15.10 sec   0.00000  |  keff  1.18688   avg  1.18721   SD    7.129
+     493    15.12 sec   0.00000  |  keff  1.18974   avg  1.18722   SD    7.140
+     494    14.94 sec   0.00000  |  keff  1.18474   avg  1.18721   SD    7.150
+     495    15.18 sec   0.00000  |  keff  1.18439   avg  1.18720   SD    7.167
+     496    15.12 sec   0.00000  |  keff  1.18891   avg  1.18721   SD    7.162
+     497    15.11 sec   0.00000  |  keff  1.18696   avg  1.18721   SD    7.144
+     498    15.12 sec   0.00000  |  keff  1.18658   avg  1.18721   SD    7.128
+     499    15.14 sec   0.00000  |  keff  1.18689   avg  1.18721   SD    7.110
+     500    15.18 sec   0.00000  |  keff  1.18783   avg  1.18721   SD    7.094
+     501    15.01 sec   0.00000  |  keff  1.18553   avg  1.18720   SD    7.089
+     502    15.14 sec   0.00000  |  keff  1.18715   avg  1.18720   SD    7.071
+     503    15.12 sec   0.00000  |  keff  1.18765   avg  1.18720   SD    7.055
+     504    15.12 sec   0.00000  |  keff  1.18684   avg  1.18720   SD    7.038
+     505    15.02 sec   0.00000  |  keff  1.18651   avg  1.18720   SD    7.022
+     506    15.09 sec   0.00000  |  keff  1.19049   avg  1.18721   SD    7.052
+     507    15.24 sec   0.00000  |  keff  1.18603   avg  1.18721   SD    7.040
+     508    15.19 sec   0.00000  |  keff  1.18543   avg  1.18720   SD    7.037
+     509    15.19 sec   0.00000  |  keff  1.18574   avg  1.18720   SD    7.028
+     510    15.20 sec   0.00000  |  keff  1.18567   avg  1.18720   SD    7.021
+     511    15.44 sec   0.00000  |  keff  1.18713   avg  1.18720   SD    7.004
+     512    15.35 sec   0.00000  |  keff  1.18677   avg  1.18719   SD    6.988
+     513    15.16 sec   0.00000  |  keff  1.18663   avg  1.18719   SD    6.972
+     514    15.24 sec   0.00000  |  keff  1.18636   avg  1.18719   SD    6.958
+     515    15.48 sec   0.00000  |  keff  1.18835   avg  1.18719   SD    6.947
+     516    15.31 sec   0.00000  |  keff  1.18715   avg  1.18719   SD    6.930
+     517    15.19 sec   0.00000  |  keff  1.18638   avg  1.18719   SD    6.916
+     518    15.30 sec   0.00000  |  keff  1.18414   avg  1.18718   SD    6.938
+     519    15.38 sec   0.00000  |  keff  1.18482   avg  1.18718   SD    6.945
+     520    15.33 sec   0.00000  |  keff  1.18692   avg  1.18718   SD    6.928
+     521    15.31 sec   0.00000  |  keff  1.18556   avg  1.18717   SD    6.922
+     522    15.19 sec   0.00000  |  keff  1.18651   avg  1.18717   SD    6.908
+     523    15.17 sec   0.00000  |  keff  1.18664   avg  1.18717   SD    6.893
+     524    15.43 sec   0.00000  |  keff  1.18693   avg  1.18717   SD    6.877
+     525    15.26 sec   0.00000  |  keff  1.18610   avg  1.18717   SD    6.865
+     526    15.34 sec   0.00000  |  keff  1.18622   avg  1.18717   SD    6.852
+     527    15.33 sec   0.00000  |  keff  1.18790   avg  1.18717   SD    6.839
+     528    15.26 sec   0.00000  |  keff  1.18868   avg  1.18717   SD    6.832
+     529    15.26 sec   0.00000  |  keff  1.19049   avg  1.18718   SD    6.860
+     530    15.24 sec   0.00000  |  keff  1.18645   avg  1.18718   SD    6.846
+     531    15.25 sec   0.00000  |  keff  1.18834   avg  1.18718   SD    6.835
+     532    15.28 sec   0.00000  |  keff  1.18623   avg  1.18718   SD    6.823
+     533    15.16 sec   0.00000  |  keff  1.18853   avg  1.18718   SD    6.814
+     534    15.32 sec   0.00000  |  keff  1.18815   avg  1.18718   SD    6.802
+     535    15.22 sec   0.00000  |  keff  1.18696   avg  1.18718   SD    6.787
+     536    15.22 sec   0.00000  |  keff  1.18706   avg  1.18718   SD    6.771
+     537    15.20 sec   0.00000  |  keff  1.18916   avg  1.18719   SD    6.771
+     538    15.33 sec   0.00000  |  keff  1.18735   avg  1.18719   SD    6.755
+     539    15.31 sec   0.00000  |  keff  1.18910   avg  1.18719   SD    6.754
+     540    15.19 sec   0.00000  |  keff  1.18920   avg  1.18720   SD    6.754
+     541    15.34 sec   0.00000  |  keff  1.19024   avg  1.18720   SD    6.774
+     542    15.27 sec   0.00000  |  keff  1.18720   avg  1.18720   SD    6.759
+     543    15.31 sec   0.00000  |  keff  1.18727   avg  1.18720   SD    6.744
+     544    15.33 sec   0.00000  |  keff  1.18647   avg  1.18720   SD    6.731
+     545    15.23 sec   0.00000  |  keff  1.19021   avg  1.18721   SD    6.749
+     546    15.32 sec   0.00000  |  keff  1.18728   avg  1.18721   SD    6.734
+     547    15.28 sec   0.00000  |  keff  1.18586   avg  1.18721   SD    6.726
+     548    15.30 sec   0.00000  |  keff  1.18718   avg  1.18721   SD    6.711
+     549    15.28 sec   0.00000  |  keff  1.18644   avg  1.18720   SD    6.698
+     550    15.28 sec   0.00000  |  keff  1.18554   avg  1.18720   SD    6.693
+     551    15.26 sec   0.00000  |  keff  1.18750   avg  1.18720   SD    6.679
+     552    15.41 sec   0.00000  |  keff  1.18584   avg  1.18720   SD    6.671
+     553    15.19 sec   0.00000  |  keff  1.18795   avg  1.18720   SD    6.658
+     554    15.20 sec   0.00000  |  keff  1.18791   avg  1.18720   SD    6.646
+     555    15.26 sec   0.00000  |  keff  1.18935   avg  1.18721   SD    6.648
+     556    15.37 sec   0.00000  |  keff  1.18722   avg  1.18721   SD    6.633
+     557    15.28 sec   0.00000  |  keff  1.18802   avg  1.18721   SD    6.621
+     558    15.33 sec   0.00000  |  keff  1.18780   avg  1.18721   SD    6.608
+     559    15.29 sec   0.00000  |  keff  1.18672   avg  1.18721   SD    6.594
+     560    15.25 sec   0.00000  |  keff  1.18805   avg  1.18721   SD    6.582
+     561    15.33 sec   0.00000  |  keff  1.18799   avg  1.18721   SD    6.570
+     562    15.25 sec   0.00000  |  keff  1.18750   avg  1.18721   SD    6.556
+     563    15.37 sec   0.00000  |  keff  1.18396   avg  1.18720   SD    6.580
+     564    15.08 sec   0.00000  |  keff  1.18955   avg  1.18721   SD    6.585
+     565    15.39 sec   0.00000  |  keff  1.18423   avg  1.18720   SD    6.602
+     566    15.20 sec   0.00000  |  keff  1.18607   avg  1.18720   SD    6.592
+     567    15.15 sec   0.00000  |  keff  1.18581   avg  1.18720   SD    6.585
+     568    15.34 sec   0.00000  |  keff  1.18889   avg  1.18720   SD    6.581
+     569    15.28 sec   0.00000  |  keff  1.18713   avg  1.18720   SD    6.567
+     570    15.26 sec   0.00000  |  keff  1.18813   avg  1.18720   SD    6.556
+     571    15.29 sec   0.00000  |  keff  1.18851   avg  1.18721   SD    6.548
+     572    15.27 sec   0.00000  |  keff  1.18787   avg  1.18721   SD    6.535
+     573    15.27 sec   0.00000  |  keff  1.18807   avg  1.18721   SD    6.524
+     574    15.12 sec   0.00000  |  keff  1.18844   avg  1.18721   SD    6.515
+     575    15.43 sec   0.00000  |  keff  1.18435   avg  1.18721   SD    6.530
+     576    15.21 sec   0.00000  |  keff  1.18773   avg  1.18721   SD    6.517
+     577    15.41 sec   0.00000  |  keff  1.18774   avg  1.18721   SD    6.504
+     578    15.40 sec   0.00000  |  keff  1.18295   avg  1.18720   SD    6.551
+     579    15.28 sec   0.00000  |  keff  1.18573   avg  1.18720   SD    6.545
+     580    15.36 sec   0.00000  |  keff  1.18627   avg  1.18719   SD    6.534
+     581    15.29 sec   0.00000  |  keff  1.18841   avg  1.18720   SD    6.525
+     582    15.30 sec   0.00000  |  keff  1.18707   avg  1.18720   SD    6.512
+     583    15.48 sec   0.00000  |  keff  1.18766   avg  1.18720   SD    6.499
+     584    15.44 sec   0.00000  |  keff  1.18699   avg  1.18720   SD    6.486
+     585    15.32 sec   0.00000  |  keff  1.18771   avg  1.18720   SD    6.473
+     586    15.38 sec   0.00000  |  keff  1.18837   avg  1.18720   SD    6.464
+     587    15.29 sec   0.00000  |  keff  1.18576   avg  1.18720   SD    6.458
+     588    15.35 sec   0.00000  |  keff  1.18391   avg  1.18719   SD    6.480
+     589    15.42 sec   0.00000  |  keff  1.18862   avg  1.18719   SD    6.473
+     590    15.28 sec   0.00000  |  keff  1.18547   avg  1.18719   SD    6.469
+     591    15.25 sec   0.00000  |  keff  1.18545   avg  1.18719   SD    6.466
+     592    15.44 sec   0.00000  |  keff  1.18477   avg  1.18718   SD    6.471
+     593    15.29 sec   0.00000  |  keff  1.19008   avg  1.18719   SD    6.485
+     594    15.26 sec   0.00000  |  keff  1.18650   avg  1.18719   SD    6.473
+     595    15.35 sec   0.00000  |  keff  1.18895   avg  1.18719   SD    6.470
+     596    15.18 sec   0.00000  |  keff  1.18739   avg  1.18719   SD    6.457
+     597    15.32 sec   0.00000  |  keff  1.19071   avg  1.18720   SD    6.483
+     598    15.36 sec   0.00000  |  keff  1.18829   avg  1.18720   SD    6.473
+     599    15.19 sec   0.00000  |  keff  1.18800   avg  1.18720   SD    6.462
+     600    15.33 sec   0.00000  |  keff  1.18753   avg  1.18720   SD    6.450
+ 
+    Simulation of Burnup Step Terminated...
+    - Elapsed time    :   8052.529 sec  134.21 min
+    - Step Final keff :   1.187202 +/-   6.450
+ 
+    GENT   17917.00581 +/-     3.88396 scale:1E-9
+ BETASUM       684.750 +/-     1.58036 scale:1E-5
+BETASUMO       659.035 +/-     1.92709 scale:1E-5
+  BETA1        21.877 +/-     0.27712 scale:1E-5
+BETAOG1        22.982 +/-     0.31084 scale:1E-5
+  BETA2       116.627 +/-     0.65503 scale:1E-5
+BETAOG2       118.638 +/-     0.68170 scale:1E-5
+  BETA3       114.564 +/-     0.62059 scale:1E-5
+BETAOG3       113.245 +/-     0.69687 scale:1E-5
+  BETA4       263.827 +/-     0.99308 scale:1E-5
+BETAOG4       253.400 +/-     1.02406 scale:1E-5
+  BETA5       118.267 +/-     0.66050 scale:1E-5
+BETAOG5       106.483 +/-     0.64634 scale:1E-5
+  BETA6        49.589 +/-     0.42067 scale:1E-5
+BETAOG6        44.286 +/-     0.37990 scale:1E-5
+  BETA7         0.000 +/-     0.00000 scale:1E-5
+BETAOG7         0.000 +/-     0.00000 scale:1E-5
+  BETA8         0.000 +/-     0.00000 scale:1E-5
+BETAOG8         0.000 +/-     0.00000 scale:1E-5
+  ALPHA      -0.00038 +/-     0.00000 scale:1E6
+ 
+SPECTRUM, ENERGY =   1.3032650E+01  1.38129E+05 +/-  8.31868E+01 [  2.0000000E+01  6.0653000E+00]
+SPECTRUM, ENERGY =   4.8720500E+00  5.63164E+05 +/-  1.51530E+02 [  6.0653000E+00  3.6788001E+00]
+SPECTRUM, ENERGY =   2.9550501E+00  1.16835E+06 +/-  2.09739E+02 [  3.6788001E+00  2.2313001E+00]
+SPECTRUM, ENERGY =   1.7923501E+00  1.26919E+06 +/-  1.83974E+02 [  2.2313001E+00  1.3534000E+00]
+SPECTRUM, ENERGY =   1.0871250E+00  1.19085E+06 +/-  1.58843E+02 [  1.3534000E+00  8.2085001E-01]
+SPECTRUM, ENERGY =   6.5936001E-01  1.33391E+06 +/-  1.57270E+02 [  8.2085001E-01  4.9787000E-01]
+SPECTRUM, ENERGY =   3.4051500E-01  1.69923E+06 +/-  1.48914E+02 [  4.9787000E-01  1.8316001E-01]
+SPECTRUM, ENERGY =   1.2526950E-01  1.12479E+06 +/-  1.14730E+02 [  1.8316001E-01  6.7378998E-02]
+SPECTRUM, ENERGY =   3.8248899E-02  1.53055E+06 +/-  1.09877E+02 [  6.7378998E-02  9.1188001E-03]
+SPECTRUM, ENERGY =   5.5767500E-03  9.67499E+05 +/-  8.47767E+01 [  9.1188001E-03  2.0347000E-03]
+SPECTRUM, ENERGY =   1.0823850E-03  1.62743E+06 +/-  1.02685E+02 [  2.0347000E-03  1.3007000E-04]
+SPECTRUM, ENERGY =   1.0448150E-04  2.70136E+05 +/-  3.83761E+01 [  1.3007000E-04  7.8892997E-05]
+SPECTRUM, ENERGY =   6.3371999E-05  2.64980E+05 +/-  3.79445E+01 [  7.8892997E-05  4.7851001E-05]
+SPECTRUM, ENERGY =   3.8437001E-05  2.45306E+05 +/-  3.60161E+01 [  4.7851001E-05  2.9023000E-05]
+SPECTRUM, ENERGY =   2.1366500E-05  3.52394E+05 +/-  4.59042E+01 [  2.9023000E-05  1.3710000E-05]
+SPECTRUM, ENERGY =   1.2904500E-05  5.94968E+04 +/-  1.80648E+01 [  1.3710000E-05  1.2099000E-05]
+SPECTRUM, ENERGY =   1.0207150E-05  1.76087E+05 +/-  3.20202E+01 [  1.2099000E-05  8.3153000E-06]
+SPECTRUM, ENERGY =   7.8267499E-06  5.82599E+04 +/-  1.73022E+01 [  8.3153000E-06  7.3381998E-06]
+SPECTRUM, ENERGY =   6.9071000E-06  3.58336E+04 +/-  1.06877E+01 [  7.3381998E-06  6.4760002E-06]
+SPECTRUM, ENERGY =   6.0955001E-06  4.49946E+04 +/-  1.45690E+01 [  6.4760002E-06  5.7150000E-06]
+SPECTRUM, ENERGY =   5.3792501E-06  5.20150E+04 +/-  1.57224E+01 [  5.7150000E-06  5.0435001E-06]
+SPECTRUM, ENERGY =   4.7472001E-06  5.41099E+04 +/-  1.70860E+01 [  5.0435001E-06  4.4509002E-06]
+SPECTRUM, ENERGY =   4.1894000E-06  5.54766E+04 +/-  1.75720E+01 [  4.4509002E-06  3.9278998E-06]
+SPECTRUM, ENERGY =   3.1551499E-06  2.24147E+05 +/-  3.65395E+01 [  3.9278998E-06  2.3824000E-06]
+SPECTRUM, ENERGY =   2.1189000E-06  1.14115E+05 +/-  2.53013E+01 [  2.3824000E-06  1.8554000E-06]
+SPECTRUM, ENERGY =   1.6564000E-06  1.11504E+05 +/-  2.54469E+01 [  1.8554000E-06  1.4574000E-06]
+SPECTRUM, ENERGY =   1.3462500E-06  7.70421E+04 +/-  2.13819E+01 [  1.4574000E-06  1.2350999E-06]
+SPECTRUM, ENERGY =   1.2007500E-06  2.60789E+04 +/-  1.08167E+01 [  1.2350999E-06  1.1664000E-06]
+SPECTRUM, ENERGY =   1.1459000E-06  1.58571E+04 +/-  8.52403E+00 [  1.1664000E-06  1.1254000E-06]
+SPECTRUM, ENERGY =   1.0988000E-06  2.18123E+04 +/-  9.50237E+00 [  1.1254000E-06  1.0722000E-06]
+SPECTRUM, ENERGY =   1.0429500E-06  2.55982E+04 +/-  1.09195E+01 [  1.0722000E-06  1.0136999E-06]
+SPECTRUM, ENERGY =   9.9234995E-07  1.99326E+04 +/-  9.76034E+00 [  1.0136999E-06  9.7099996E-07]
+SPECTRUM, ENERGY =   9.4049997E-07  3.01450E+04 +/-  1.24809E+01 [  9.7099996E-07  9.0999998E-07]
+SPECTRUM, ENERGY =   8.4604000E-07  7.13148E+04 +/-  1.90560E+01 [  9.0999998E-07  7.8208001E-07]
+SPECTRUM, ENERGY =   7.0357001E-07  1.07744E+05 +/-  2.46028E+01 [  7.8208001E-07  6.2506001E-07]
+SPECTRUM, ENERGY =   5.6414501E-07  1.07587E+05 +/-  2.45480E+01 [  6.2506001E-07  5.0323001E-07]
+SPECTRUM, ENERGY =   4.3045000E-07  1.81250E+05 +/-  3.22621E+01 [  5.0323001E-07  3.5766999E-07]
+SPECTRUM, ENERGY =   3.1409499E-07  1.71979E+05 +/-  3.03491E+01 [  3.5766999E-07  2.7051999E-07]
+SPECTRUM, ENERGY =   2.2747499E-07  3.19889E+05 +/-  4.51039E+01 [  2.7051999E-07  1.8442999E-07]
+SPECTRUM, ENERGY =   1.6507499E-07  2.46652E+05 +/-  3.62891E+01 [  1.8442999E-07  1.4571999E-07]
+SPECTRUM, ENERGY =   1.2864500E-07  2.98887E+05 +/-  3.77082E+01 [  1.4571999E-07  1.1157000E-07]
+SPECTRUM, ENERGY =   9.6769000E-08  3.27984E+05 +/-  4.04235E+01 [  1.1157000E-07  8.1967997E-08]
+SPECTRUM, ENERGY =   6.9444999E-08  3.14391E+05 +/-  3.92819E+01 [  8.1967997E-08  5.6922001E-08]
+SPECTRUM, ENERGY =   4.9838501E-08  1.77708E+05 +/-  2.58275E+01 [  5.6922001E-08  4.2755001E-08]
+SPECTRUM, ENERGY =   3.6684000E-08  1.39817E+05 +/-  2.08521E+01 [  4.2755001E-08  3.0612998E-08]
+SPECTRUM, ENERGY =   2.1504499E-08  1.54748E+05 +/-  2.25882E+01 [  3.0612998E-08  1.2396000E-08]
+SPECTRUM, ENERGY =   6.2479999E-09  3.75943E+04 +/-  7.87844E+00 [  1.2396000E-08  1.0000000E-10]
+ 
+ADJOINT SPECTRUM, ENERGY =   1.3032650E+01  3.56584E+00 +/-  2.45759E-02 [  2.0000000E+01  6.0653000E+00]
+ADJOINT SPECTRUM, ENERGY =   4.8720500E+00  3.11731E+00 +/-  2.06175E-02 [  6.0653000E+00  3.6788001E+00]
+ADJOINT SPECTRUM, ENERGY =   2.9550501E+00  3.03840E+00 +/-  1.99454E-02 [  3.6788001E+00  2.2313001E+00]
+ADJOINT SPECTRUM, ENERGY =   1.7923501E+00  2.92526E+00 +/-  1.91731E-02 [  2.2313001E+00  1.3534000E+00]
+ADJOINT SPECTRUM, ENERGY =   1.0871250E+00  2.82029E+00 +/-  1.84745E-02 [  1.3534000E+00  8.2085001E-01]
+ADJOINT SPECTRUM, ENERGY =   6.5936001E-01  2.82039E+00 +/-  1.84705E-02 [  8.2085001E-01  4.9787000E-01]
+ADJOINT SPECTRUM, ENERGY =   3.4051500E-01  2.82969E+00 +/-  1.85038E-02 [  4.9787000E-01  1.8316001E-01]
+ADJOINT SPECTRUM, ENERGY =   1.2526950E-01  2.83735E+00 +/-  1.85560E-02 [  1.8316001E-01  6.7378998E-02]
+ADJOINT SPECTRUM, ENERGY =   3.8248899E-02  2.84599E+00 +/-  1.85994E-02 [  6.7378998E-02  9.1188001E-03]
+ADJOINT SPECTRUM, ENERGY =   5.5767500E-03  2.87318E+00 +/-  1.87851E-02 [  9.1188001E-03  2.0347000E-03]
+ADJOINT SPECTRUM, ENERGY =   1.0823850E-03  2.94635E+00 +/-  1.92511E-02 [  2.0347000E-03  1.3007000E-04]
+ADJOINT SPECTRUM, ENERGY =   1.0448150E-04  2.98360E+00 +/-  1.95643E-02 [  1.3007000E-04  7.8892997E-05]
+ADJOINT SPECTRUM, ENERGY =   6.3371999E-05  3.09234E+00 +/-  2.02770E-02 [  7.8892997E-05  4.7851001E-05]
+ADJOINT SPECTRUM, ENERGY =   3.8437001E-05  3.01847E+00 +/-  1.97939E-02 [  4.7851001E-05  2.9023000E-05]
+ADJOINT SPECTRUM, ENERGY =   2.1366500E-05  3.15508E+00 +/-  2.06665E-02 [  2.9023000E-05  1.3710000E-05]
+ADJOINT SPECTRUM, ENERGY =   1.2904500E-05  3.30000E+00 +/-  2.19196E-02 [  1.3710000E-05  1.2099000E-05]
+ADJOINT SPECTRUM, ENERGY =   1.0207150E-05  3.31004E+00 +/-  2.17501E-02 [  1.2099000E-05  8.3153000E-06]
+ADJOINT SPECTRUM, ENERGY =   7.8267499E-06  3.06042E+00 +/-  2.03650E-02 [  8.3153000E-06  7.3381998E-06]
+ADJOINT SPECTRUM, ENERGY =   6.9071000E-06  2.32866E+00 +/-  1.56032E-02 [  7.3381998E-06  6.4760002E-06]
+ADJOINT SPECTRUM, ENERGY =   6.0955001E-06  3.03563E+00 +/-  2.02447E-02 [  6.4760002E-06  5.7150000E-06]
+ADJOINT SPECTRUM, ENERGY =   5.3792501E-06  3.40794E+00 +/-  2.27040E-02 [  5.7150000E-06  5.0435001E-06]
+ADJOINT SPECTRUM, ENERGY =   4.7472001E-06  3.49456E+00 +/-  2.31978E-02 [  5.0435001E-06  4.4509002E-06]
+ADJOINT SPECTRUM, ENERGY =   4.1894000E-06  3.55941E+00 +/-  2.36498E-02 [  4.4509002E-06  3.9278998E-06]
+ADJOINT SPECTRUM, ENERGY =   3.1551499E-06  3.60427E+00 +/-  2.36430E-02 [  3.9278998E-06  2.3824000E-06]
+ADJOINT SPECTRUM, ENERGY =   2.1189000E-06  3.60125E+00 +/-  2.36979E-02 [  2.3824000E-06  1.8554000E-06]
+ADJOINT SPECTRUM, ENERGY =   1.6564000E-06  3.62845E+00 +/-  2.39028E-02 [  1.8554000E-06  1.4574000E-06]
+ADJOINT SPECTRUM, ENERGY =   1.3462500E-06  3.62941E+00 +/-  2.40128E-02 [  1.4574000E-06  1.2350999E-06]
+ADJOINT SPECTRUM, ENERGY =   1.2007500E-06  3.64389E+00 +/-  2.45136E-02 [  1.2350999E-06  1.1664000E-06]
+ADJOINT SPECTRUM, ENERGY =   1.1459000E-06  3.66247E+00 +/-  2.51584E-02 [  1.1664000E-06  1.1254000E-06]
+ADJOINT SPECTRUM, ENERGY =   1.0988000E-06  3.68997E+00 +/-  2.48811E-02 [  1.1254000E-06  1.0722000E-06]
+ADJOINT SPECTRUM, ENERGY =   1.0429500E-06  3.67624E+00 +/-  2.47547E-02 [  1.0722000E-06  1.0136999E-06]
+ADJOINT SPECTRUM, ENERGY =   9.9234995E-07  3.66635E+00 +/-  2.47593E-02 [  1.0136999E-06  9.7099996E-07]
+ADJOINT SPECTRUM, ENERGY =   9.4049997E-07  3.67480E+00 +/-  2.46654E-02 [  9.7099996E-07  9.0999998E-07]
+ADJOINT SPECTRUM, ENERGY =   8.4604000E-07  3.67425E+00 +/-  2.43180E-02 [  9.0999998E-07  7.8208001E-07]
+ADJOINT SPECTRUM, ENERGY =   7.0357001E-07  3.67411E+00 +/-  2.42064E-02 [  7.8208001E-07  6.2506001E-07]
+ADJOINT SPECTRUM, ENERGY =   5.6414501E-07  3.68304E+00 +/-  2.42568E-02 [  6.2506001E-07  5.0323001E-07]
+ADJOINT SPECTRUM, ENERGY =   4.3045000E-07  3.70398E+00 +/-  2.43250E-02 [  5.0323001E-07  3.5766999E-07]
+ADJOINT SPECTRUM, ENERGY =   3.1409499E-07  3.71198E+00 +/-  2.43736E-02 [  3.5766999E-07  2.7051999E-07]
+ADJOINT SPECTRUM, ENERGY =   2.2747499E-07  3.69108E+00 +/-  2.41789E-02 [  2.7051999E-07  1.8442999E-07]
+ADJOINT SPECTRUM, ENERGY =   1.6507499E-07  3.67703E+00 +/-  2.41049E-02 [  1.8442999E-07  1.4571999E-07]
+ADJOINT SPECTRUM, ENERGY =   1.2864500E-07  3.68713E+00 +/-  2.41588E-02 [  1.4571999E-07  1.1157000E-07]
+ADJOINT SPECTRUM, ENERGY =   9.6769000E-08  3.70086E+00 +/-  2.42350E-02 [  1.1157000E-07  8.1967997E-08]
+ADJOINT SPECTRUM, ENERGY =   6.9444999E-08  3.71535E+00 +/-  2.43365E-02 [  8.1967997E-08  5.6922001E-08]
+ADJOINT SPECTRUM, ENERGY =   4.9838501E-08  3.70738E+00 +/-  2.43115E-02 [  5.6922001E-08  4.2755001E-08]
+ADJOINT SPECTRUM, ENERGY =   3.6684000E-08  3.70702E+00 +/-  2.43123E-02 [  4.2755001E-08  3.0612998E-08]
+ADJOINT SPECTRUM, ENERGY =   2.1504499E-08  3.72154E+00 +/-  2.44159E-02 [  3.0612998E-08  1.2396000E-08]
+ADJOINT SPECTRUM, ENERGY =   6.2479999E-09  3.66371E+00 +/-  2.41216E-02 [  1.2396000E-08  1.0000000E-10]
