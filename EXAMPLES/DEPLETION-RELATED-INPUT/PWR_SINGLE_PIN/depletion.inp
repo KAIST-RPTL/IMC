@@ -1,0 +1,66 @@
+CARD E : Depletion_Card
+	do_burn        				= T
+	real_power					= 0.001  % MWth
+	Matrix_Exponential_Solver	= 0 % 0 for CRAM
+	cram_order					= 14  
+	nstep_burnup				= 53
+	burnup_time					= 0.25
+                                  0.5
+                                  1
+                                  5
+                                  10
+                                  30
+                                  50
+                                  75
+                                  100
+                                  125
+                                  150
+                                  175
+                                  200
+                                  225
+                                  250
+                                  275
+                                  300
+                                  325
+                                  350
+                                  375
+                                  400
+                                  425
+                                  450
+                                  475
+                                  500
+                                  525
+                                  550
+                                  575
+                                  600
+                                  625
+                                  650
+                                  675
+                                  700
+								  725
+								  750
+								  775
+								  800
+								  825
+								  850
+								  875
+								  900
+								  925
+								  950
+								  975
+								  1000
+								  1025
+								  1050
+								  1075
+								  1100
+								  1125
+								  1150
+								  1175
+								  1200
+	chain_reduction				= F
+	xe_equilibrium				= F
+	fpcut						= 0.d0
+	% LIBRARY PATH FOR decay_library, 1gcx_library, and yield_library
+	library_path = 	
+    /home/guest/inyup/01_IMC/00_iMC_old/01_iMC_src/depletion_library/
+ENDE

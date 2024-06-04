@@ -171,7 +171,7 @@ subroutine simulate_history(bat,cyc)
 
 	!$omp parallel private(p) shared(source_bank, fission_bank, temp_bank, prec_bank, ista, iend, source_bank_LONG, fission_bank_LONG)
     thread_bank(:)%wgt = 0; bank_idx = 0; prec_idx = 0 ; init_idx = 0; thread_bank_LONG(:)%wgt = 0
-    if (tallyon .and. .not. fmfdon) call TALLY_THREAD_INITIAL(cyc)
+    if (tallyon .and. .not. fmfdon) call TALLY_THREAD_INITIAL(bat, cyc)
     if ( fmfdon )                   call FMFD_initialize_thread()
     !$omp do reduction(+: k_col, k_tl) 
     do i= ista, iend 

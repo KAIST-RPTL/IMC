@@ -1,0 +1,34 @@
+title SINGLE_PIN
+
+% ===== fuel pin =====
+pin 1 5
+F11    0.2655811
+F12    0.3755884
+F13    0.46
+clad   0.53
+water
+
+% ===== assembly =====
+lat 100 1 0.0 0.0 0.0 1 1 1 1.26 1.26 3
+
+1
+
+% ===== core =====
+surf 2 pz 0
+surf 3 pz 3
+surf 4 sqcz 0 0 0.63
+
+cell 200 0 fill 100 & 2 -3 -4
+
+% ===== boundary condition =====
+bc 2 2
+bc 3 2
+bc 4 2
+
+
+% ===== initial source =====
+sgrid -0.55 -0.55 0 0.55 0.55 3
+
+
+
+

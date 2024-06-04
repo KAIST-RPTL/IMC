@@ -1,0 +1,84 @@
+CARD D : CE_MAT_CARD
+
+MAT
+    mat_name        = F11
+    density_gpcc    = -10.4668
+    fissionable     = T
+    depletable      = T
+    vol             = 0.664761
+    n_iso           = 3
+    isotopes        = 92235.81c  -0.02380
+                      92238.81c  -0.85770
+                       8016.81c  -0.11850
+END_MAT
+
+MAT
+    mat_name        = F12
+    density_gpcc    = -10.4668
+    fissionable     = T
+    depletable      = T
+    vol             = 0.664761
+    n_iso           = 3
+    isotopes        = 92235.81c  -0.02380
+                      92238.81c  -0.85770
+                       8016.81c  -0.11850
+END_MAT
+
+MAT
+    mat_name        = F13
+    density_gpcc    = -10.4668
+    fissionable     = T
+    depletable      = T
+    vol             = 0.664761
+    n_iso           = 3
+    isotopes        = 92235.81c  -0.02380
+                      92238.81c  -0.85770
+                       8016.81c  -0.11850
+END_MAT
+
+MAT
+	mat_name    	= clad
+	density_gpcc	= -6.5
+	fissionable		= F
+	depletable		= F
+	n_iso			= 24
+	isotopes 		= 40090.81c	2.17594E+22
+					  40091.81c	4.74520E+21
+					  40092.81c	7.25313E+21
+					  40094.81c	7.35040E+21
+					  40096.81c	1.18418E+21
+					  50112.81c	4.81393E+18
+					  50114.81c	3.22583E+18
+					  50115.81c	1.68736E+18
+					  50116.81c	7.21593E+19
+					  50117.81c	3.81144E+19
+					  50118.81c	1.20199E+20
+					  50119.81c	4.25809E+19
+					  50120.81c	1.61738E+20
+					  50122.81c	2.29778E+19
+					  50124.81c	2.87347E+19
+					  26054.81c	4.93309E+18
+					  26056.81c	7.74389E+19
+					  26057.81c	1.78840E+18
+					  26058.81c	2.38003E+17
+					  24050.81c	3.28205E+18
+					  24052.81c	6.32101E+19
+					  24053.81c	7.17670E+18
+					  24054.81c	1.78643E+18
+					   7014.81c	1.40240E+20
+END_MAT
+
+MAT
+    mat_name        = water
+    density_gpcc    = -0.75543
+    fissionable     = F
+    depletable      = F
+    n_iso           = 2
+    isotopes        = 1001.81c 2
+                      8016.81c 1
+END_MAT
+
+
+ENDD
+
+
