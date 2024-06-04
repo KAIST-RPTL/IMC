@@ -2268,6 +2268,7 @@ end subroutine READ_CTRL
                 case("DO_IFP")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_ifp
+
 				! ------------------------------------------------------------------------------------
 				! OPTION FOR CONTROLLING #LATENT CYCLES FOR ADJOINT TALLYING
 				! ------------------------------------------------------------------------------------
@@ -2353,7 +2354,20 @@ end subroutine READ_CTRL
 						WRITE(*,'(A)') ''
 						idx_egroup = 1
 					END IF
-				! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ !
+
+                case("MSR_FLOW")
+                    backspace(File_Number)
+                    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_fuel_mv, v_type
+                    if( Equal /= '=' ) call Card_Error(Card_Type, Char_Temp)
+                    call Small_to_Capital(v_type)
+                    if(do_fuel_mv) then
+                        select case (v_type)
+                        case("RZ")
+                        flowtype = 1
+                        call READ_MSR_RZ
+                        end select
+                    endif
+
 
                 case("BASE_COOL_DENS")
                     backspace(File_Number)
@@ -2485,6 +2499,10 @@ end subroutine READ_CTRL
                         case("DENSITY_GPCC")
                             backspace(File_Number)
                             read(File_Number,*,iostat=File_Error) Char_Temp, Equal, CE_mat_ptr%density_gpcc
+                            if ( CE_mat_ptr % density_gpcc > 0d0 .and. CE_mat_ptr % density_gpcc < 1d0 ) then
+                                CE_mat_ptr % density_gpcc = &
+                                CE_mat_ptr % density_gpcc * 1d24
+                            endif
                             if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
                         case("VOL")
                             backspace(File_Number)
@@ -2642,7 +2660,7 @@ end subroutine READ_CTRL
 							case("COOL"); CE_mat_ptr%mat_type = 3
 							end select                       
                             if ( icore == score ) then
-                                print *, 'Assigned material ', trim(CE_mat_ptr % mat_name), 'as ', trim(mtype)
+                                print *, 'Assigned material ', trim(CE_mat_ptr % mat_name), ' as ', trim(mtype)
                             endif
 
                         case("RGB")
@@ -2781,6 +2799,7 @@ end subroutine READ_CTRL
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, do_burn
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
+                    if ( .not. do_burn ) return
                 !case("REAL_POWER")    
                 !    backspace(File_Number)
                 !    read(File_Number,*,iostat=File_Error) Char_Temp, Equal, RealPower
@@ -3204,6 +3223,10 @@ end subroutine READ_CTRL
         if(.not. (do_iso_ueg) ) do_rx_tally = .true.
         
         RealPower = Nominal_Power
+
+        do i = 1, nstep_burnup
+            if(icore==score) print *, 'BD:', burn_step(i)/86400d0, power_bu(i)
+        enddo
         
     end subroutine Read_Card
 
@@ -4345,7 +4368,7 @@ end function
             case("PLOT_MESH")
                 backspace(rd_rz)
                 read(rd_rz, *, iostat=File_Error) Char_Temp, n_core_radial, n_core_axial
-                allocate(core_prec(8, n_core_axial, n_core_radial))
+                allocate(core_prec(n_core_axial, n_core_radial,8))
 
                 core_prec = 0d0
         end select

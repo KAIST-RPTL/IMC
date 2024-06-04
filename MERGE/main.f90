@@ -307,7 +307,7 @@ end do TH
 !    	    call draw_geometry()
         endif
         interp = .false.
-        if ( preco == 1 .and. porc == nporc ) interp = .true.
+        ! if ( preco == 1 .and. porc == nporc ) interp = .true.
         call TEMP_UPDATE_BU(istep_burnup, interp)
 
     else
@@ -1464,8 +1464,8 @@ subroutine process_MSR_prec()
     if(icore /= score) return
     if(.not. do_fuel_mv) return
 
-    allocate(MSR_data(n_core_axial,n_core_radial,n_act,8))
-    allocate(MSR_prec(n_core_axial,n_core_radial,8,2))
+    allocate(MSR_data(n_core_axial,n_core_radial,n_act,8)); MSR_data = 0d0
+    allocate(MSR_prec(n_core_axial,n_core_radial,8,2)); MSR_prec = 0d0
 
     open(prt_fuel_mv, file=trim(title)//'_MSR_prec',action='read',status='replace')
     do i = 1,n_act

@@ -96,6 +96,10 @@ subroutine collision_CE (p)
     enddo
 
     !> Collision estimator
+    if( isnan( macro_xs(4)/macro_xs(1) ) ) then
+        print *, 'WTF?:', trim(materials(p%material)%mat_name), p%E, p%kT/K_B
+        macro_xs(4) = 0d0; macro_xs(1) = 1d0;
+    endif
     !$OMP ATOMIC
     k_col = k_col + p%wgt * macro_xs(4)/macro_xs(1)
 
@@ -195,12 +199,14 @@ subroutine WHAT_TEMPERATURE(p)
             else
                 p % kT = materials( p % material ) % temp
             endif
+            p%dens = 1d0
         case(2)
             if( allocated( t_clad )) then
                 p%kT = t_clad(ixyz(1),ixyz(2),ixyz(3))
             else
                 p % kT = materials( p % material ) % temp
             endif
+            p%dens = 1d0
         case(3)
             if( allocated( t_bulk )) then
                 p%kT = t_bulk(ixyz(1),ixyz(2),ixyz(3))
@@ -222,6 +228,8 @@ subroutine WHAT_TEMPERATURE(p)
     elseif ( materials(p%material)%DB .or. p%kT == 0 .or. (do_gmsh .and. .not. p%in_tet)) then 
         p%kT = materials( p % material ) % temp
     end if
+
+    !print '(A, I2, 4F10.3, 3I3)', 'P:', materials(p%material)%mat_type, p % kT / K_B, p % coord(1) % xyz(:), ixyz(:)
 
 end subroutine
 
@@ -723,7 +731,7 @@ subroutine acecos (erg, iso, mu, iMT)
             elseif (JJ == 2) then !> Linear-Linear 
                 mu = CSOUT1+(sqrt(max(0.0d0,PDF1**2 +2.0d0*temp*(rn1-CDF1)))-PDF1)/temp
             else
-                print *, "ERROR :: UNKNOWN INTERPOLATION TYPE IN SCATTERING ANGLE DISTRIBUTIOIN"
+                print *, "ERROR :: UNKNOWN INTERPOLATION TYPE IN SCATTERING ANGLE DISTRIBUTIOIN", ace(iso)%zaid
             endif
         endif         
         

@@ -429,15 +429,17 @@ end function OUT_OF_ZZ_ADJ
 ! =============================================================================
 ! INITIALIZE MC_THREAD 
 ! =============================================================================
-subroutine TALLY_THREAD_INITIAL(cyc)
+subroutine TALLY_THREAD_INITIAL(bat, cyc)
     implicit none
-    integer, intent(in):: cyc
+    integer, intent(in):: cyc, bat
     integer:: acyc
 
     if ( cyc > n_inact ) then
     acyc = cyc - n_inact
     MC_thread = 0D0
-    ! (MUTED) MC_tally  = 0D0 --- 안그러면 사이클마다 MC_tally 값이 0이 되버림 
+
+    MC_tally(bat, acyc, :, :, :, :, :) = 0D0
+
     end if
 
 end subroutine
@@ -460,17 +462,19 @@ subroutine MC_TRK(E0,wgt,distance,macro_xs,id)
     if ( curr_cyc <= n_inact ) return
     flux = wgt * distance
     do ii = 1, n_type
-		select case(ttally(ii))
-			case(1,11); xs = macro_xs(1)                ! total
-			case(2,12); xs = macro_xs(2)                ! absorption
-			case(3,13); xs = macro_xs(3)                ! fission
-			case(4,14); xs = macro_xs(4)                ! nu fission
-			case(5,15); xs = macro_xs(5)                ! k fission
-			case(6,16); xs = 0                          ! scattering
-			case default; xs = 1D0                      ! flux (type = 0)
-		end select
-		MC_thread(ii,E2G(E0),id(1),id(2),id(3)) = & 
-		MC_thread(ii,E2G(E0),id(1),id(2),id(3)) + flux * xs
+
+    select case(ttally(ii))
+    case(1,11); xs = macro_xs(1)                ! total
+    case(2,12); xs = macro_xs(2)                ! absorption
+    case(3,13); xs = macro_xs(3)                ! fission
+    case(4,14); xs = macro_xs(4)                ! nu fission
+    case(5,15); xs = macro_xs(5)                ! k fission
+    case(6,16); xs = 0                          ! scattering
+    case default; xs = 1D0                      ! flux (type = 0)
+    end select
+    if ( .not. isnan(flux * xs)) MC_thread(ii,E2G(E0),id(1),id(2),id(3)) = & 
+    MC_thread(ii,E2G(E0),id(1),id(2),id(3)) + flux * xs
+
     end do
     
 end subroutine

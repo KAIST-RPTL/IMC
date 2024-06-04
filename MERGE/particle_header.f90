@@ -97,7 +97,7 @@ module particle_header
 		
         ! Secondary particles created
         real(8), allocatable :: urn(:)
-        
+
 		! IFP RELATED
         integer :: delayedarr(1:latent)
         real(8) :: delayedlam(1:latent)
@@ -117,7 +117,7 @@ module particle_header
 		! IFP ADJOINT FLUX RELATED (PROGENITOR) (TSOH-IFP)
 		REAL(8) :: ptc_wgt0	                       ! Initial weight of the PTC
 		INTEGER :: n_prog   		               ! Number of providing progenitor indexing (START BY ZERO / +1 FOR EVERY COLLISION)
-		
+
     contains
         procedure :: clear
         procedure :: initialize
@@ -184,13 +184,14 @@ contains
 
         this % dens = 1d0
 
+
 		! IFP RELATED
 		this % delayedarr(1:latent) = 0
 		this % delayedlam(1:latent) = ZERO
 		this % nlifearr(1:latent)   = ZERO
 		this % trvltime             = ZERO
 		this % trvlength            = ZERO
-		
+
         if(.not. allocated(this%urn)) then
             allocate(this % urn(1:n_unr)); this % urn = 0D0
         endif
@@ -236,8 +237,9 @@ contains
             zidx = max(1,min(n_core_axial, zidx))
             ridx = floor((this%coord(1)%xyz(1)**2+this%coord(1)%xyz(2)**2)/core_radius**2*real(n_core_radial,8))+1
             ridx = max(1,min(n_core_radial, ridx))
-            !print *, 'prec', this%coord(1)%xyz(3)-core_base, zidx, source%G
+            !print *, 'prec', zidx, ridx, source%G, this % wgt
             core_prec(zidx, ridx, source%G) = core_prec(zidx, ridx, source%G) + this % wgt
+            !print *, icore, 'coreprec', core_prec(:, ridx, 1)
         endif
     end subroutine SET_PARTICLE
     

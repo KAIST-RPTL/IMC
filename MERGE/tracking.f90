@@ -258,6 +258,7 @@ subroutine transport(p)
         endif
     endif 
     !> Cycle-power Tally ===================================================================  
+
     if(curr_cyc > n_inact) THEN
 		IF(E_mode == 0) THEN
 			!$omp atomic
@@ -268,6 +269,7 @@ subroutine transport(p)
 			cyc_power = cyc_power + distance * p % wgt * macro_xs(5)
 			END IF
 		END IF
+
 
         if(do_mgtally) then
             ! 1. Find MG

@@ -123,8 +123,9 @@ subroutine simulate_history(bat,cyc)
     call para_range(1, isize, ncore, icore, ista, iend)        
     k_col = 0; k_tl = 0; k_vrc = 0; fiss_vrc = 0; loss_vrc = 0;
     if ( fmfdon ) call FMFD_initialize()
-    if ( do_burn ) MC_tally(bat,:,:,:,:,:,:) = 0
-	
+
+    if ( do_burn .and. cyc > n_inact) MC_tally(bat,cyc-n_inact,:,:,:,:,:) = 0
+
     cyc_power = 0;
 	n_col = 0; n_cross = 0 
     
@@ -135,7 +136,7 @@ subroutine simulate_history(bat,cyc)
 	allocate(prec_bank(0))
 	if (allocated(prompt_bank)) deallocate(prompt_bank)
 	allocate(prompt_bank(0))
-	
+
 	! --- ENERGY SPECTRUM RELATED (TSOH-IFP)
 	IF(curr_cyc > n_inact .AND. tally_for_spect) THEN
 		FOR_phi_ene_cyc = 0.d0
@@ -364,7 +365,7 @@ subroutine simulate_history(bat,cyc)
         if( .not. allocated( rcv_msh ) ) allocate(rcv_msh(n_core_axial))
         do k = 1,8
             do j = 1,n_core_radial
-            call MPI_REDUCE(core_prec(:,j,k),rcv_msh,k,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+            call MPI_REDUCE(core_prec(:,j,k),rcv_msh,n_core_axial,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
             core_prec(:,j,k) = rcv_msh
             enddo
         enddo
@@ -375,7 +376,7 @@ subroutine simulate_history(bat,cyc)
                 enddo
             enddo
         endif
-        core_prec = 0.d0
+        core_prec = 0.d0; deallocate( rcv_msh )
         !print *, 'leak', MSR_leak
         call MPI_ALLREDUCE(MSR_leak,ndata,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
         MSR_leak = ndata
@@ -390,8 +391,9 @@ subroutine simulate_history(bat,cyc)
     !> Calculate k_eff ==========================================================
     k_col = k_col / real(ngen,8)
     k_tl  = k_tl  / real(ngen,8) 
-    ! keff  = (k_tl + k_col) / 2.0d0; 
+
 	keff = k_col
+
     if (icore == score) write(prt_keff,*) keff, k_col, k_tl
     call MPI_BCAST(keff, 1, MPI_DOUBLE_PRECISION, score, MPI_COMM_WORLD, ierr) 
 	
