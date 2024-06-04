@@ -1,0 +1,66 @@
+title C5G7_2D
+
+pin 1 2
+UO2_clad   0.54
+moderator
+
+pin 2 2 
+43_MOX_clad   0.54
+moderator
+
+pin 3 2 
+70_MOX_clad   0.54
+moderator
+
+pin 4 2 
+87_MOX_clad   0.54
+moderator
+
+
+%unrodded tube 
+pin 5 2
+tube    0.54
+moderator
+
+pin 6 2
+fiss_chamber   0.54
+moderator
+
+pin 7 2
+CR   0.54
+moderator
+
+pin 8 1
+moderator
+
+% --- SINGLE pin lattice:
+lat 110  1  0.0 0.0 0.0 1 1 1 1.26 1.26 1
+1 
+
+% --- Core Geometry : 
+surf 1  pz  +0.00
+surf 10 pz  +1.00
+surf 6  px  -0.63
+surf 7  px  +0.63
+surf 8  py  -0.63
+surf 9  py  +0.63
+
+% bc 1 -> vacuum // 2 -> reflective
+bc    1 2
+bc   10 2
+bc    6 2
+bc    7 2
+bc    8 2
+bc    9 2
+
+% FULL CORE
+cell 300  0  fill 110     &  1 -10  6 -7  8 -9
+cell 309  0  outside      | -1  10 -6  7 -8  9
+
+% ------------------------------------------------------------
+
+sgrid -0.63 -0.63 +0.00 +0.63 +0.63 +1.00
+
+
+
+

@@ -1,0 +1,20 @@
+CARD A : Control_Card 
+	Energy_mode   			= 0
+	Nominal_Power			= 6.52 % MWth
+	nugrid					= 8192
+	
+	history_per_cycle		= 2E5
+	Number_inactive			= 50
+	Number_active			= 200
+
+	Transient				= F  8  PCQS             
+	
+	% --- TALLY OPTIONS
+	DO_IFP                  = T
+	TALLY_SPECTRUM          = T
+	TALLY_ADJ_SPECTRUM      = T
+	
+	%	PLOT  =  T   1
+    %	         xy  1
+    %	         -0.63 +0.63 1000 -0.63 +0.63 1000 0.5
+ENDA

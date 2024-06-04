@@ -1,6 +1,6 @@
 subroutine premc
     use constants
-    use variables,  only : E_mode, do_burn
+    use variables
     use input_reader
     use ace_xs, only : setugrid, getMicroXS, GET_OTF_DB_MIC
     use bank_header, only: source_bank
@@ -11,7 +11,7 @@ subroutine premc
     use transient, only: set_transient
     use TH_HEADER, only: th_on
     use TEMPERATURE, only: TH_INITIAL
-    use TALLY, only: SET_MC_TALLY
+    use TALLY, only: SET_MC_TALLY, SET_MC_TALLY_ADJ
     !use TALLY, only: p_MC, e_MC
     use FMFD_HEADER, only: p_dep_mc, p_dep_dt, p_dep_dt_pert
     use COSAMPLING, only: n_pert
@@ -50,13 +50,15 @@ subroutine premc
         call READ_TH
         call TH_INITIAL
     end if
-
-
+	
     ! =========================================================================
     ! Set tally parameters
     call SET_MC_TALLY
-    
-    
+	
+	! =========================================================================
+	! SET ADJOINT INFO TALLY
+	CALL SET_MC_TALLY_ADJ
+	
     !===========================================================================
     !Set lethargy grid for hash-based energy look-up
     !=======21/12/02 MOD: use UGRID in DEPLETION ==========
@@ -114,14 +116,16 @@ subroutine premc
         endif
     endif 
 
-
-    ace = ace(1:num_iso)
-    if(sab_iso > 0) sab = sab(1:sab_iso)
-    if(therm_iso > 0) therm = therm(1:therm_iso)
-    call read_mgtally
-    call setugrid
-
-    call setDBPP(.false.)
+	! *** PERTAINS FOR CE CALCULATION ONLY
+	IF(E_mode == 1) THEN
+		ace = ace(1:num_iso)
+		if(sab_iso > 0) sab = sab(1:sab_iso)
+		if(therm_iso > 0) therm = therm(1:therm_iso)
+		call read_mgtally
+		call setugrid
+		call setDBPP(.false.)
+	END IF
+	IF(E_mode == 0) do_mgtally = .FALSE.
 
     ! Shrink material
 !    if( do_burn ) then
@@ -152,7 +156,7 @@ subroutine premc
 !        enddo
 !    endif
 
-    deallocate(ugrid)
+    IF(ALLOCATED(ugrid)) deallocate(ugrid)
     call setugrid
 
     if ( do_iso_ueg .or. do_ueg) then
@@ -168,8 +172,9 @@ subroutine premc
     ! NEED TO BE DISCARDED LATER
     call setogxs
     !==============================================================================
-    !Set material library for burnup and equilibrium Xe135 search 
+    ! Set material library for burnup and equilibrium Xe135 search 
     call setmat
+	
     ! ==========================================================================
     if ( icore == score ) call ENTRP_INIT
     if ( mprupon ) call SET_PRUP
@@ -178,24 +183,85 @@ subroutine premc
     ! FMFD calculation
     if ( fmfdon ) call FMFD_allocation
     
-    !===========================================================================
-    !Source bank initialize
+    ! ===========================================================================
+    ! Source bank initialize / INCLUDES adjoint calculation
+	! ===========================================================================
+    allocate(source_bank(ngen))
+    call bank_initialize(source_bank)
+    ! --- IFP BASED CALCULATION
     allocate(betaarr(n_act-latent,0:8)); allocate(genarr(n_act-latent));
     allocate(alphaarr(n_act-latent)); allocate(lamarr(n_act-latent,0:8))
     allocate(betad(0:8,n_act)); betad = 0.d0
-
-    allocate(source_bank(ngen))
-    call bank_initialize(source_bank)
+	! --- TALLY ADJFLUX OPTION CHECKED DURING SET_MC_TALLY.F90
+	IF(tally_adj_flux) THEN
+		ALLOCATE(adj_phi    (n_act-latent_LONG,num_adj_group,nfm_adj(1),nfm_adj(2),nfm_adj(3)))
+		ALLOCATE(FOR_phi    (n_act            ,num_adj_group,nfm_adj(1),nfm_adj(2),nfm_adj(3)))
+		ALLOCATE(adj_phi_cyc(                  num_adj_group,nfm_adj(1),nfm_adj(2),nfm_adj(3)))
+		ALLOCATE(FOR_phi_cyc(                  num_adj_group,nfm_adj(1),nfm_adj(2),nfm_adj(3)))
+		ALLOCATE(adj_phi_cyc_VEC(num_adj_group*nfm_adj(1)*nfm_adj(2)*nfm_adj(3)))
+		ALLOCATE(FOR_phi_cyc_VEC(num_adj_group*nfm_adj(1)*nfm_adj(2)*nfm_adj(3)))
+		adj_phi     = 0.d0
+		FOR_phi     = 0.d0
+		adj_phi_cyc = 0.d0
+		FOR_phi_cyc = 0.d0
+		adj_phi_cyc_VEC = 0.d0
+		FOR_phi_cyc_VEC = 0.d0
+	END IF
+	! --- TALLY ENERGY SPECTRUM (TSOH-IFP)
+	IF(tally_adj_spect) THEN
+		IF(NOT(tally_for_spect)) THEN
+			IF(icore == score) PRINT*,' [WARNING] TALLY ADJOINT SPECTRUM REQUIRES TALLYING FORWARD SPECTRUM'
+			tally_for_spect = .TRUE.
+		END IF
+	END IF
+	IF(tally_for_spect) THEN
+		! +++ FOR MG SIMULATION, TALLY FOR EACH GROUP
+		IF(E_mode == 0) THEN
+			ALLOCATE(FOR_phi_ene_cyc(      n_group)); FOR_phi_ene_cyc = 0.d0
+			ALLOCATE(FOR_phi_ene    (n_act,n_group)); FOR_phi_ene     = 0.d0
+			IF(tally_adj_spect) THEN
+				ALLOCATE(adj_phi_ene_cyc(             n_group)); adj_phi_ene_cyc = 0.d0
+				ALLOCATE(adj_phi_ene    (n_act-latent,n_group)); adj_phi_ene     = 0.d0				
+			END IF
+		! +++ FOR CE SIMULATION, TALLY FOR USER PRESCRIBED ENERGY STRUCTURE (AT THE MOMENT, DEFAULT GROUP OF SERPENT USED)
+		ELSE
+			SELECT CASE(idx_egroup)
+				CASE(1)
+					n_egroup_spect = n_egroup_spect1; ALLOCATE(egroup_spect(n_egroup_spect))
+					  egroup_spect =   egroup_spect1
+				CASE(2)
+					n_egroup_spect = n_egroup_spect2; ALLOCATE(egroup_spect(n_egroup_spect))
+					  egroup_spect =   egroup_spect2 
+				CASE(3)
+					n_egroup_spect = n_egroup_spect3; ALLOCATE(egroup_spect(n_egroup_spect))
+					  egroup_spect =   egroup_spect3
+			END SELECT
+			ALLOCATE(egroup_spect_bin(n_egroup_spect-1))
+			DO i = 1,n_egroup_spect-1
+				egroup_spect_bin(i) = 0.5d0 * (egroup_spect(i) + egroup_spect(i+1))
+			END DO
+			ALLOCATE(FOR_phi_ene_cyc(      n_egroup_spect-1)); FOR_phi_ene_cyc = 0.d0
+			ALLOCATE(FOR_phi_ene    (n_act,n_egroup_spect-1)); FOR_phi_ene     = 0.d0
+			IF(tally_adj_spect) THEN
+				ALLOCATE(adj_phi_ene_cyc(             n_egroup_spect-1)); adj_phi_ene_cyc = 0.d0
+				ALLOCATE(adj_phi_ene    (n_act-latent,n_egroup_spect-1)); adj_phi_ene     = 0.d0				
+			END IF
+		END IF
+	END IF
+	
+	! +++ INITIALIZE THE BANK ACCORDINGLY
 	call MPI_banktype_ifp()
-	call MPI_precbanktype_ifp()
-	!call MPI_vrcbanktype()
+	call MPI_precbanktype()
+	IF(do_IFP_LONG) THEN
+		call MPI_banktype_ifp_LONG()
+	END IF	
 	
     !===========================================================================
-    !Set transient variables
+    ! Set transient variables
 	call set_transient()
 	
     !===========================================================================
-    !Draw geometry 
+    ! Draw geometry 
     if( icore == score ) call draw_geometry()
     call MPI_BARRIER(core, ierr)
 
@@ -210,13 +276,5 @@ subroutine premc
             enddo ACE0KLOOP
         enddo
     endif
-
-!    do i = 1, num_iso
-!        if( ace(i) % zaid == 92238 ) then
-!            do j = 1, ace(i) % NXS(3)
-!                if(icore==score) print *, 'U238', ace(i) % E(j), ace(i) % sigf(j)
-!            enddo
-!        endif
-!    enddo
-
-end subroutine
+	
+end subroutine premc

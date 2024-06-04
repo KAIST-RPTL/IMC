@@ -36,17 +36,12 @@ module particle_header
     end type LocalCoord
 
     type, public :: Particle
-        ! Basic data
-        !integer(8) :: id            ! Unique ID
-        
+
         ! Particle coordinates
         integer          :: n_coord          ! number of current coordinates
         integer          :: cell_instance    ! offset for distributed properties
         type(LocalCoord) :: coord(MAX_COORD) ! coordinates for all levels
-        
-        
-        !class(universe), pointer :: univ     !> universe pointer 
-        
+
         ! Particle coordinates before crossing a surface
         integer :: last_n_coord         ! number of current coordinates
         integer :: last_cell(MAX_COORD) ! coordinates for all levels
@@ -63,31 +58,12 @@ module particle_header
         real(8)    :: mu            ! angle of scatter
         logical    :: alive         ! is particle alive?
         
-        !! Pre-collision physical data
-        !real(8)    :: last_xyz_current(3) ! coordinates of the last collision or
-                                            !  reflective/periodic surface crossing
-                                            !  for current tallies
-        !real(8)    :: last_xyz(3)         ! previous coordinates
+        ! Pre-collision physical data
+		REAL(8)    :: last_xyz(3)         ! previous location on base universe
         real(8)    :: last_uvw(3)         ! previous direction coordinates
         real(8)    :: last_wgt            ! pre-collision particle weight
-        !real(8)    :: absorb_wgt          ! weight absorbed for survival biasing
         
-        !! What event last took place
-        !logical    :: fission       ! did the particle cause implicit fission
-        !integer    :: event         ! scatter, absorption
-        !integer    :: event_nuclide ! index in nuclides array
-        !integer    :: event_MT      ! reaction MT
-        !integer    :: delayed_group ! delayed group
-        
-        !! Post-collision physical data
-        !integer    :: n_bank        ! number of fission sites banked
-        !real(8)    :: wgt_bank      ! weight of fission sites banked
-        !integer    :: n_delayed_bank(MAX_DELAYED_GROUPS) ! number of delayed fission
-                                                         ! sites banked
-        
-        !! Indices for various arrays
-        !integer    :: surface       ! index for surface particle is on
-        !integer    :: cell_born     ! index for cell particle was born in
+        ! Indices for various arrays
         integer    :: material      ! index for current material
         integer    :: last_material ! index for last material
         
@@ -102,9 +78,6 @@ module particle_header
         ! Statistical data
         integer    :: n_collision   ! # of collisions
         integer    :: n_cross       ! # of surface cross
-        
-        !! Track output
-        !logical    :: write_track = .false.
 
         ! Tag for S(a,b)
         logical    :: yes_sab = .false.
@@ -121,25 +94,35 @@ module particle_header
 		integer :: iso 
         
 		real(8) :: time = 0d0
+		
         ! Secondary particles created
-        !integer(8) :: n_secondary = 0
-        !type(Bank) :: secondary_bank(MAX_SECONDARY)
-        !integer, allocatable :: urn(:)
         real(8), allocatable :: urn(:)
-        
-!        integer, allocatable :: delayedarr(:)
-!        real(8), allocatable :: delayedlam(:)
-!        real(8), allocatable :: nlifearr(:)
-        
-        ! ADJOINT : IFP related : ENABLE if parameterized
+
+		! IFP RELATED
         integer :: delayedarr(1:latent)
         real(8) :: delayedlam(1:latent)
-        real(8) :: nlifearr(1:latent)
-        real(8) :: trvltime ! Traveled distance of the neutron from its born:  Modified to time
+        real(8) :: nlifearr  (1:latent)
+        real(8) :: trvltime              ! Traveled distance of the neutron from its born:  Modified to time
+		REAL(8) :: trvlength    		 ! Traveled distance of the neutron from its born
+		
+		! IFP ADJOINT FLUX RELATED (TSOH-IFP)
+		INTEGER :: i_Parent               ! Index for parent (애비가 누구야?)
+		INTEGER :: arr_code(1:nainfo_src) ! --- (X,Y,Z,G) for neutron absorption (ADJOINT related)
+		REAL(8) :: arr_PwTL(1:nainfo_src) ! --- WEIGHT    for neutron absorption (ADJOINT related)
+		
+		! IFP ADJOINT FLUX RELATED (We select nainfo_src out of the store information when exceeds the length) (TSOH-IFP)
+		INTEGER, ALLOCATABLE :: ptc_code(:) ! MESH WISE (FOR SPATIAL DISTRIBUTION) / ENERGY BIN WISE (FOR SPECTRUM)
+		REAL(8), ALLOCATABLE :: ptc_PwTL(:) ! MESH WISE (FOR SPATIAL DISTRIBUTION) / ENERGY BIN WISE (FOR SPECTRUM)
+		
+		! IFP ADJOINT FLUX RELATED (PROGENITOR) (TSOH-IFP)
+		REAL(8) :: ptc_wgt0	                       ! Initial weight of the PTC
+		INTEGER :: n_prog   		               ! Number of providing progenitor indexing (START BY ZERO / +1 FOR EVERY COLLISION)
+
     contains
         procedure :: clear
         procedure :: initialize
         procedure :: set => set_particle
+		PROCEDURE :: set_LONG   => set_particle_LONG
     end type Particle
 
 contains
@@ -177,23 +160,14 @@ contains
         this % alive = .true.
         
         ! clear attributes
-        !this % surface           = NONE
-        !this % cell_born         = NONE
         this % material          = NONE
         this % last_material     = NONE
-        !this % last_sqrtkT       = NONE
         this % wgt               = ONE
         this % last_wgt          = ONE
-        !this % absorb_wgt        = ZERO
-        !this % n_bank            = 0
-        !this % wgt_bank          = ZERO
         this % sqrtkT            = 0
         this % kT                = 0
         this % n_collision       = 0
         this % n_cross           = 0
-        !this % fission           = .false.
-        !this % delayed_group     = 0
-        !this % n_delayed_bank(:) = 0
         this % g = 1
         
         ! Set up base level coordinates
@@ -210,19 +184,27 @@ contains
 
         this % dens = 1d0
 
-        if(do_ifp) then
-!            allocate(this%delayedarr(1:latent))
-!            allocate(this%delayedlam(1:latent))
-!            allocate(this%nlifearr(1:latent))
 
-            this % delayedarr(1:latent) = 0
-            this % delayedlam(1:latent) = ZERO
-            this % nlifearr(1:latent)   = ZERO
-            this % trvltime             = ZERO
-        endif
+		! IFP RELATED
+		this % delayedarr(1:latent) = 0
+		this % delayedlam(1:latent) = ZERO
+		this % nlifearr(1:latent)   = ZERO
+		this % trvltime             = ZERO
+		this % trvlength            = ZERO
+
         if(.not. allocated(this%urn)) then
             allocate(this % urn(1:n_unr)); this % urn = 0D0
         endif
+
+		! IFP BASED ADJOINT FLUX RELATED
+		this % arr_code(1:nainfo_src) = 0
+		this % arr_PwTL(1:nainfo_src) = 0.d0
+		IF(ALLOCATED(this % ptc_code)) DEALLOCATE(this % ptc_code)
+		IF(ALLOCATED(this % ptc_PwTL)) DEALLOCATE(this % ptc_PwTL)
+		ALLOCATE(this % ptc_code(999))
+		ALLOCATE(this % ptc_PwTL(999))
+		this % ptc_wgt0 = 0.d0
+		this % n_prog   = 0
 
     end subroutine initialize
   
@@ -241,14 +223,12 @@ contains
         this % E                 = source % E
         this % G                 = source % G
         this % time              = source % time
-        !this % ep                = source % ep
-		
-        if(do_ifp)then
-            this % delayedarr  = source % delayedarr
-            this % delayedlam  = source % delayedlam
-            this % nlifearr    = source % nlifearr
-            this % trvltime          = 0.D0
-        endif
+
+		! IFP RELATED
+        this % delayedarr  = source % delayedarr
+        this % delayedlam  = source % delayedlam
+        this % nlifearr    = source % nlifearr
+        this % trvltime    = ZERO
 
         ! MSR
         !if(source%delayed) print *, 'PREC', source%xyz(1:3), source%G, this%wgt
@@ -263,6 +243,47 @@ contains
         endif
     end subroutine SET_PARTICLE
     
+!===============================================================================
+! SET_PARTICLE sets the particle from the source bank (LONG) (TSOH-IFP)
+!===============================================================================
+    subroutine SET_PARTICLE_LONG(this, source)
+		use randoms, only: rang
+		USE FMFD_header
+		implicit none 
+        class(Particle) :: this
+        type(bank_LONG) :: source
+        integer :: zidx
+		integer :: node_xyz(3)   
+		INTEGER :: code_xyz
+		
+        this % coord(1) % xyz(:) = source % xyz(:)
+        this % coord(1) % uvw(:) = source % uvw(:)
+        this % wgt               = source % wgt
+        this % E                 = source % E
+        this % G                 = source % G
+        this % time              = source % time
+		
+		! IFP RELATED
+        this % delayedarr  = source % delayedarr
+        this % delayedlam  = source % delayedlam
+        this % nlifearr    = source % nlifearr
+        this % trvltime    = ZERO
+		
+		!> IFP BASED ADJOINT FLUX RELATED
+		this % i_Parent  = source % i_Current
+		this % trvlength = ZERO
+		this % arr_code = source % arr_code
+		this % arr_PwTL = source % arr_PwTL
+
+		!> INITIAL WEIGHT FROM THE PREVIOUS BANK
+		this % ptc_wgt0 = source % wgt
+		
+		! determine z mesh idx 
+		if (do_fuel_mv .and. source%delayed) then 
+			zidx = floor((this%coord(1)%xyz(3)-core_base)/(core_height/real(N_core_axial,8)))+1
+			core_prec(source%G,zidx,1) = core_prec(source%G,zidx,1) + this % wgt
+		endif 
+    end subroutine SET_PARTICLE_LONG
     
 !===============================================================================
 ! CLEAR_PARTICLE resets all coordinate levels for the particle

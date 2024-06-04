@@ -12,7 +12,7 @@ module tracking
     use XS_header 
     use tally,              only: TallyCoord, TallyFlux, FindTallyBin,&
                                   TallyPower, tallyon, MESH_DISTANCE, meshon, &
-                                  MC_TRK, TALLY_SURF, MC_TRK_S, meshon_tet_vrc, mesh_power
+                                  MC_TRK, TALLY_SURF, MC_TRK_S, meshon_tet_vrc, mesh_power, FM_ID, AM_ID, OUT_OF_ZZ_ADJ, MESH_DISTANCE_adj, E2G_SPECTRUM
     use ace_xs,             only: getMacroXS, getMacroXS_UEG
     use material_header,    only: materials, n_materials
     use ace_reactions,      only: collision_CE, WHAT_TEMPERATURE, WHAT_DENSITY
@@ -51,17 +51,21 @@ subroutine transport(p)
     real(8) :: d_boundary             ! distance to nearest boundary
     real(8) :: d_collision            ! distance to collision
     real(8) :: d_mesh                 ! distance to FMFD grid
+	REAL(8) :: d_mesh_adj             ! distance to ADJ  grid
     real(8) :: d_gmsh                 ! distance to Gmsh grid
     real(8) :: distance               ! distance particle travels
     logical :: found_cell             ! found cell which particle is in?
     real(8) :: macro_xs(5)!, tmparr(3)
     real(8) :: xyz(3)
-    integer :: i_cell, i_bin(4), i_lat, i_surf
-    integer :: i_xyz(3), idx_xyz, j_xyz(3)
+    integer :: i_cell, i_bin(4), i_lat, i_surf, i_surf_adj
+    integer :: i_xyz(3), i_xyz_adj(3), idx_xyz, j_xyz(3)
     logical :: inside_mesh
+	LOGICAL :: inside_mesh_ADJ
     integer :: income_mesh
+	INTEGER :: income_mesh_adj
     logical :: inside_th
     real(8) :: ddiff
+	REAL(8) :: ddiff_adj
     logical :: fm_crossed
 	real(8) :: d_s, val 
 	integer :: idx_surf
@@ -71,17 +75,26 @@ subroutine transport(p)
     integer :: pt1, pt2, pt3
     real(8) :: tmp_power
     real(8) :: speedn
-
+	LOGICAL :: am_crossed
+	INTEGER :: code_xyz
+	INTEGER :: node_xyz(3)
+	INTEGER :: node_x, node_y, node_z
+	INTEGER :: node_g
+	REAL(8) :: PwTL
+	INTEGER :: vec_idx
+	LOGICAL :: fm_eq_am = .FALSE. ! BOOLEAN for fm surface being identical to adjoint mesh surface
+	INTEGER :: i_Parent
+	INTEGER :: AHRI
+	INTEGER :: SONA
 	
 	xyz = p%coord(1)%xyz
 	
-	
-	
     found_cell = .false.
     if (p%n_coord == 1) call find_cell(p, found_cell, i_cell)
-    !print *, 'PTCL', p % kT/K_B, p % coord(1) % xyz(3)
 	if (p%material < 1 .or. p%material > n_materials) then 
-        ! print *, 'WTF happen? mat:', p%material
+		print *, p%material 
+		print *, p%coord(1)%xyz 
+		print *, found_cell, cells(i_Cell)%cell_id
         p%alive = .false.
         return
 	endif 
@@ -104,15 +117,14 @@ subroutine transport(p)
         !call WHAT_DENSITY(p)
 	endif
 
-	
-	
     !> Surface distance(boundary)
     call distance_to_boundary(p, d_boundary, surface_crossed)
-    !> Sample distances from special boundaries in univ 0
 	
-	
+	!> Sample a distance to collision
 	val = 1.0d0
-    !> Sample a distance to collision
+	! ===========================================================================
+	! >>>>>>>>>>>>>>>>>>>>>>> MULTI-GROUP MC (E_mode = 0) >>>>>>>>>>>>>>>>>>>>>>>
+	! ===========================================================================
     if (E_mode == 0) then 
         macro_xs(1) = (sum(XS_MG(p%material)%sig_scat(p%g,:)) &
                     + XS_MG(p%material)%sig_abs(p%g))
@@ -121,6 +133,10 @@ subroutine transport(p)
         macro_xs(4) = XS_MG(p%material)%sig_fis(p%g)*XS_MG(p%material)%nu(p%g)
         macro_xs(5) = XS_MG(p%material)%sig_fis(p%g)
         d_collision = -log(rang())/macro_xs(1)
+		speedn      = MGD(p%material)%vel(p%g)
+	! ===========================================================================
+	! >>>>>>>>>>>>>>>>>>>>>>> CONTINUOUS MC (E_mode = 1)  >>>>>>>>>>>>>>>>>>>>>>>
+	! ===========================================================================
     elseif (E_mode == 1) then
         if(do_ueg) then
             macro_xs = getMacroXS_UEG(materials(p%material), p%E,p%kT,p%urn)
@@ -132,18 +148,29 @@ subroutine transport(p)
         speedn = sqrt(2.d0*p%E*mevj/(m_u*m_n))*1.0d2 !> meter/sec
     endif 
     
-    ! ===================================================
+    ! =========================================================================
     !> CMFD distance 
+	! =========================================================================
     d_mesh = INFINITY
     if ( meshon ) &
         call MESH_DISTANCE(p,i_xyz,d_mesh,inside_mesh,income_mesh,i_surf)
 
     ! =========================================================================
+    !> ADJOINT MESH RELATED distance 
+	! =========================================================================
+    d_mesh_adj = INFINITY
+    if ( tally_adj_flux .AND. curr_cyc > n_inact) &
+        call MESH_DISTANCE_adj(p,i_xyz_adj,d_mesh_adj,inside_mesh_adj,income_mesh_adj,i_surf_adj)
+
+    ! =========================================================================
     !> TH distance
-!    d_TH = INFINITY
-!    if ( th_on ) call TH_DISTANCE(p,j_xyz,d_TH)
+	! =========================================================================
+	! d_TH = INFINITY
+	! if ( th_on ) call TH_DISTANCE(p,j_xyz,d_TH)
     
-    !> minimum distance
+	! =========================================================================
+    !> minimum distance (w.r.t FINE-MESH)
+	! =========================================================================
     ddiff = abs(d_boundary-d_mesh)/d_boundary
     if ( ddiff < TINY_BIT ) then
         d_mesh = d_boundary
@@ -158,8 +185,29 @@ subroutine transport(p)
         fm_crossed = .false.
     end if
 	
-    ! ==================================================
+	! =========================================================================
+    !> minimum distance (w.r.t ADJOINT MESH)
+	! =========================================================================
+    ddiff_adj = abs(d_boundary-d_mesh_adj)/d_boundary
+    if ( ddiff_adj < TINY_BIT ) then
+        d_mesh_adj = d_boundary
+        am_crossed = .true.
+    else if ( d_boundary < 5E-5 .and. ddiff_adj < 1E-8 ) then
+        d_mesh_adj = d_boundary
+        am_crossed = .true.
+    else
+        am_crossed = .false.
+    end if	
+	! +++ CHECK whether fine mesh & adjoint mesh share the same surface
+	IF(meshon .AND. tally_adj_flux .AND. curr_cyc > n_inact .AND. ABS(d_mesh_adj - d_mesh) < TINY_BIT) THEN
+		fm_eq_am = .TRUE.
+	ELSE
+		fm_eq_am = .FALSE.
+	END IF
+	
+	! =========================================================================
 	!> Tetrahedron mesh distance 
+	! =========================================================================
 	d_gmsh = INFINITY
 	if (do_gmsh .and. curr_cyc > n_inact) then 
 		i_bin = FindTallyBin(p)
@@ -171,9 +219,13 @@ subroutine transport(p)
 			endif
 		endif
 	endif
-    distance = min(d_boundary, d_collision, d_mesh, d_gmsh)
-    ! print *, 'TST', icore, p%n_cross,p%coord(1)%xyz, distance, d_boundary, d_collision, d_mesh
-    p % trvltime = p % trvltime + distance / speedn 
+	
+	! =========================================================================
+	!> BASED ON SEVERAL DISTANCES, UPDATE THE PARAMETERS
+	! =========================================================================
+    distance = min(d_boundary, d_collision, d_mesh, d_mesh_adj, d_gmsh)
+    p % trvltime  = p % trvltime + distance / speedn  
+	p % trvlength = distance 
     if(distance>TOOLONG) then
         print *, 'ESCAPED',distance,p%coord(1)%xyz(1:2),p%coord(1)%uvw(1:2)
         p%alive = .false.
@@ -181,7 +233,7 @@ subroutine transport(p)
 	
     !> Track-length estimator
     !       >> Removed 'ATOMIC' due to Reduction: needs to be verified
-    !           >> NO... While loop doesn't work for Reduction
+    !       >> NO... While loop doesn't work for Reduction
     !$OMP ATOMIC 
     k_tl = k_tl + distance*p%wgt*macro_xs(4) 
 
@@ -196,24 +248,28 @@ subroutine transport(p)
 			endif 
 		endif 
 		
-		
         if ( i_bin(1) > 0 ) then 
             !$omp atomic
             TallyFlux(i_bin(1)) = TallyFlux(i_bin(1)) + distance*p%wgt
-    !> ==== Power Tally =====================================================================
+			!> ==== Power Tally =====================================================================
             !$omp atomic
             TallyPower(i_bin(1)) = TallyPower(i_bin(1)) + distance*p%wgt*macro_xs(5)
 			
         endif
     endif 
     !> Cycle-power Tally ===================================================================  
-    if(curr_cyc > n_inact .and. materials(p%material)%fissionable) then 
-        if ( isnan(distance) .or. isnan(p%wgt) .or. isnan(macro_xs(5)) ) then
-        else
 
-            !$omp atomic
-            cyc_power = cyc_power + distance * p % wgt * macro_xs(5)
-        endif
+    if(curr_cyc > n_inact) THEN
+		IF(E_mode == 0) THEN
+			!$omp atomic
+			cyc_power = cyc_power + distance * p % wgt * macro_xs(5)
+		ELSE
+			IF(materials(p%material)%fissionable) then 
+			!$omp atomic
+			cyc_power = cyc_power + distance * p % wgt * macro_xs(5)
+			END IF
+		END IF
+
 
         if(do_mgtally) then
             ! 1. Find MG
@@ -233,13 +289,13 @@ subroutine transport(p)
             micro_flux(pt1) = micro_flux(pt1) + distance * p % wgt
             endif
         endif
-        if(do_ifp)then
-            ! ADJOINT related
-            ! Effective beta calc.
+				
+		! ADJOINT related / Effective beta calc.
+        if(do_ifp .AND. curr_cyc > n_inact + latent)then
             !$omp atomic
             denom= denom + distance*p%wgt*macro_xs(4)
             !$omp atomic
-            gen_numer = gen_numer + distance*p%wgt*p%nlifearr(1)*macro_xs(4)
+			gen_numer = gen_numer + distance*p%wgt*p%nlifearr(1)*macro_xs(4)			
             if(p%delayedarr(1)>0) then
                 !$omp atomic
                 beta_numer(p%delayedarr(1)) = beta_numer(p%delayedarr(1)) + distance*p%wgt*macro_xs(4)
@@ -247,16 +303,113 @@ subroutine transport(p)
                 lam_denom(p%delayedarr(1))  = lam_denom(p%delayedarr(1)) + distance*p%wgt*macro_xs(4)/p%delayedlam(1)
             endif
         endif
+		
+		! ####################################################################################
+		! *** FORWARD ENERGY SPECTRUM
+		! ####################################################################################
+		IF(tally_for_spect) THEN
+			! +++ MG SIMULATION
+			IF(E_mode == 0) THEN
+				!$OMP ATOMIC
+				FOR_phi_ene_cyc(p%G) = FOR_phi_ene_cyc(p%G) + distance * p%wgt
+			! +++ CE SIMULATION
+			ELSE
+				IF(E2G_SPECTRUM(p%E) > 0) THEN
+					!$OMP ATOMIC
+					FOR_phi_ene_cyc(E2G_SPECTRUM(p%E)) = FOR_phi_ene_cyc(E2G_SPECTRUM(p%E)) + distance * p%wgt
+				END IF
+			END IF
+		END IF
+		
+		! ####################################################################################
+		! ADJOINT ENERGY SPECTRUM RELATED
+		! ####################################################################################
+		IF(tally_adj_spect) THEN
+			IF(curr_cyc > n_inact + latent_long) THEN
+				i_Parent = p%i_Parent
+				AHRI = MOD((curr_cyc-n_inact),latent_long)
+				IF(AHRI == 0) AHRI = latent_long
+				DO i = 1,latent_long-1
+					SONA = AHRI-i+1
+					IF(SONA <= 0) THEN
+						SONA = SONA + latent_long
+					END IF
+					i_Parent = mat_source_bank_LONG(i_Parent,SONA)%i_Parent
+				END DO
+				AHRI = MOD((curr_cyc-n_inact),latent_long) + 1
+				DO i = 1,nainfo_src
+					! --- CHECK THE STORED MESH INFO / PROGENITOR INFORMATION
+					IF(mat_source_bank_LONG(i_Parent,AHRI)%arr_PWTL(i) > 0.d0) THEN
+						code_xyz = mat_source_bank_LONG(i_Parent,AHRI)%arr_code(i)
+						PwTL     = mat_source_bank_LONG(i_Parent,AHRI)%arr_PWTL(i)
+						! --- APPEND THE ADJ INFO
+						!$OMP ATOMIC
+						adj_phi_ene_cyc(code_xyz) = adj_phi_ene_cyc(code_xyz) + macro_xs(4)*distance*PwTL
+					END IF
+				END DO	
+			END IF
+		END IF
+		
+		! ####################################################################################
+		! ADJOINT FLUX DISTRIBUTION Related
+		! ####################################################################################
+		IF(tally_adj_flux .AND. curr_cyc > n_inact + latent_long) THEN
+			i_Parent = p%i_Parent
+			AHRI = MOD((curr_cyc-n_inact),latent_long)
+			IF(AHRI == 0) AHRI = latent_long
+			DO i = 1,latent_long-1
+				SONA = AHRI-i+1
+				IF(SONA <= 0) THEN
+					SONA = SONA + latent_long
+				END IF
+				i_Parent = mat_source_bank_LONG(i_Parent,SONA)%i_Parent
+			END DO
+			AHRI = MOD((curr_cyc-n_inact),latent_long) + 1
+			CONDENSE: DO i = 1,nainfo_src
+				! --- CHECK THE STORED MESH INFO / PROGENITOR INFORMATION
+				IF(mat_source_bank_LONG(i_Parent,AHRI)%arr_PWTL(i) > 0.d0) THEN
+					code_xyz = mat_source_bank_LONG(i_Parent,AHRI)%arr_code(i)
+					PwTL     = mat_source_bank_LONG(i_Parent,AHRI)%arr_PWTL(i)
+					! --- APPEND THE ADJ INFO
+					!$OMP ATOMIC
+					adj_phi_cyc_vec(code_xyz) = adj_phi_cyc_vec(code_xyz) + macro_xs(4)*distance*PwTL
+				END IF
+			END DO CONDENSE
+		END IF
+		
+		! ####################################################################################
+		! APPEND THE FLUX INFORMATION (ADJOINT MESH WISE)
+		! ####################################################################################
+		IF(inside_mesh_adj .AND. tally_adj_flux) THEN
+			! --- POSITION
+			node_xyz = i_xyz_adj
+			node_x   = node_xyz(1)
+			node_y   = node_xyz(2)
+			node_z   = node_xyz(3)
+			! --- CONSIDERATION OF ZZ-BOUNDARY
+			IF(zigzag_adjflux) THEN
+				IF(OUT_OF_ZZ_ADJ(node_x,node_y)) THEN
+					GO TO 7
+				END IF
+			END IF
+			! --- GROUP
+			IF(num_adj_group == 1) THEN
+				node_g = 1
+			ELSE
+				node_g = p%g
+			END IF
+			! --- UPDATE THE FLUX INFORMATION
+			vec_idx = (node_g-1)*nfm_adj(1)*nfm_adj(2)*nfm_adj(3) + (node_z-1)*nfm_adj(1)*nfm_adj(2) + (node_y-1)*nfm_adj(1) + node_x
+			!$OMP ATOMIC
+			FOR_phi_cyc_vec(vec_idx) = FOR_phi_cyc_vec(vec_idx) + distance*p%wgt
+		END IF
     endif 
 
-    !> MC Tally
-    if ( tallyon .and. .not. fmfdon .and. inside_mesh ) &
-        call MC_TRK(p%E,p%wgt,distance,macro_xs,i_xyz)
-    
+    !> MC Tally      ========================================================================
+7   if ( tallyon .and. .not. fmfdon .and. inside_mesh ) call MC_TRK(p%E,p%wgt,distance,macro_xs,i_xyz)
+
     !> Burn-up Tally ========================================================================
     call tally_burnup (p%material, distance, p%wgt, p%E, p%kT)
-
-
     
     !> FMFD Tally (track length) 
     if ( fmfdon .and. inside_mesh ) then
@@ -267,13 +420,59 @@ subroutine transport(p)
         endif
     endif
 	
-	
     !> Advance particle
+	p % last_xyz = p % coord(1) % xyz
+	p % last_wgt = p % wgt
+	p % last_G   = p % G
+	p % last_E   = p % E
+	p % last_material = p % material
     do j = 1, p % n_coord
         p % coord(j) % xyz = p % coord(j) % xyz + distance * p % coord(j) % uvw
     enddo
+    found_cell = .false.
+    call find_cell(p, found_cell, i_cell) !> UPDATES PTC LOCATION & MAT INFO
 	
-    if ( distance == d_collision ) then ! collision 
+	!> RELATED TO ADJOINT ENERGY SPECTRUM (TSOH-IFP)
+	IF(tally_adj_spect .AND. curr_cyc > n_inact) THEN
+		! +++ MG SIMULATION
+		IF(E_mode == 0) THEN
+			IF(ANY(p%G .EQ. p%ptc_code(1:p%n_prog))) THEN
+				DO i = 1,p%n_prog
+					IF(p%G .EQ. p%ptc_code(i)) THEN
+						p%ptc_PwTL(i) = p%ptc_PwTL(i) + p%trvlength * p%ptc_wgt0
+						EXIT
+					END IF
+				END DO
+			ELSE
+				p % n_prog = p % n_prog +1
+				p%ptc_code(p%n_prog) = p%G
+				p%ptc_PwTL(p%n_prog) = p%trvlength * p%ptc_wgt0
+			END IF
+		! +++ CE SIMULATION
+		ELSE
+			! GET THE ENERGY BIN INDEX FOR CURRENT NEUTRON ENERGY
+			j = E2G_SPECTRUM(p%E) 
+			IF(j > 0) THEN
+				IF(ANY(j .EQ. p%ptc_code(1:p%n_prog))) THEN
+					DO i = 1,p%n_prog
+						IF(j .EQ. p%ptc_code(i)) THEN
+							p%ptc_PwTL(i) = p%ptc_PwTL(i) + p%trvlength * p%ptc_wgt0
+							EXIT
+						END IF
+					END DO				
+				ELSE
+					p % n_prog = p % n_prog +1
+					p%ptc_code(p%n_prog) = j
+					p%ptc_PwTL(p%n_prog) = p%trvlength * p%ptc_wgt0
+				END IF
+			END IF
+		END IF		
+	END IF
+	
+	! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	! COLLISION OCCURED
+	! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    if ( distance == d_collision ) then 
 		if (do_PCQS .and. curr_cyc > n_inact) n_col = n_col + 1 
         if ( fmfdon .and. inside_mesh ) then
         call FMFD_COL(p%wgt,macro_xs,i_xyz)
@@ -283,44 +482,68 @@ subroutine transport(p)
 		p%tet_face = 0 
         if (E_mode == 0) then 
             call collision_MG(p)
-        else !(E_mode == 1) 
+        else
             call collision_CE(p)
         endif
         if ( th_on .and. .not. fmfdon ) then
             call TH_INSIDE(p%coord(1)%xyz(:),j_xyz(:),inside_th)
             if ( inside_th ) call TH_COL(p%wgt,macro_xs(1),macro_xs(4),j_xyz(:))
         end if
-
+	! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	! PASSED the CMFD related mesh
+	! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     elseif  ( distance == d_mesh ) then 
-        call FMFD_SURF(inside_mesh, income_mesh,i_surf, i_xyz, &
-                        p%coord(1)%uvw, p%wgt, surfaces(surface_crossed)%bc)
-!         if(surfaces(surface_crossed) % bc == 2) then
-!             if((abs(p%coord(1)%xyz(1)-surfaces(surface_crossed)%parmtrs(3))>TINY_BIT) .and. (abs(p%coord(1)%xyz(2)-surfaces(surface_crossed)%parmtrs(3))>TINY_BIT) ) then
-!                 print *, 'WTF22?', p % coord(1) % xyz(:)
-!             endif
-!         endif
-!         call cross_surface(p, surface_crossed)
+        call FMFD_SURF(inside_mesh, income_mesh,i_surf, i_xyz, p%coord(1)%uvw, p%wgt, surfaces(surface_crossed)%bc)
         if ( fm_crossed ) then
             call cross_surface(p, surface_crossed)
         else
             p%coord(1)%xyz = p%coord(1)%xyz + TINY_BIT * p%coord(1)%uvw
         end if
-		
+		! --- Special treatment for fine mesh being identical to adjoint mesh
+		IF(fm_eq_am) GO TO 97
+	! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	! PASSED the ADJOINT RELATED MESH
+	! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	ELSE IF(distance == d_mesh_adj) THEN
+97		node_xyz = AM_ID(p % last_xyz)
+		node_x   = node_xyz(1)
+		node_y   = node_xyz(2)
+		node_z   = node_xyz(3)
+		IF(zigzag_adjflux) THEN
+			IF(NOT(OUT_OF_ZZ_ADJ(node_x,node_y))) THEN
+				GO TO 14
+			END IF
+		ELSE
+14			IF(num_adj_group == 1) THEN
+				code_xyz = Code_node_XYZ(node_xyz)
+			ELSE
+				code_xyz = Code_node_XYZ(node_xyz,p%G)
+			END IF
+			IF(ANY(code_xyz .EQ. p%ptc_Code(1:p%n_prog))) THEN
+				DO i = 1,p%n_prog
+					IF(code_xyz .EQ. p%ptc_Code(i)) THEN
+						p%ptc_PwTL(i) = p%ptc_PwTL(i) + p%trvlength * p%ptc_wgt0
+						EXIT
+					END IF
+				END DO
+			ELSE
+				p % n_prog = p % n_prog +1
+				p%ptc_Code(p%n_prog) = code_xyz
+				p%ptc_PwTL(p%n_prog) = p%trvlength * p%ptc_wgt0
+			END IF
+		END IF
+		! --- PTC crossing the geometry (not FMFD or ADJ mesh) surface
+		IF(am_crossed .AND. NOT(fm_eq_am) .AND. NOT(fm_crossed)) THEN
+			call cross_surface(p, surface_crossed)
+		ELSE
+			p%coord(1)%xyz = p%coord(1)%xyz + TINY_BIT * p%coord(1)%uvw
+		END IF
+	! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	! CROSSING THE SURFACE (+ LOSS of PTC)
+	! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     elseif (abs(distance - d_boundary) < TINY_BIT) then
         p%n_cross = p%n_cross + 1 
-!         if(surfaces(surface_crossed) % bc == 2) then
-!             if((abs(p%coord(1)%xyz(1)-surfaces(surface_crossed)%parmtrs(3))>TINY_BIT) .and. (abs(p%coord(1)%xyz(2)-surfaces(surface_crossed)%parmtrs(3))>TINY_BIT) ) then
-!                 print *, 'WTF?', p % coord(1) % xyz(:)
-!             endif
-!         endif
-! 
-
         if (surface_crossed > 0) call cross_surface(p, surface_crossed)
-        if(p%alive == .false.) then 
-            !$omp atomic
-            loss_vrc = loss_vrc + p%wgt! * exp(-macro_xs(1)*d_boundary)
-        endif 
-		
 	elseif (abs(distance - d_gmsh) < TINY_BIT) then 
 		tet_prev = p%tet
 		p%tet_prev = p%tet
