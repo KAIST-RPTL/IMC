@@ -89,7 +89,7 @@ subroutine simulate_history(bat,cyc)
     call para_range(1, isize, ncore, icore, ista, iend)        
     k_col = 0; k_tl = 0; k_vrc = 0; fiss_vrc = 0; loss_vrc = 0;
     if ( fmfdon ) call FMFD_initialize()
-    if ( do_burn ) MC_tally(bat,:,:,:,:,:,:) = 0
+    if ( do_burn .and. cyc > n_inact) MC_tally(bat,cyc-n_inact,:,:,:,:,:) = 0
     cyc_power = 0;
     !if(.not. allocated(cyc_p_arr)) allocate(cyc_p_arr(0:ncore-1))
     !cyc_p_arr = 0;
@@ -107,7 +107,7 @@ subroutine simulate_history(bat,cyc)
 	
     !$omp parallel private(p) shared(source_bank, fission_bank, temp_bank, prec_bank, ista, iend)
       thread_bank(:)%wgt = 0; bank_idx = 0; prec_idx = 0 ; init_idx = 0
-      if (tallyon .and. .not. fmfdon) call TALLY_THREAD_INITIAL(cyc)
+      if (tallyon .and. .not. fmfdon) call TALLY_THREAD_INITIAL(bat, cyc)
       if ( fmfdon ) call FMFD_initialize_thread()
       !$omp do reduction(+: k_col, k_tl) 
         do i= ista, iend 
@@ -226,7 +226,7 @@ subroutine simulate_history(bat,cyc)
         if( .not. allocated( rcv_msh ) ) allocate(rcv_msh(n_core_axial))
         do k = 1,8
             do j = 1,n_core_radial
-            call MPI_REDUCE(core_prec(:,j,k),rcv_msh,k,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
+            call MPI_REDUCE(core_prec(:,j,k),rcv_msh,n_core_axial,MPI_REAL8,MPI_SUM,score,MPI_COMM_WORLD,ierr)
             core_prec(:,j,k) = rcv_msh
             enddo
         enddo
@@ -237,7 +237,7 @@ subroutine simulate_history(bat,cyc)
                 enddo
             enddo
         endif
-        core_prec = 0.d0
+        core_prec = 0.d0; deallocate( rcv_msh )
         !print *, 'leak', MSR_leak
         call MPI_ALLREDUCE(MSR_leak,ndata,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
         MSR_leak = ndata
@@ -264,7 +264,8 @@ subroutine simulate_history(bat,cyc)
     !> Calculate k_eff ==========================================================
     k_col = k_col / real(ngen,8)
     k_tl  = k_tl  / real(ngen,8) 
-    keff  = (k_tl + k_col) / 2.0d0
+    !keff  = (k_tl + k_col) / 2.0d0
+    keff = k_col
     !keff = k_col
     
     if (icore == score) write(prt_keff,*) keff, k_col, k_tl

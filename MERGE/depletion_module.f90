@@ -2322,6 +2322,14 @@ module depletion_module
                     write(prt_restart, *) 'doppler = T'
                     write(prt_restart, *) 'temperature = ', materials(imat) % temp/K_B
                 endif
+                select case(materials(imat) % mat_type)
+                case(1) ! Fuel
+                    write(prt_restart, *) 'mat_type = fuel'
+                case(2) ! Cladding
+                    write(prt_restart, *) 'mat_type = clad'
+                case(3)
+                    write(prt_restart, *) 'mat_type = cool'
+                end select
                 if(ANY(materials(imat) % sablist/=0)) then ! If any is sablist
                     do iso = 1, materials(imat) % n_iso
                         isab = materials(imat) % sablist(iso)

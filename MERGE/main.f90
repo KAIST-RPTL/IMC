@@ -1060,6 +1060,44 @@ subroutine CYCLE_TALLY_MSG(bat)
         !! INITIALIZE after Printing
         MC_tally = 0d0
     endif
+    else
+        if(fmfdon)then
+        do ii = 1, nfm(3)
+            do jj = 1, nfm(2)
+                write(*,21), p_fmfd(1,1,:,jj,ii)
+            end do
+        end do
+        endif
+        write(*,*), "   Printing Tally Distribution "
+        do ttype = 1, n_type
+            !call NORM_DIST(MC_tally(1:n_batch,1:n_act,1,1,:,:,:))
+    
+            write(tallytype, '(i3)') ttype
+        
+        	open(9999,file="mean_tally2_type"//trim(adjustl(tallytype))//".out",action="write",status="replace")
+        	open(99999,file="sd_tally2_type"//trim(adjustl(tallytype))//".out",action="write",status="replace")
+        
+            do ng = 1, n_tgroup
+                ttemp = 0d0
+                ttemp_sd = 0d0
+        
+                do ii = 1, nfm(1)
+                do jj = 1, nfm(2)
+                do kk = 1, nfm(3)
+                    ttemp(ii,jj,kk) = AVG(MC_tally(bat,:,ttype,ng,ii,jj,kk))
+                    ttemp_sd(ii,jj,kk) = STD_M(MC_tally(bat,:,ttype,ng,ii,jj,kk))
+                end do
+                end do
+                end do
+                write( 9999,14), ttemp(:,:,:)
+                write(99999,14), ttemp_sd(:,:,:)
+        
+            enddo
+        	close(9999)
+        	close(99999)
+        enddo
+        !! INITIALIZE after Printing
+        MC_tally = 0d0
     endif
 
     1 format(1000ES15.7)
@@ -1297,8 +1335,8 @@ subroutine process_MSR_prec()
     if(icore /= score) return
     if(.not. do_fuel_mv) return
 
-    allocate(MSR_data(n_core_axial,n_core_radial,n_act,8))
-    allocate(MSR_prec(n_core_axial,n_core_radial,8,2))
+    allocate(MSR_data(n_core_axial,n_core_radial,n_act,8)); MSR_data = 0d0
+    allocate(MSR_prec(n_core_axial,n_core_radial,8,2)); MSR_prec = 0d0
 
     open(prt_fuel_mv, file=trim(title)//'_MSR_prec',action='read',status='replace')
     do i = 1,n_act

@@ -265,15 +265,15 @@ end function
 ! =============================================================================
 ! 
 ! =============================================================================
-subroutine TALLY_THREAD_INITIAL(cyc)
+subroutine TALLY_THREAD_INITIAL(bat, cyc)
     implicit none
-    integer, intent(in):: cyc
+    integer, intent(in):: cyc, bat
     integer:: acyc
 
     if ( cyc > n_inact ) then
     acyc = cyc - n_inact
     MC_thread = 0D0
-    MC_tally  = 0D0
+    MC_tally(bat, acyc, :, :, :, :, :) = 0D0
 !    MC_sthread = 0D0
 !    MC_scatth = 0D0
     end if
@@ -307,7 +307,7 @@ subroutine MC_TRK(E0,wgt,distance,macro_xs,id)
     case(6,16); xs = 0                          ! scattering
     case default; xs = 1D0                      ! flux (type = 0)
     end select
-    MC_thread(ii,E2G(E0),id(1),id(2),id(3)) = & 
+    if ( .not. isnan(flux * xs)) MC_thread(ii,E2G(E0),id(1),id(2),id(3)) = & 
     MC_thread(ii,E2G(E0),id(1),id(2),id(3)) + flux * xs
 	
     end do

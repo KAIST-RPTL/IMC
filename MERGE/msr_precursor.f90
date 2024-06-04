@@ -35,7 +35,6 @@ subroutine prec_rz(xyz, t_emit)
     real(8) :: vz, vr                  !> v along radial and axial [cm/s]
     real(8) :: tr, tz                  !> Time to reach radial/axial bound [s]
 
-
     ! === OUTLINE ===
     ! 0. T_LEFT = t_emit
     t_left = t_emit
@@ -66,7 +65,7 @@ subroutine prec_rz(xyz, t_emit)
 
     ! DO while alive
     do
-        if(t_emit> 5D2) print '(I,A7,5F10.3)', bank_idx, 'RZT', r, z, cost, sint, t_left
+        if(t_emit> 5D22) print '(I,A7,5F10.3)', bank_idx, 'RZT', r, z, cost, sint, t_left
 
         ! 3. vr, vz = v(i,j)
         vr = velocity_r(i,j); vz = velocity_z(i,j)
@@ -81,7 +80,7 @@ subroutine prec_rz(xyz, t_emit)
             xyz(1) = cost * r + axial_axis(1)
             xyz(2) = sint * r + axial_axis(2)
             xyz(3) = z
-            if(t_emit > 5D2) print '(I,A7,5F10.3)', bank_idx, 'STUCK', r, z, cost, sint, t_left
+            if(t_emit > 5D22) print '(I,A7,5F10.3)', bank_idx, 'STUCK', r, z, cost, sint, t_left
             return
         endif
         
@@ -117,7 +116,7 @@ subroutine prec_rz(xyz, t_emit)
             xyz(1) = cost * r + axial_axis(1)
             xyz(2) = sint * r + axial_axis(2)
             xyz(3) = z
-            if(t_emit>5D2) print '(I,A7,5F10.3)', bank_idx, 'EMIT', r, z, cost, sint, t_left
+            if(t_emit>5D22) print '(I,A7,5F10.3)', bank_idx, 'EMIT', r, z, cost, sint, t_left
             return
     
         ! 6. ELSE if (tr < tz)
@@ -175,13 +174,13 @@ subroutine prec_rz(xyz, t_emit)
 
         ! 8. If Reaches TOP & Inside riser
         if ( r < riser_r .and. z >= active_z(nz+1) ) then
-            if(t_emit>5D2) print '(I,A7,5F10.3)', bank_idx, 'TOP', r, z, cost, sint, t_left
+            if(t_emit>5D22) print '(I,A7,5F10.3)', bank_idx, 'TOP', r, z, cost, sint, t_left
             ! 8-1.   IF t_left < t_recirc
             if( t_left <= t_recirc ) then
                 ! 8-1-1.    KILL and DONE
                 bank_idx = bank_idx - 1
                 MSR_leak = MSR_leak + 1
-                if(t_emit>5D2) print '(I,A7,5F10.3)', bank_idx, 'LEAK', r, z, cost, sint, t_left
+                if(t_emit>5D22) print '(I,A7,5F10.3)', bank_idx, 'LEAK', r, z, cost, sint, t_left
                 return
             ! 8-2.   ELSE
             else
@@ -198,7 +197,7 @@ subroutine prec_rz(xyz, t_emit)
                 enddo
                 theta = 2d0 * pi * rang()
                 cost = cos(theta); sint = sin(theta);
-                if(t_emit>5D2) print '(I,A7,5F10.3)', bank_idx, 'RECIRC', r, z, cost, sint, t_left
+                if(t_emit>5D22) print '(I,A7,5F10.3)', bank_idx, 'RECIRC', r, z, cost, sint, t_left
             endif
         endif
     enddo 

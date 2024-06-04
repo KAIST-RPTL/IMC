@@ -208,8 +208,12 @@ subroutine transport(p)
     endif 
     !> Cycle-power Tally ===================================================================  
     if(curr_cyc > n_inact .and. materials(p%material)%fissionable) then 
-        !$omp atomic
-        cyc_power = cyc_power + distance * p % wgt * macro_xs(5)
+        if ( isnan(distance) .or. isnan(p%wgt) .or. isnan(macro_xs(5)) ) then
+        else
+
+            !$omp atomic
+            cyc_power = cyc_power + distance * p % wgt * macro_xs(5)
+        endif
 
         if(do_mgtally) then
             ! 1. Find MG

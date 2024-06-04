@@ -127,14 +127,14 @@ module particle_header
         !integer, allocatable :: urn(:)
         real(8), allocatable :: urn(:)
         
-        integer, allocatable :: delayedarr(:)
-        real(8), allocatable :: delayedlam(:)
-        real(8), allocatable :: nlifearr(:)
+!        integer, allocatable :: delayedarr(:)
+!        real(8), allocatable :: delayedlam(:)
+!        real(8), allocatable :: nlifearr(:)
         
-!        ! ADJOINT : IFP related : ENABLE if parameterized
-!        integer :: delayedarr(1:latent)
-!        real(8) :: delayedlam(1:latent)
-!        real(8) :: nlifearr(1:latent)
+        ! ADJOINT : IFP related : ENABLE if parameterized
+        integer :: delayedarr(1:latent)
+        real(8) :: delayedlam(1:latent)
+        real(8) :: nlifearr(1:latent)
         real(8) :: trvltime ! Traveled distance of the neutron from its born:  Modified to time
     contains
         procedure :: clear
@@ -210,16 +210,16 @@ contains
 
         this % dens = 1d0
 
-!        if(do_ifp) then
+        if(do_ifp) then
 !            allocate(this%delayedarr(1:latent))
 !            allocate(this%delayedlam(1:latent))
 !            allocate(this%nlifearr(1:latent))
-!
-!            this % delayedarr(1:latent) = 0
-!            this % delayedlam(1:latent) = ZERO
-!            this % nlifearr(1:latent)   = ZERO
-!            this % trvltime             = ZERO
-!        endif
+
+            this % delayedarr(1:latent) = 0
+            this % delayedlam(1:latent) = ZERO
+            this % nlifearr(1:latent)   = ZERO
+            this % trvltime             = ZERO
+        endif
         if(.not. allocated(this%urn)) then
             allocate(this % urn(1:n_unr)); this % urn = 0D0
         endif
@@ -257,8 +257,9 @@ contains
             zidx = max(1,min(n_core_axial, zidx))
             ridx = floor((this%coord(1)%xyz(1)**2+this%coord(1)%xyz(2)**2)/core_radius**2*real(n_core_radial,8))+1
             ridx = max(1,min(n_core_radial, ridx))
-            !print *, 'prec', this%coord(1)%xyz(3)-core_base, zidx, source%G
+            !print *, 'prec', zidx, ridx, source%G, this % wgt
             core_prec(zidx, ridx, source%G) = core_prec(zidx, ridx, source%G) + this % wgt
+            !print *, icore, 'coreprec', core_prec(:, ridx, 1)
         endif
     end subroutine SET_PARTICLE
     

@@ -611,6 +611,7 @@ use ace_xs, only: setDBPP
 implicit none
 integer, intent(in) :: istep_burnup
 logical, intent(in) :: interp
+integer :: j, k
 if( .not. allocated( t_fuel_bu ) ) return
 if( .not. temp_grid_on ) return
 
@@ -625,9 +626,26 @@ else
     t_bulk = t_bulk_bu(:,:,:, istep_burnup)
     rho_bulk = rho_bulk_bu(:,:,:, istep_burnup)
 endif
-if( icore == score ) print *, 'TFUEL', t_fuel/K_B
-if( icore == score ) print *, 'TCOOL', t_bulk/K_B
-if( icore == score ) print *, 'RHOCOOL', cool_dens, rho_bulk
+if( icore == score ) then
+    print *, 'TFUEL [K]:'
+    do k = nth(3), 1, -1
+        do j = 1, nth(2)
+            print '(11F8.2)', t_fuel(:,j,k) / K_B
+        enddo
+    enddo
+    print *, 'TCOOL [K]:'
+    do k = nth(3), 1, -1
+        do j = 1, nth(2)
+            print '(11F8.2)', t_bulk(:,j,k) / K_B
+        enddo
+    enddo
+    print *, 'TCOOL [g/cc]'
+    do k = nth(3), 1, -1
+        do j = 1, nth(2)
+            print '(11F8.4)', rho_bulk(:,j,k)
+        enddo
+    enddo
+endif
 if (icore==score) print '(A, L2, I3)', 'Updated temperature grids', interp, istep_burnup
 end subroutine
 
