@@ -1485,11 +1485,6 @@ subroutine process_MSR_prec()
                 MSR_prec(j,k,i,2) = std_m(MSR_data(j,k,:,i))
             enddo
         enddo
-        !write (prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') MSR_prec(i,:,1)
-        !write (prt_fuel_mv,'(<N_CORE_AXIAL>e15.6)') MSR_prec(i,:,2)
-    enddo
-    do i = 1,n_act
-        !print *, 'cycle',i,'1stgroup', MSR_prec(1,1:N_CORE_AXIAL,1,1)
     enddo
 
     do i = 1,8
