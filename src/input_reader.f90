@@ -119,30 +119,30 @@ recursive subroutine read_geom(path, geom_nest)
         !<================================================================>!
         select case (option)
         case ("TITLE") 
-            title = args(2)
-            filename = trim(title)//'_keff.out'
-            
-            inquire(file=filename, exist=found)
-            if (found) then
-              if (icore == score) open(prt_keff, file=filename, status="old")
-            else
-              if (icore == score) open(prt_keff, file=filename, status="new")
-            end if
-            
-            if(do_ifp) then
-                filename = trim(title)//'_adj.out'
-                inquire(file=filename, exist=found)
-                if (found) then
-                  if (icore == score) open(prt_adjoint, file=filename, status="old")
-                else
-                  if (icore == score) open(prt_adjoint, file=filename, status="new")
-                end if
-                if(icore==score) write(prt_adjoint,*) 'BETA   GENTIME'
-            endif
-            if ( do_burn ) then
-                bumat_name = trim(title)//'_bumat.out'
-                if(icore==score) print *, 'Burnup list: ', trim(bumat_name)
-            endif
+!            title = args(2)
+!            filename = trim(title)//'_keff.out'
+!            
+!            inquire(file=filename, exist=found)
+!            if (found) then
+!              if (icore == score) open(prt_keff, file=filename, status="old")
+!            else
+!              if (icore == score) open(prt_keff, file=filename, status="new")
+!            end if
+!            
+!            if(do_ifp) then
+!                filename = trim(title)//'_adj.out'
+!                inquire(file=filename, exist=found)
+!                if (found) then
+!                  if (icore == score) open(prt_adjoint, file=filename, status="old")
+!                else
+!                  if (icore == score) open(prt_adjoint, file=filename, status="new")
+!                end if
+!                if(icore==score) write(prt_adjoint,*) 'BETA   GENTIME'
+!            endif
+!            if ( do_burn ) then
+!                bumat_name = trim(title)//'_bumat.out'
+!                if(icore==score) print *, 'Burnup list: ', trim(bumat_name)
+!            endif
 
 		case ('GMSH')
 			read (args(2), '(L)') do_gmsh
@@ -1523,10 +1523,12 @@ subroutine READ_CTRL
 
     no_of_arg = IARGC()
     if ( no_of_arg == 0 ) then
-    directory = "./inputfile/"
+        directory = "./inputfile/"
     else
-    call GETARG(1,directory)
-    directory = "./inputfile/"//trim(directory)//'/'
+        call GETARG(1,directory)
+        title = trim(directory)
+        directory = "./inputfile/"//trim(directory)//'/'
+        if ( icore == score ) print *, 'RUNNING:' ,trim(title)
     end if
 
     filename = trim(directory)//'ctrl.inp'
@@ -1552,6 +1554,11 @@ subroutine READ_CTRL
     end do Read_File
     close(rd_ctrl)
 
+    if ( icore == score ) then
+        open( prt_keff, file=trim(title)//'_keff.out', status='replace' )
+        if ( do_ifp ) &
+        open( prt_adjoint, file=trim(title)//'_adj.out', status='replace' )
+    endif
 
     if ( icore == score ) print '(A25)', '    CTRL  READ COMPLETE...' 
     

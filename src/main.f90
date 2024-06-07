@@ -1123,8 +1123,8 @@ subroutine CYCLE_TALLY_MSG(bat)
             write(fileid,    '(i3)') istep_burnup
             write(tallytype, '(i3)') ttype
         
-        	open(9999, file="mean_tally2_step"//trim(adjustl(fileid))//"_type"//trim(adjustl(tallytype))//".out",action="write",status="replace")
-        	open(99999,file=  "sd_tally2_step"//trim(adjustl(fileid))//"_type"//trim(adjustl(tallytype))//".out",action="write",status="replace")
+        	open(9999, file=trim(title)//"_MESH_step"//trim(adjustl(fileid))//"_type"//trim(adjustl(tallytype))//"_AVG.out",action="write",status="replace")
+        	open(99999,file=trim(title)//"_MESH_step"//trim(adjustl(fileid))//"_type"//trim(adjustl(tallytype))//"_SD.out",action="write",status="replace")
 			! --- TALLY = 5: KAPPA*SIGMA_F / TALLY = 4: NU * SIGMA_F
             do ng = 1, n_tgroup
                 ttemp    = 0d0
@@ -1152,8 +1152,8 @@ subroutine CYCLE_TALLY_MSG(bat)
 		if ( .not. fmfdon ) then
 			! --- TALLY = 5: KAPPA*SIGMA_F / TALLY = 4: NU * SIGMA_F
 			if ( tallyon ) then
-				open(9991, file= "MESH_POWER_MC_AVG.out",action="write",status="replace")
-				open(99991,file= "MESH_POWER_MC_STD.out",action="write",status="replace")
+				open(9991, file= trim(title)//"_MESH_POWER_MC_AVG.out",action="write",status="replace")
+				open(99991,file= trim(title)//"_MESH_POWER_MC_STD.out",action="write",status="replace")
 				do ii = 1, nfm(1)
 				do jj = 1, nfm(2)
 				do kk = 1, nfm(3)
@@ -1171,8 +1171,8 @@ subroutine CYCLE_TALLY_MSG(bat)
 			END IF
 			! --- IFP BASED ADJOINT DISTRIBUTION / GROUP WISE
 			IF(tally_adj_flux) THEN
-				open(9909, file= "MESH_ADJ_MC_AVG.out",action="write",status="replace")
-				open(99099,file= "MESH_ADJ_MC_STD.out",action="write",status="replace")
+				open(9909, file= trim(title)//"_MESH_ADJ_MC_AVG.out",action="write",status="replace")
+				open(99099,file= trim(title)//"_MESH_ADJ_MC_STD.out",action="write",status="replace")
 				! *** FORWARD FLUX
 				WRITE( 9909,*), 'FORWARD [TL]'
 				WRITE(99099,*), 'FORWARD [TL]'
