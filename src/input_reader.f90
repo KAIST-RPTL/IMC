@@ -321,13 +321,6 @@ recursive subroutine read_geom(path, geom_nest)
         close(rd_geom+geom_nest)
         return
     endif
-    if(icore==score) then
-        print *, 'Reading is done...'
-        print *, 'Surf #:', nsurf
-        print *, 'Cell #:', ncell
-        print *, 'Univ #:', nuniv
-        print *, 'Latt #:', nlatt
-    endif
     ! ===================================================================================== !
 
     allocate(univlist(1:max_univ)); univlist = 0; j = 0
@@ -377,13 +370,6 @@ recursive subroutine read_geom(path, geom_nest)
         if(univlist(i) < 0) univlist(i) = abs(univlist(i)) + isize
     enddo
 
-    if(icore==score) then
-        print *, 'Step2 is done...'
-        print *, 'Surf #:', nsurf
-        print *, 'Cell #:', ncell
-        print *, 'Univ #:', nuniv
-        print *, 'Latt #:', nlatt
-    endif
     
     !> 3. Update surface info to subpin cells 
     do i = 1, size(cells)
@@ -494,13 +480,6 @@ recursive subroutine read_geom(path, geom_nest)
             endif
         endif 
     enddo 
-    if(icore==score) then
-        print *, 'Step3 is done...'
-        print *, 'Surf #:', nsurf
-        print *, 'Cell #:', ncell
-        print *, 'Univ #:', nuniv
-        print *, 'Latt #:', nlatt
-    endif
     
     !> 4. Add cells to pin universe
     !> Add the cells to the universe cell list   
@@ -527,14 +506,6 @@ recursive subroutine read_geom(path, geom_nest)
         endif
     enddo
 
-    if(icore==score) then
-        print *, 'Step4 is done...'
-        print *, 'Surf #:', nsurf
-        print *, 'Cell #:', ncell
-        print *, 'Univ #:', nuniv
-        print *, 'Latt #:', nlatt
-    endif
-	
     !> 5. Change lattice universe name to universe index
 
     do i = 1, size(lattices) 
@@ -548,15 +519,6 @@ recursive subroutine read_geom(path, geom_nest)
         enddo 
     enddo 
 
-    if(icore==score) then
-        print *, 'Step5 is done...'
-        print *, 'Surf #:', nsurf
-        print *, 'Cell #:', ncell
-        print *, 'Univ #:', nuniv
-        print *, 'Latt #:', nlatt
-    endif
-    
-    
     do i = 1, size(cells) 
         associate(this => cells(i))
             if (this%fill < 0) then 
@@ -587,13 +549,6 @@ recursive subroutine read_geom(path, geom_nest)
     !> READ DONE
     close(rd_geom+geom_nest)
 
-    if(icore==score) then
-        print *, 'TST2'
-        print *, 'Surf #:', nsurf
-        print *, 'Cell #:', ncell
-        print *, 'Univ #:', nuniv
-        print *, 'Latt #:', nlatt
-    endif
     if(icore==score) print '(A25)', '    GEOM  READ COMPLETE...' 
     
 end subroutine
@@ -1521,6 +1476,17 @@ subroutine READ_CTRL
     character:: Card_Type
     integer:: no_of_arg
 
+    if ( icore == score ) then
+        print *, '###########################################'
+        print *, '             _____ __  __  _____ '
+        print *, '            |_   _|  \/  |/ ____|'
+        print *, '              | | | \  / | |     '
+        print *, '              | | | |\/| | |     '
+        print *, '             _| |_| |  | | |____ '
+        print *, '            |_____|_|  |_|\_____|'
+        print *, ' '
+        print *, '            iMC Monte Carlo Code '
+    endif
     no_of_arg = IARGC()
     if ( no_of_arg == 0 ) then
         directory = "./inputfile/"
@@ -1528,8 +1494,12 @@ subroutine READ_CTRL
         call GETARG(1,directory)
         title = trim(directory)
         directory = "./inputfile/"//trim(directory)//'/'
-        if ( icore == score ) print *, 'RUNNING:' ,trim(title)
+    
+        if ( icore == score ) print *, '          CURRENTLY RUNNING: ' ,trim(title)
     end if
+    if(icore==score) then
+        print *, '###########################################'
+    endif
 
     filename = trim(directory)//'ctrl.inp'
 
@@ -2402,7 +2372,6 @@ end subroutine READ_CTRL
                                 read(rd_tgrid, *, iostat=File_Error) t_fuel(:,j,k)
                             enddo
                         enddo
-                        if(icore==score) print *, 'T fuel:', t_fuel(:,:,:)
                         t_fuel = t_fuel * K_B
                         close(rd_tgrid) 
                     else
@@ -2433,7 +2402,6 @@ end subroutine READ_CTRL
                                 read(rd_tgrid, *, iostat=File_Error) t_bulk(:,j,k)
                             enddo
                         enddo
-                        if(icore==score) print *, 'T cool: ', t_bulk(:,:,:)
                         t_bulk = t_bulk * K_B
                         close(rd_tgrid) 
                         if(icore==score) print *, '    Using grid from: ', trim(tgrid_cool)
@@ -2450,7 +2418,6 @@ end subroutine READ_CTRL
                                 read(rd_tgrid, *, iostat=File_Error) rho_bulk(:,j,k)
                             enddo
                         enddo
-                        if(icore==score) print *, 'T dens: ', rho_bulk(:,:,:)
                         close(rd_tgrid) 
                     else
                         if(icore==score) print *, '    Density grid not exist: ', trim(rhogrid_cool)
@@ -2666,9 +2633,6 @@ end subroutine READ_CTRL
 							case("CLAD"); CE_mat_ptr%mat_type = 2
 							case("COOL"); CE_mat_ptr%mat_type = 3
 							end select                       
-                            if ( icore == score ) then
-                                print *, 'Assigned material ', trim(CE_mat_ptr % mat_name), ' as ', trim(mtype)
-                            endif
 
                         case("RGB")
                             backspace(File_Number)
@@ -2914,7 +2878,6 @@ end subroutine READ_CTRL
                     read(File_Number, * ,iostat=File_Error) Char_Temp, Equal, dec_lib
                     if(Equal/="=") call Card_Error(Card_Type,Char_Temp)
                     dec_lib = trim(directory)//adjustl(dec_lib)
-                    if(icore==score) print *, 'DEC', dec_lib
                 case("NFY_LIB")
                     backspace(File_Number)
                     read(File_Number,*,iostat=File_Error) Char_Temp, Equal, nfy_lib
@@ -3027,12 +2990,12 @@ end subroutine READ_CTRL
                         preco = 2
                     end select
 
-                    if ( preco == 1 ) then
-                        if (icore==score) print *, 'PRECO: CE/LI'
-
+                    if ( preco == 0 ) then
+                        if ( icore==score) print *, 'Depletion Time integration: CE'
+                    elseif ( preco == 1 ) then
+                        if ( icore==score) print *, 'Depletion Time integration: CE/CM'
                     elseif ( preco == 2 ) then
-                        if (icore==score) print *, 'PRECO: CE/LI'
-
+                        if ( icore==score) print *, 'Depletion Time integration: LE/LI'
                     endif
                 case("DTMC_BU")
                     if ( .not. fmfdon ) cycle
@@ -3231,10 +3194,6 @@ end subroutine READ_CTRL
         
         RealPower = Nominal_Power
 
-        do i = 1, nstep_burnup
-            if(icore==score) print *, 'BD:', burn_step(i)/86400d0, power_bu(i)
-        enddo
-        
     end subroutine Read_Card
 
     subroutine ZIGZAG_INDEX(zztemp)

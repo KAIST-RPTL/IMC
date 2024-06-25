@@ -196,7 +196,7 @@ module depletion_module
     integer :: NFYtype = 3
 
     ! P/C
-    integer :: preco = 0    ! PREC. or not
+    integer :: preco = 0    ! 0: CE, 1:CE/LI, 2:LE/LI
     integer :: porc  = 0    ! Flag for Predictor/Corrector
     integer :: nporc = 1
     real(8) :: stepsize0
@@ -1514,7 +1514,7 @@ module depletion_module
             integer :: ii, jj, i_rx
             ! MTRXREAD
             integer :: mt, nn, pn, dn, tn, an, a3n, rx
-            real(8) :: ogxs, erg, ogxs1
+            real(8) :: ogxs, erg, ogxs_tst
             real(8),allocatable :: flx(:), flx2(:)
             integer :: ierg,idx
             real(8) :: toteflux
@@ -1670,7 +1670,7 @@ module depletion_module
             end do
             end if
 
-            if ( preco == 0 .or. (preco == 1 .and. porc == nporc) ) then
+            if ( preco == 0 .or. (preco >= 1 .and. porc == nporc) ) then
                 if (icore==score) then 
                     write(prt_bumat, '(a45)')         '   =========================================='
                     write(prt_bumat, '(a17,i4)')     '      Burnup step', istep_burnup+1
@@ -1679,18 +1679,18 @@ module depletion_module
                 endif 
             endif 
 
-            if( preco == 1 ) then
-                if ( porc < nporc ) then
-                    bstep_size = bstep_size * 5d-1
-                    if(icore==score) print *, 'Predictor step', bstep_size/86400d0, porc, nporc
-                elseif ( porc == nporc ) then
-                    if(icore==score) print *, 'Corrector step', bstep_size/86400d0, porc, nporc
-                endif
-            endif
+!            if( preco >= 1 ) then
+!                if ( porc < nporc ) then
+!                    bstep_size = bstep_size * 5d-1
+!                    if(icore==score) print *, 'Predictor step', bstep_size/86400d0, porc, nporc
+!                elseif ( porc == nporc ) then
+!                    if(icore==score) print *, 'Corrector step', bstep_size/86400d0, porc, nporc
+!                endif
+!            endif
 
             !Normalization constant to be real power
             ULnorm = RealPower * power_bu(istep_burnup) / (avg_power * eVtoJoule)
-            if(icore==score) print *, 'For BU from', burn_step(istep_burnup), '->', burn_step(istep_burnup+1), ', used power of', power_bu(istep_burnup) * RealPower ,'[MW]'
+            !if(icore==score) print *, 'For BU from', burn_step(istep_burnup), '->', burn_step(istep_burnup+1), ', used power of', power_bu(istep_burnup) * RealPower ,'[MW]'
 
 !            call MPI_BCAST(ULnorm, 1, MPI_DOUBLE_PRECISION, score, MPI_COMM_WORLD, ierr)
 !            if(ULnorm <= 0d0) goto 304
@@ -1898,11 +1898,11 @@ module depletion_module
                 if(DTMCBU) real_flux = mat % flux
                 !$OMP ATOMIC
                 tot_flux = tot_flux + real_flux*mat%vol
-                print *, 'Flux of ', trim(mat%mat_name), real_flux, mat % avgkT/ K_B
+                !print *, 'Flux of ', trim(mat%mat_name), real_flux, mat % avgkT/ K_B
                 toteflux = sum(mat%eflux(0:nueg))
                 !Build burnup matrix with cross section obtained from MC calculation
                 
-                if(preco == 1) then ! CE/LI
+                if(preco == 1) then ! CE/CM
                     if(porc < nporc) then ! Predictor: save
                         mat % full_numden1 = mat % full_numden
                     elseif(porc == nporc) then ! Corrector: load
@@ -1910,32 +1910,54 @@ module depletion_module
                     endif
 
                 elseif(preco == 2) then ! LE/LI
-                    if(.not. allocated(mat % ogxs1)) &
-                        allocate(mat % ogxs1(num_iso, 1:7))
-                    if(.not. allocated(mat % ace_idx1)) &
-                        allocate(mat % ace_idx1(mat%n_iso))
-                    if(.not. allocated(mat % eflux1)) &
-                        allocate(mat % eflux1(nueg))
-                    mat % flux1 = real_flux
-                    mat % eflux1 = mat % eflux
-                    mat % ogxs1 = mat % ogxs
-                    mat % ace_idx1 = mat % ace_idx
-                   
-                    if( istep_burnup > 0 ) then
-                       weight = bstep_size / stepsize0 * 0.5d0
-                       mat % flux = -weight * mat % flux0 + &
-                                    (1d0+weight) * mat % flux1
-                       mat % eflux = -weight * mat % eflux0 + &
-                                    (1d0+weight) * mat % eflux1
-                       mat % ogxs = -weight * mat % ogxs0 + &
-                                    (1d0+weight) * mat % ogxs1
+                    if( porc < nporc ) then
+                        mat % full_numden1 = mat % full_numden
+                        if(.not. allocated(mat % ogxs_bos)) &
+                            allocate(mat % ogxs_bos(num_iso, 1:7))
+                        if(.not. allocated(mat % ace_idx_bos)) &
+                            allocate(mat % ace_idx_bos(mat%n_iso))
+                        if(.not. allocated(mat % fratio_bos)) &
+                            allocate(mat % fratio_bos( nfssn, 4 ))
+                        ! Save BOS XS
+                        mat % flux_bos = real_flux
+                        mat % ogxs_bos = mat % ogxs
+                        mat % ace_idx_bos = mat % ace_idx
+                        mat % fratio_bos = mat % fratio
+                       
+                        ! Linear Extrapolation (if previous step exists)
+                        ! Using previous step & BOS res --> EOS MC calc.
+                        if( istep_burnup > 0 ) then
+                           weight = bstep_size / stepsize0 * 0.5d0
+                           mat % flux = -weight * mat % flux_ps + &
+                                        (1d0+weight) * mat % flux_bos
+                           mat % ogxs = -weight * mat % ogxs_ps + &
+                                        (1d0+weight) * mat % ogxs_bos
+                           mat % fratio = -weight * mat % fratio_ps + &
+                                        (1d0+weight) * mat % fratio_bos
+                        endif
+                    elseif ( porc == nporc ) then ! Corrector
+                        mat % full_numden = mat % full_numden1
+                        mat % flux = 5d-1 * (mat % flux + mat % flux_bos)
+                        mat % ogxs = 5d-1 * (mat % ogxs + mat % ogxs_bos)
+                        mat % fratio = 5d-1 * (mat % fratio + mat % fratio_bos)
+
+                        if ( .not. allocated( mat % ogxs_ps ) ) &
+                            allocate ( mat % ogxs_ps ( num_iso, 7 ) )
+                        if ( .not. allocated( mat % fratio_ps ) ) &
+                            allocate( mat % fratio_ps ( num_iso, 7 ) )
+                        if ( .not. allocated( mat % ace_idx_ps ) ) &
+                            allocate( mat % ace_idx_ps( size ( mat % ace_idx ) ))
+                        mat % flux_ps = mat % flux
+                        mat % ogxs_ps = mat % ogxs
+                        mat % fratio_ps = mat % fratio
+                        mat % ace_idx_ps = mat % ace_idx
                     endif
                 endif
 
                 bMat = bMat0*bstep_size
 
                 !$OMP PARALLEL DO &
-                !$OMP PRIVATE(iso, anum, mnum, nnum, inum, jnuc, flx, flx2, mt, ogxs, ogxs1, fy_midx, anum1, nnum1, mnum1, inum1, knuc, a1, m1, n1, ism, zai, pn, dn, tn, an, a3n, nn, addn)  
+                !$OMP PRIVATE(iso, anum, mnum, nnum, inum, jnuc, flx, flx2, mt, fy_midx, anum1, nnum1, mnum1, inum1, knuc, a1, m1, n1, ism, zai, pn, dn, tn, an, a3n, nn, addn, ogxs, ogxs_tst)
                 DO_ISO: do mt_iso = 1,num_iso
                     !print *, 'ISO', mt_iso
                     iso = mt_iso
@@ -1976,11 +1998,11 @@ module depletion_module
 
                         if(do_rx_tally) then
                             if(ANY(RXMT==mt)) then
-                                if(do_iso_ueg) ogxs1 = ogxs
+                                if(do_iso_ueg) ogxs_tst = ogxs
                                 do i_rx = 1, 7
                                     if(RXMT(i_rx)==mt) then
                                         ogxs = mat % ogxs(iso, i_rx) * real_flux
-                                        !if(ace(iso)%zaid==92235 .or. ace(iso)%zaid==92238) write(*,'(A,A,I6, I3,E15.5,E15.5,E15.5)') 'BIAS ', trim(materials(imat)%mat_name), ace(iso)%zaid, mt, ogxs, ogxs1, (ogxs1-ogxs)/ogxs*1E2
+                                        !if(ace(iso)%zaid==92235 .or. ace(iso)%zaid==92238) write(*,'(A,A,I6, I3,E15.5,E15.5,E15.5)') 'BIAS ', trim(materials(imat)%mat_name), ace(iso)%zaid, mt, ogxs, ogxs_tmp, (ogxs1-ogxs)/ogxs*1E2
                                         exit
                                     endif
                                 enddo
@@ -2127,7 +2149,7 @@ module depletion_module
         deallocate(yield_data)
 
         ! WRITE BURNUP MATRIX (OPTIONAL)
-        if( preco == 0 .or. (preco == 1 .and. porc == nporc) ) then
+        if( preco == 0 .or. (preco >= 1 .and. porc == nporc) ) then
         if(bumat_print)then
         
             write(fileid,'(i3)') istep_burnup
@@ -2275,7 +2297,7 @@ module depletion_module
 
     call MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
-    if( preco == 0 .or. (preco == 1 .and. porc == nporc) ) then
+    if( preco == 0 .or. (preco >= 1 .and. porc == nporc) ) then
         if(icore==score) then
             do imat = 1,n_materials
             if(.not. materials(imat)%depletable .or. materials(imat)% n_iso == 0) cycle
@@ -2379,15 +2401,22 @@ module depletion_module
             porc = 0
         endif
     elseif( preco == 2 ) then
-        stepsize0 = bstep_size
-        mat % flux0 = mat % flux1
-        if(.not. allocated(mat % eflux0))   allocate(mat % eflux0(nueg))
-        if(.not. allocated(mat % ogxs0))    allocate(mat % ogxs0(num_iso,1:7))
-        if(.not. allocated(mat % ace_idx0)) allocate(mat % ace_idx0(size(mat%ace_idx1)))
+        if ( porc == 0 ) then
+            istep_burnup = istep_burnup - 1
+            porc = 1
 
-        mat % eflux0 = mat % eflux1
-        mat % ogxs0  = mat % ogxs1
-        mat % ace_idx0 = mat % ace_idx1
+        elseif( porc == nporc ) then
+            stepsize0 = bstep_size ! Previous step size
+            porc = 0
+!            mat % flux_ps = mat % flux_tmp
+!            if(.not. allocated(mat % ogxs_ps))    allocate(mat % ogxs_ps(num_iso,1:7))
+!            if(.not. allocated(mat % ace_idx_ps)) allocate(mat % ace_idx0(size(mat%ace_idx_tmp)))
+!            if(.not. allocated(mat % fratio_ps)) allocate( mat % fratio ( size( mat % fratio) ) )
+!    
+!            mat % ogxs_ps  = mat % ogxs_tmp
+!            mat % ace_idx_ps = mat % ace_idx_tmp
+!            mat % fratio_ps = mat % fratio
+        endif
     endif
 
     if(do_iso_ueg) then
@@ -2397,11 +2426,6 @@ module depletion_module
 
      
     end subroutine depletion 
-
-
-    subroutine macro_depletion
-
-    end subroutine macro_depletion
     
     subroutine mtrxread(mt,nn,pn,dn,tn,an,a3n)
     integer, intent(in) :: mt
@@ -2733,7 +2757,7 @@ module depletion_module
             
             if (materials(imat)%depletable .and. .not. restart) then
                 allocate(materials(imat)%full_numden(1:nnuc))
-                if ( preco == 1 .and. .not. allocated(materials(imat)%full_numden1)) &
+                if ( preco >= 1 .and. .not. allocated(materials(imat)%full_numden1)) &
                     allocate(materials(imat)%full_numden1(1:nnuc))
                 materials(imat)%full_numden = 0.d0     !Initialize number density
             
