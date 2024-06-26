@@ -7,9 +7,8 @@ module material_header
         integer              :: mat_type       ! 1 fuel 2 clad 3 coolant (cool)
         integer              :: n_iso = 0      ! number of isotopes (nuclides)
         integer, allocatable :: ace_idx(:)     ! index in nuclides array
-        integer, allocatable :: ace_idx_ps(:)    ! index storage for pre-cor
-        integer, allocatable :: ace_idx_tmp(:)    ! index storage for pre-cor
-        integer, allocatable :: ace_idx_bos(:)    ! index storage for pre-cor
+        integer, allocatable :: ace_idx0(:)    ! index storage for pre-cor
+        integer, allocatable :: ace_idx1(:)    ! index storage for pre-cor
         real(8), allocatable :: numden(:)      ! nuclide atom density (#/b-cm)
         real(8), allocatable :: full_numden(:) ! AD for all inventory (#/b-cm)
         real(8), allocatable :: full_numden0(:)! storage for predictor-corrector
@@ -30,21 +29,19 @@ module material_header
         integer :: geom_count = 0
 
         real(8) :: flux = 0.0d0
-        !real(8) :: flux0, flux1, kappa
-        real(8) :: flux_ps, flux_bos, flux_tmp
+        real(8) :: flux0, flux1, kappa
         real(8) :: pwr  = 0.0d0
-        real(8), allocatable :: ogxs(:,:), ogxs_ps(:,:), ogxs_tmp(:,:)
-        real(8), allocatable :: ogxs_bos(:,:)
+        real(8), allocatable :: ogxs(:,:), ogxs0(:,:), ogxs1(:,:)
 
         integer, allocatable :: dtmc(:)
 
         !(21/10/12) eflux testing...
         real(8), allocatable :: eflux(:), e2flux(:)
-        !real(8), allocatable :: eflux0(:), eflux1(:)
-        !real(8), allocatable :: e2flux0(:), e2flux1(:)
+        real(8), allocatable :: eflux0(:), eflux1(:)
+        real(8), allocatable :: e2flux0(:), e2flux1(:)
 
         !(21/11/23) materialwise-fratio
-        real(8), allocatable :: fratio(:,:), fratio_ps(:,:), fratio_tmp(:,:), fratio_bos(:,:)
+        real(8), allocatable :: fratio(:,:)
         
         ! Isotopes for S(a,b)?
         logical :: sab = .false.

@@ -92,9 +92,9 @@ subroutine transport(p)
     found_cell = .false.
     if (p%n_coord == 1) call find_cell(p, found_cell, i_cell)
 	if (p%material < 1 .or. p%material > n_materials) then 
-!		print *, p%material 
-!		print *, p%coord(1)%xyz 
-!		print *, found_cell, cells(i_Cell)%cell_id
+		print *, p%material 
+		print *, p%coord(1)%xyz 
+		print *, found_cell, cells(i_Cell)%cell_id
         p%alive = .false.
         return
 	endif 

@@ -662,7 +662,7 @@ subroutine BURNUP_MSG
         write(*,11), '      Burnup step', istep_burnup, '/',nstep_burnup
         write(*,12), burn_step(istep_burnup)/86400.d0, ' CUMULATIVE DAYS', power_bu(istep_burnup)*1d2
         write(*,10), '   =========================================='
-    elseif ( preco >= 1 ) then
+    elseif ( preco == 1 ) then
         if ( porc == 0 ) then
             write(*,10), '   =========================================='
             write(*,111), '      Burnup step', istep_burnup, '/',nstep_burnup,' Corrector step'
@@ -939,12 +939,12 @@ subroutine CYCLE_TALLY_MSG(bat)
 
     ! computing time
     t_MC = t_tot - t_det
-!    write(*,*)
-!    write(*,*), "   Computing time"
-!    do ii = 1, n_totcyc
-!        write(*,15), ii, AVG(t_MC(1:,ii)), AVG(t_det(1:,ii)), AVG(t_tot(1:,ii))
-!    end do
-!    write(*,*)
+    write(*,*)
+    write(*,*), "   Computing time"
+    do ii = 1, n_totcyc
+        write(*,15), ii, AVG(t_MC(1:,ii)), AVG(t_det(1:,ii)), AVG(t_tot(1:,ii))
+    end do
+    write(*,*)
 
     ! bunrup dependent pin power distribution
     IF ( DO_BURN ) THEN
