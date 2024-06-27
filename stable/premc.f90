@@ -25,7 +25,6 @@ subroutine premc
     logical :: found
     real(8), allocatable :: numden(:)
     integer, allocatable :: sablist(:), aceidx(:)
-    
     !===========================================================================
     !Read input geometry and cross section data
     call init_var
@@ -79,7 +78,6 @@ subroutine premc
         ngeom = 0; allocate(tmpgeom(1:n_materials))
 
         do mm = 1, n_materials
-            !print *, mm, n_materials, materials(mm)%depletable, ngeom, icore
             if(materials(mm)%depletable) then
                 ngeom = ngeom + 1
                 tmpgeom(ngeom) = mm

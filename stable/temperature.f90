@@ -627,26 +627,26 @@ else
     rho_bulk = rho_bulk_bu(:,:,:, istep_burnup)
 endif
 if( icore == score ) then
-    print *, 'TFUEL [K]:'
-    do k = nth(3), 1, -1
-        do j = 1, nth(2)
-            print '(11F8.2)', t_fuel(:,j,k) / K_B
-        enddo
-    enddo
-    print *, 'TCOOL [K]:'
-    do k = nth(3), 1, -1
-        do j = 1, nth(2)
-            print '(11F8.2)', t_bulk(:,j,k) / K_B
-        enddo
-    enddo
-    print *, 'TCOOL [g/cc]'
-    do k = nth(3), 1, -1
-        do j = 1, nth(2)
-            print '(11F8.4)', rho_bulk(:,j,k)
-        enddo
-    enddo
+!    print *, 'TFUEL [K]:'
+!    do k = nth(3), 1, -1
+!        do j = 1, nth(2)
+!            print '(11F8.2)', t_fuel(:,j,k) / K_B
+!        enddo
+!    enddo
+!    print *, 'TCOOL [K]:'
+!    do k = nth(3), 1, -1
+!        do j = 1, nth(2)
+!            print '(11F8.2)', t_bulk(:,j,k) / K_B
+!        enddo
+!    enddo
+!    print *, 'TCOOL [g/cc]'
+!    do k = nth(3), 1, -1
+!        do j = 1, nth(2)
+!            print '(11F8.4)', rho_bulk(:,j,k)
+!        enddo
+!    enddo
 endif
-if (icore==score) print '(A, L2, I3)', 'Updated temperature grids', interp, istep_burnup
+if (icore==score) print *, 'Updated temperature grids'
 end subroutine
 
 end module
